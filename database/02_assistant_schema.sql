@@ -14,6 +14,10 @@ GO
 IF DB_ID(N'tlhv_assistant') IS NULL
     CREATE DATABASE tlhv_assistant COLLATE Vietnamese_100_CI_AS;
 GO
+-- READ_COMMITTED_SNAPSHOT: lệnh ĐỌC dùng bản đã commit, không bị chặn bởi hàng đang ghi dở
+-- của transaction khác. Việc tranh chấp ghi vẫn được xếp hàng bằng WITH (UPDLOCK) trong code.
+ALTER DATABASE tlhv_assistant SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+GO
 USE tlhv_assistant;
 GO
 
@@ -214,17 +218,21 @@ CREATE INDEX idx_dvb_vb ON doan_van_ban (van_ban_id, thu_tu);
 GO
 
 -- Thay cho "ON UPDATE CURRENT_TIMESTAMP" của MySQL
-CREATE TRIGGER trg_hoi_thoai_updated_at ON hoi_thoai AFTER UPDATE AS
+CREATE OR ALTER TRIGGER trg_hoi_thoai_updated_at ON hoi_thoai AFTER UPDATE AS
 BEGIN
   SET NOCOUNT ON;
+  -- Câu UPDATE đã tự đặt updated_at (vd. backend ghi theo DEMO_NOW) thì giữ nguyên giá trị đó
+  IF UPDATE(updated_at) RETURN;
   UPDATE h SET updated_at = SYSDATETIME()
   FROM hoi_thoai h JOIN inserted i ON h.id = i.id;
 END;
 GO
 
-CREATE TRIGGER trg_van_ban_updated_at ON van_ban AFTER UPDATE AS
+CREATE OR ALTER TRIGGER trg_van_ban_updated_at ON van_ban AFTER UPDATE AS
 BEGIN
   SET NOCOUNT ON;
+  -- Câu UPDATE đã tự đặt updated_at (vd. backend ghi theo DEMO_NOW) thì giữ nguyên giá trị đó
+  IF UPDATE(updated_at) RETURN;
   UPDATE v SET updated_at = SYSDATETIME()
   FROM van_ban v JOIN inserted i ON v.id = i.id;
 END;

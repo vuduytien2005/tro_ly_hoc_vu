@@ -87,6 +87,31 @@ erDiagram
 - **Đơn từ:** `ma_don` = `DT-{năm}-{số thứ tự 4 chữ số}`. Bảo lưu chỉ khi đang học và không nợ học phí học kỳ hiện tại (`NO_HOC_PHI`). Phúc khảo chỉ cho học phần có điểm trong học kỳ gần nhất.
 - Hằng số thời gian "hiện tại" lấy từ biến môi trường `DEMO_NOW` nếu có (vd `2026-11-20T09:00:00+07:00`) để demo ổn định; không có thì dùng giờ hệ thống.
 
+### Làm rõ quy tắc (chốt ở Giai đoạn 2)
+- **Học kỳ hiện tại:** học kỳ có `ngay_bat_dau ≤ hôm nay ≤ ngay_ket_thuc`; nếu đang giữa 2 học kỳ thì lấy học kỳ bắt đầu gần nhất. **Học kỳ đang mở đăng ký:** `dang_ky_tu ≤ now ≤ dang_ky_den`.
+- **"Học kỳ gần nhất" khi phúc khảo** = học kỳ **đã kết thúc gần nhất** của toàn trường (với `DEMO_NOW`: HK2 2025-2026), không phải "học kỳ gần nhất mà sinh viên có điểm".
+- **Học phần còn thiếu để tốt nghiệp** = mọi học phần trong chương trình chưa đạt, kể cả tự chọn. `du_dieu_kien` = đủ tín chỉ + GPA ≥ tối thiểu + không thiếu học phần bắt buộc + chứng chỉ GDTC, GDQP (+ ngoại ngữ nếu chương trình yêu cầu); kèm `ly_do_chua_du[]`.
+- **Cảnh báo học vụ:** sinh viên chưa có điểm nào thì không bị cảnh báo.
+- **Đăng ký lại sau khi hủy:** do ràng buộc UNIQUE (sinh_vien_id, lop_hoc_phan_id), bản ghi cũ được kích hoạt lại thay vì chèn mới.
+- **Hủy đăng ký:** chỉ trong thời gian đăng ký; lớp chưa đăng ký → `CHUA_DANG_KY_LOP`.
+- **Đơn của sinh viên khác** trả 404 (không tiết lộ đơn có tồn tại).
+
+### Mã lỗi bổ sung của qlsv_api
+| Mã | HTTP | Khi nào |
+|---|---|---|
+| `THIEU_TOKEN_NOI_BO`, `TOKEN_NOI_BO_KHONG_HOP_LE` | 401 | Thiếu / sai header `X-Internal-Token` |
+| `SV_KHONG_TON_TAI`, `HOC_KY_KHONG_TON_TAI`, `DON_KHONG_TON_TAI`, `HOC_PHI_KHONG_TON_TAI`, `CHUONG_TRINH_KHONG_TON_TAI` | 404 | Không tìm thấy |
+| 9 mã lỗi đăng ký ở bảng trên, `CHUA_DANG_KY_LOP`, `NO_HOC_PHI`, `KHONG_CO_DIEM_HOC_KY_GAN_NHAT`, `DON_DA_KET_THUC` (sửa đơn đã `hoan_tat`/`tu_choi`) | 409 | Vi phạm quy tắc nghiệp vụ |
+| `DU_LIEU_KHONG_HOP_LE` | 422 | Body/tham số/nội dung đơn sai định dạng |
+
+### Chống đăng ký trùng khi nhiều yêu cầu đến cùng lúc (SQL Server)
+- Trong một transaction: khóa hàng `sinh_vien` rồi hàng `lop_hoc_phan` bằng table hint **`WITH (UPDLOCK, ROWLOCK)`**, sau đó mới đếm sĩ số / kiểm tra / ghi; commit nhả khóa. Luôn khóa theo cùng thứ tự để tránh deadlock.
+  **Không dùng `with_for_update()`**: SQLAlchemy bỏ qua nó một cách im lặng với SQL Server (câu SQL không có khóa) → dùng `lock_for_update()` trong `qlsv_api/repositories/locking.py` (bọc `with_hint`).
+- Mã đơn sinh dưới khóa khoảng `WITH (UPDLOCK, HOLDLOCK)`; UNIQUE `ma_don` là chốt chặn cuối.
+- Cả 2 CSDL bật **`READ_COMMITTED_SNAPSHOT`**: lệnh đọc không bị chặn bởi hàng đang ghi dở của transaction khác (nếu không, 2 sinh viên đăng ký 2 lớp KHÁC nhau vẫn phải chờ nhau vì câu đếm sĩ số quét bảng `dang_ky_hoc_phan`).
+- Minh chứng: `tests/qlsv/test_locking.py` mở 2 kết nối thật; kết nối thứ hai bị chặn (lỗi 1222 sau `LOCK_TIMEOUT 1000`). Bỏ UPDLOCK thì test này thất bại.
+- Trigger `updated_at` bỏ qua khi câu UPDATE đã tự đặt `updated_at` (`IF UPDATE(updated_at) RETURN`), để giờ theo `DEMO_NOW` không bị ghi đè bằng giờ máy.
+
 ## Sơ đồ CSDL `tlhv_assistant`
 
 ```mermaid

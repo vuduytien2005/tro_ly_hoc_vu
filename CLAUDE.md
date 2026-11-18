@@ -24,6 +24,8 @@ Chi tiết: xem thư mục `docs/` (đọc file liên quan TRƯỚC khi code m�
 - **Microsoft SQL Server** (máy dev: `localhost\SQLEXPRESS01`, quản lý bằng SSMS), driver "ODBC Driver 18 for SQL Server", mặc định Windows Authentication. CSDL: `tlhv_qlsv`, `tlhv_assistant`, collation `Vietnamese_100_CI_AS`.
   - Chuỗi: `NVARCHAR` (model dùng `Unicode`/`UnicodeText`); literal tiếng Việt trong SQL phải có tiền tố `N'...'`.
   - ENUM → `NVARCHAR` + `CHECK`; JSON → `NVARCHAR(MAX)` + `CHECK (ISJSON(...)=1)` (chỉ nhận object/array; model dùng `JSON(none_as_null=True)`); `updated_at` → trigger; bảng có trigger đặt `__table_args__ = {"implicit_returning": False}`.
+  - Khóa hàng: **KHÔNG dùng `with_for_update()`** (SQLAlchemy bỏ qua im lặng trên SQL Server) → dùng `lock_for_update()` / `lock_range_for_update()` (table hint `WITH (UPDLOCK, ROWLOCK)` / `WITH (UPDLOCK, HOLDLOCK)`). CSDL bật `READ_COMMITTED_SNAPSHOT`. `LIMIT` viết bằng `.limit()/.offset()` — SQLAlchemy tự sinh `TOP` / `OFFSET FETCH`.
+  - Test chạm CSDL: bọc trong transaction + `join_transaction_mode="create_savepoint"` rồi rollback (xem `tests/qlsv/conftest.py`).
   - Đổi từ thiết kế gốc MySQL ngày 18/11/2026 theo yêu cầu người dùng (xem `docs/03-co-so-du-lieu.md`).
 - MCP: package Python `mcp` (FastMCP). Kiểm tra API mới nhất trong tài liệu chính thức của SDK trước khi viết code MCP.
 - LLM: `litellm` (để đổi nhà cung cấp chỉ bằng biến môi trường `LLM_MODEL`)

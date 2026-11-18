@@ -18,6 +18,10 @@ GO
 IF DB_ID(N'tlhv_qlsv') IS NULL
     CREATE DATABASE tlhv_qlsv COLLATE Vietnamese_100_CI_AS;
 GO
+-- READ_COMMITTED_SNAPSHOT: lệnh ĐỌC dùng bản đã commit, không bị chặn bởi hàng đang ghi dở
+-- của transaction khác. Việc tranh chấp ghi vẫn được xếp hàng bằng WITH (UPDLOCK) trong code.
+ALTER DATABASE tlhv_qlsv SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+GO
 USE tlhv_qlsv;
 GO
 
@@ -235,9 +239,11 @@ CREATE INDEX idx_don_sv ON don_tu (sinh_vien_id, created_at);
 GO
 
 -- Thay cho "ON UPDATE CURRENT_TIMESTAMP" của MySQL
-CREATE TRIGGER trg_don_tu_updated_at ON don_tu AFTER UPDATE AS
+CREATE OR ALTER TRIGGER trg_don_tu_updated_at ON don_tu AFTER UPDATE AS
 BEGIN
   SET NOCOUNT ON;
+  -- Câu UPDATE đã tự đặt updated_at (vd. backend ghi theo DEMO_NOW) thì giữ nguyên giá trị đó
+  IF UPDATE(updated_at) RETURN;
   UPDATE d SET updated_at = SYSDATETIME()
   FROM don_tu d JOIN inserted i ON d.id = i.id;
 END;
