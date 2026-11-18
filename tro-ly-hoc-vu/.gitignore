@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+node_modules/
+web/dist/
+data/chroma/
+data/van_ban/*
+!data/van_ban/danh_muc.csv
+evaluation/results/
+.DS_Store
+.vscode/settings.json
