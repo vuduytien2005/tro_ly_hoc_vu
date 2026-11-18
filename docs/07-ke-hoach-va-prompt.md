@@ -12,12 +12,12 @@
 ---
 
 ## Giai đoạn 0 — Chuẩn bị môi trường (tự làm, không cần Claude)
-- Cài: Python 3.11+, Node.js 20 LTS+, Git, MySQL Server 8 + Workbench, VS Code (extension Python, Pylance, ESLint, Tailwind CSS IntelliSense), Claude Code.
-- Cấu hình MySQL theo `docs/03-co-so-du-lieu.md` (my.ini, user `troly`), chạy 4 script SQL.
-- Sao chép `.env.example` → `.env`, điền mật khẩu MySQL, khóa API LLM, chuỗi bí mật.
+- Cài: Python 3.11+, Node.js 20 LTS+, Git, SQL Server (Express trở lên) + SSMS, ODBC Driver 18 for SQL Server, VS Code (extension Python, Pylance, ESLint, Tailwind CSS IntelliSense), Claude Code.
+- Tạo CSDL theo `docs/03-co-so-du-lieu.md`: chạy 4 script SQL trong SSMS hoặc bằng `sqlcmd`.
+- Sao chép `.env.example` → `.env`, sửa `DB_SERVER`, điền khóa API LLM, chuỗi bí mật.
 - `git init` và commit lần đầu.
 
-**Hoàn thành khi:** Workbench thấy 2 CSDL `qlsv`, `assistant` có dữ liệu mẫu.
+**Hoàn thành khi:** SSMS thấy 2 CSDL `tlhv_qlsv`, `tlhv_assistant` có dữ liệu mẫu (tiếng Việt hiển thị đúng dấu).
 
 ---
 
@@ -27,7 +27,7 @@
 Thực hiện Giai đoạn 1:
 1. Tạo backend/pyproject.toml (dependencies theo CLAUDE.md, nhóm [dev] có pytest, httpx, respx, ruff) và cấu trúc thư mục backend/src như CLAUDE.md.
 2. src/shared/config.py: pydantic-settings đọc .env ở thư mục gốc dự án (đường dẫn tuyệt đối tính từ file).
-3. src/shared/db.py: hai engine SQLAlchemy riêng cho qlsv và assistant (mysql+pymysql, charset utf8mb4, pool_pre_ping), session factory, dependency cho FastAPI.
+3. src/shared/db.py: hai engine SQLAlchemy riêng cho tlhv_qlsv và tlhv_assistant (mssql+pyodbc, ODBC Driver 18, Windows Authentication mặc định, pool_pre_ping), session factory, dependency cho FastAPI.
 4. src/shared/time.py: hàm now() trả giờ Asia/Ho_Chi_Minh, ưu tiên DEMO_NOW.
 5. Model ORM (SQLAlchemy 2.x, Mapped[]) khớp CHÍNH XÁC với database/01 và 02 — không tạo bảng bằng ORM, chỉ ánh xạ.
 6. scripts/seed_users.py: tạo 6 tài khoản như bảng trong docs/03 (bcrypt), lấy ma_khoa từ qlsv. Chạy lại không bị trùng.
@@ -75,7 +75,7 @@ Hướng dẫn tôi kiểm tra bằng MCP Inspector.
 ```
 Đọc CLAUDE.md, docs/06-rag.md.
 Thực hiện Giai đoạn 4:
-- src/rag: loader, cleaner, chunker (3 chiến lược; làm theo_dieu và co_dinh trước), embedder, indexer, retriever (hybrid RRF, lọc phiên bản, rerank tuỳ chọn, các cờ bật/tắt cho thực nghiệm).
+- src/rag: loader, cleaner, chunker (3 chiến lược; làm theo_dieu và co_dinh trước), embedder, indexer, retriever (hybrid RRF giữa vector Chroma và BM25 Python, lọc phiên bản, rerank tuỳ chọn, các cờ bật/tắt cho thực nghiệm).
 - scripts/ingest_folder.py đọc data/van_ban/danh_muc.csv.
 - src/mcp_servers/quy_che.py với search_regulations, get_article (bọc nội dung trong <tai_lieu>).
 - Test chunker với một đoạn văn bản quy chế mẫu tự tạo trong tests/fixtures; test lọc phiên bản với 2 phiên bản giả.

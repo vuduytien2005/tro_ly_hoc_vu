@@ -6,25 +6,28 @@
 Khóa luận tốt nghiệp ngành Công nghệ phần mềm. Một người làm. Sản phẩm phải chạy được trên máy cá nhân (Windows), demo được trước hội đồng.
 
 ## Hệ thống gồm gì
-1. **qlsv_api** – Hệ thống quản lý sinh viên GIẢ LẬP (FastAPI + MySQL `qlsv`). Đóng vai "hệ thống thật của trường" để Agent thao tác. Chỉ nhận request nội bộ có header `X-Internal-Token`.
+1. **qlsv_api** – Hệ thống quản lý sinh viên GIẢ LẬP (FastAPI + SQL Server `tlhv_qlsv`). Đóng vai "hệ thống thật của trường" để Agent thao tác. Chỉ nhận request nội bộ có header `X-Internal-Token`.
 2. **mcp_servers** – 4 MCP server (Python SDK `mcp`, FastMCP, transport streamable HTTP):
    - `dao_tao` (cổng 9101): hồ sơ, bảng điểm, lịch thi, tiến độ tốt nghiệp, đăng ký học phần.
    - `ctsv` (9102): giấy xác nhận sinh viên, đơn bảo lưu, đơn phúc khảo, tra cứu đơn.
    - `tai_chinh` (9103): tình trạng học phí.
    - `quy_che` (9104): tra cứu quy chế bằng RAG (nhánh RAG cũng là một MCP server).
-3. **rag** – Thư viện dùng chung: đọc PDF/DOCX → chia đoạn theo Chương/Điều/Khoản → embedding → ChromaDB + MySQL FULLTEXT → hybrid search (RRF) → (tuỳ chọn) rerank.
-4. **assistant_api** – Backend trợ lý (FastAPI + MySQL `assistant`, cổng 8000): đăng nhập JWT, hội thoại, **vòng lặp Agent** (LLM qua LiteLLM + MCP client), cơ chế **xác nhận hành động**, **nhật ký** gọi công cụ, API quản trị.
+3. **rag** – Thư viện dùng chung: đọc PDF/DOCX → chia đoạn theo Chương/Điều/Khoản → embedding → ChromaDB + BM25 (Python, `rank-bm25`) → hybrid search (RRF) → (tuỳ chọn) rerank.
+4. **assistant_api** – Backend trợ lý (FastAPI + SQL Server `tlhv_assistant`, cổng 8000): đăng nhập JWT, hội thoại, **vòng lặp Agent** (LLM qua LiteLLM + MCP client), cơ chế **xác nhận hành động**, **nhật ký** gọi công cụ, API quản trị.
 5. **web** – React + Vite + TypeScript + TailwindCSS (cổng 5173): giao diện sinh viên (chat, "Thủ tục của em") và quản trị (tài liệu, MCP & quyền, nhật ký, thống kê).
 6. **evaluation** – Script thực nghiệm cho Chương 4 (RAG, Agent, an toàn).
 
 Chi tiết: xem thư mục `docs/` (đọc file liên quan TRƯỚC khi code mỗi giai đoạn).
 
 ## Công nghệ (không tự ý đổi)
-- Python 3.11+, FastAPI, SQLAlchemy 2.x (ORM, kiểu `Mapped[...]`), PyMySQL, Pydantic v2, pydantic-settings
-- MySQL 8.x, charset `utf8mb4`, collation `utf8mb4_unicode_ci`
+- Python 3.11+, FastAPI, SQLAlchemy 2.x (ORM, kiểu `Mapped[...]`), pyodbc, Pydantic v2, pydantic-settings
+- **Microsoft SQL Server** (máy dev: `localhost\SQLEXPRESS01`, quản lý bằng SSMS), driver "ODBC Driver 18 for SQL Server", mặc định Windows Authentication. CSDL: `tlhv_qlsv`, `tlhv_assistant`, collation `Vietnamese_100_CI_AS`.
+  - Chuỗi: `NVARCHAR` (model dùng `Unicode`/`UnicodeText`); literal tiếng Việt trong SQL phải có tiền tố `N'...'`.
+  - ENUM → `NVARCHAR` + `CHECK`; JSON → `NVARCHAR(MAX)` + `CHECK (ISJSON(...)=1)` (chỉ nhận object/array; model dùng `JSON(none_as_null=True)`); `updated_at` → trigger; bảng có trigger đặt `__table_args__ = {"implicit_returning": False}`.
+  - Đổi từ thiết kế gốc MySQL ngày 18/11/2026 theo yêu cầu người dùng (xem `docs/03-co-so-du-lieu.md`).
 - MCP: package Python `mcp` (FastMCP). Kiểm tra API mới nhất trong tài liệu chính thức của SDK trước khi viết code MCP.
 - LLM: `litellm` (để đổi nhà cung cấp chỉ bằng biến môi trường `LLM_MODEL`)
-- RAG: `chromadb` (chế độ persistent, không cần server), `sentence-transformers`, `pymupdf`, `python-docx`
+- RAG: `chromadb` (chế độ persistent, không cần server), `sentence-transformers`, `pymupdf`, `python-docx`, `rank-bm25`
 - Auth: JWT (`pyjwt`), mật khẩu băm `bcrypt`
 - Frontend: React 18+, Vite, TypeScript, TailwindCSS, React Router, TanStack Query
 - Test: `pytest`, `httpx`; frontend: `vitest` (tối thiểu)
@@ -35,8 +38,7 @@ tro-ly-hoc-vu/
 ├── CLAUDE.md
 ├── README.md
 ├── .env.example
-├── docker-compose.yml          # tuỳ chọn: MySQL bằng Docker
-├── database/                   # script SQL, chạy theo thứ tự số
+├── database/                   # script T-SQL (SQL Server), chạy theo thứ tự số
 ├── docs/                       # tài liệu thiết kế
 ├── backend/
 │   ├── pyproject.toml

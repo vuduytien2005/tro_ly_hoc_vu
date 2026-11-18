@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tro-ly-hoc-vu"
+version = "0.1.0"
+description = "Trợ lý ảo AI Agent hỗ trợ sinh viên tra cứu quy chế và thực hiện thủ tục học vụ (MCP + RAG)"
+requires-python = ">=3.11"
+dependencies = [
+    # Web / API
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    # CSDL
+    "sqlalchemy>=2.0",
+    "pyodbc>=5.1",               # SQL Server qua "ODBC Driver 18 for SQL Server"
+    # Cấu hình / kiểu dữ liệu
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "tzdata>=2024.1",            # Windows không có sẵn CSDL múi giờ cho zoneinfo
+    # Bảo mật
+    "pyjwt>=2.8",
+    "bcrypt>=4.1",
+    # MCP + LLM
+    "mcp>=1.9",
+    "litellm>=1.50",
+    # RAG
+    "chromadb>=0.5",
+    "sentence-transformers>=3.0",
+    "pymupdf>=1.24",
+    "python-docx>=1.1",
+    "rank-bm25>=0.2.2",          # tìm theo từ khóa (thay MySQL FULLTEXT) cho hybrid search
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "respx>=0.21",
+    "ruff>=0.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

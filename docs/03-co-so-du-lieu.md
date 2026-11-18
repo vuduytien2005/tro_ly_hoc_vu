@@ -1,34 +1,49 @@
-# 03. Cơ sở dữ liệu (MySQL 8)
+# 03. Cơ sở dữ liệu (Microsoft SQL Server)
 
 Hai CSDL tách biệt, mô phỏng thực tế "hệ thống của trường" và "hệ thống trợ lý" thuộc hai nơi khác nhau:
 
 | CSDL | Ai dùng | Script |
 |---|---|---|
-| `qlsv` | chỉ `qlsv_api` | `database/01_qlsv_schema.sql`, `03_qlsv_seed.sql` |
-| `assistant` | `assistant_api`, thư viện `rag` | `database/02_assistant_schema.sql`, `04_assistant_seed.sql` |
+| `tlhv_qlsv` | chỉ `qlsv_api` | `database/01_qlsv_schema.sql`, `03_qlsv_seed.sql` |
+| `tlhv_assistant` | `assistant_api`, thư viện `rag` | `database/02_assistant_schema.sql`, `04_assistant_seed.sql` |
+
+Tiền tố `tlhv_` (trợ lý học vụ) tránh trùng với CSDL có sẵn trên máy (vd. `QLSV` của bài tập khác — tên CSDL trong SQL Server không phân biệt hoa thường).
+
+> **Lịch sử thiết kế:** bản thiết kế gốc dùng MySQL 8. Ngày 18/11/2026 chuyển sang SQL Server (Express) để quản lý bằng SSMS sẵn có trên máy phát triển. Tên bảng/cột giữ nguyên; xem bảng quy ước chuyển đổi bên dưới.
 
 ## Cài đặt
-1. Cài MySQL Server 8.x (MySQL Installer cho Windows) + MySQL Workbench.
-2. Mở `my.ini` (thường ở `C:\ProgramData\MySQL\MySQL Server 8.x\my.ini`), trong mục `[mysqld]` thêm:
-   ```ini
-   innodb_ft_min_token_size=1
-   character-set-server=utf8mb4
-   collation-server=utf8mb4_unicode_ci
-   ```
-   Khởi động lại dịch vụ MySQL (services.msc → MySQL80 → Restart).
-   *Lý do:* mặc định MySQL bỏ qua từ dưới 3 ký tự khi tìm FULLTEXT, làm mất nhiều âm tiết tiếng Việt như "đi", "kỳ", "nợ".
-3. Tạo user:
-   ```sql
-   CREATE USER 'troly'@'localhost' IDENTIFIED BY 'doi_mat_khau';
-   GRANT ALL PRIVILEGES ON qlsv.* TO 'troly'@'localhost';
-   GRANT ALL PRIVILEGES ON assistant.* TO 'troly'@'localhost';
-   FLUSH PRIVILEGES;
-   ```
-4. Chạy lần lượt 4 file trong `database/` (Workbench: File → Run SQL Script, hoặc `mysql -u root -p < database/01_qlsv_schema.sql`).
+1. Cài SQL Server (bản **Express** miễn phí là đủ) + **SQL Server Management Studio (SSMS)** + **ODBC Driver 18 for SQL Server**.
+   Máy phát triển hiện có instance `localhost\SQLEXPRESS01` (SQL Server 2025 Express).
+2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
+   - **SSMS:** File → Open → chọn file → Execute (F5), lần lượt từng file.
+   - **Dòng lệnh** (PowerShell, tại thư mục gốc dự án):
+     ```powershell
+     foreach ($f in '01_qlsv_schema','02_assistant_schema','03_qlsv_seed','04_assistant_seed') {
+       sqlcmd -S ".\SQLEXPRESS01" -E -C -f 65001 -b -i "database\$f.sql"
+     }
+     ```
+     `-E`: đăng nhập Windows; `-C`: tin cậy chứng chỉ tự ký; `-f 65001`: đọc file UTF-8 (giữ dấu tiếng Việt).
+3. Đăng nhập: mặc định dùng **Windows Authentication** (để trống `DB_USER`, `DB_PASSWORD` trong `.env`), tài khoản Windows đang chạy backend phải có quyền trên 2 CSDL (người cài SQL Server mặc định là sysadmin).
+   Muốn dùng SQL Server Authentication: bật "SQL Server and Windows Authentication mode" trong SSMS (Server Properties → Security), tạo login rồi điền `DB_USER`, `DB_PASSWORD`.
+4. Kiểm tra trong SSMS: `SELECT ma_sv, ho_ten FROM tlhv_qlsv.dbo.sinh_vien;` → 5 dòng, tên tiếng Việt đúng dấu.
 
-Phương án khác: `docker compose up -d` (xem `docker-compose.yml`), các script được chạy tự động lần đầu.
+## Quy ước chuyển đổi kiểu dữ liệu (MySQL → SQL Server)
+| Thiết kế gốc (MySQL) | SQL Server | Lý do / lưu ý |
+|---|---|---|
+| `VARCHAR`, `TEXT`, `MEDIUMTEXT` + utf8mb4 | `NVARCHAR(n)`, `NVARCHAR(MAX)` | Lưu Unicode. Literal trong SQL phải viết `N'...'`, thiếu `N` sẽ mất dấu. Model dùng `Unicode`/`UnicodeText` |
+| `ENUM(...)` | `NVARCHAR` + `CHECK (... IN (...))` | SQL Server không có ENUM; CHECK vẫn chặn giá trị sai |
+| `JSON` | `NVARCHAR(MAX)` + `CHECK (ISJSON(...) = 1)` | `ISJSON` chỉ nhận **object/array** → kết quả dạng số/chuỗi phải bọc, vd `{"gia_tri": ...}`. Model dùng `JSON(none_as_null=True)` để `None` lưu thành `NULL` thật |
+| `TINYINT(1)` (boolean) | `BIT` | |
+| `TINYINT` có số âm (`danh_gia_cau_tra_loi.diem`) | `SMALLINT` | TINYINT của SQL Server là 0..255 |
+| `AUTO_INCREMENT` | `IDENTITY(1,1)` | Seed có id cố định dùng `SET IDENTITY_INSERT ... ON/OFF` |
+| `DATETIME`, `DATETIME(3)` | `DATETIME2(0)`, `DATETIME2(3)` | Lưu giờ Việt Nam (naive); code chuyển qua `src/shared/time.py` |
+| `DEFAULT CURRENT_TIMESTAMP` | `DEFAULT SYSDATETIME()` | Giờ của máy chủ (múi giờ máy: SE Asia Standard Time = UTC+7) |
+| `ON UPDATE CURRENT_TIMESTAMP` | Trigger `AFTER UPDATE` (`don_tu`, `hoi_thoai`, `van_ban`) | Bảng có trigger: model đặt `implicit_returning=False` vì SQL Server cấm `INSERT ... OUTPUT` trên bảng có trigger |
+| `UNIQUE` trên cột cho phép NULL (`nguoi_dung.ma_sv`) | Chỉ mục duy nhất **có lọc** `WHERE ma_sv IS NOT NULL` | UNIQUE thường của SQL Server chỉ cho một NULL → không tạo được nhiều admin |
+| `FULLTEXT` + `MATCH ... AGAINST` | Bỏ; dùng **BM25 trong Python** | Xem `docs/06-rag.md` mục 3 |
+| `utf8mb4_unicode_ci` | Collation CSDL `Vietnamese_100_CI_AS` | So sánh/sắp xếp theo tiếng Việt, không phân biệt hoa thường |
 
-## Sơ đồ CSDL `qlsv`
+## Sơ đồ CSDL `tlhv_qlsv`
 
 ```mermaid
 erDiagram
@@ -72,7 +87,7 @@ erDiagram
 - **Đơn từ:** `ma_don` = `DT-{năm}-{số thứ tự 4 chữ số}`. Bảo lưu chỉ khi đang học và không nợ học phí học kỳ hiện tại (`NO_HOC_PHI`). Phúc khảo chỉ cho học phần có điểm trong học kỳ gần nhất.
 - Hằng số thời gian "hiện tại" lấy từ biến môi trường `DEMO_NOW` nếu có (vd `2026-11-20T09:00:00+07:00`) để demo ổn định; không có thì dùng giờ hệ thống.
 
-## Sơ đồ CSDL `assistant`
+## Sơ đồ CSDL `tlhv_assistant`
 
 ```mermaid
 erDiagram
@@ -87,7 +102,7 @@ erDiagram
 ```
 
 ### Ghi chú
-- `nguoi_dung.ma_sv`, `ma_khoa` sao chép từ `qlsv` khi tạo tài khoản (script `seed_users.py`).
+- `nguoi_dung.ma_sv`, `ma_khoa` sao chép từ `tlhv_qlsv` khi tạo tài khoản (script `seed_users.py`).
 - `luot_goi_cong_cu` là nguồn dữ liệu chính cho Chương 4 (độ chính xác chọn công cụ, độ trễ, tỉ lệ bị chặn).
 - `doan_van_ban.vector_id` = id của vector trong ChromaDB (collection `quy_che`), dạng `vb{van_ban_id}_d{thu_tu}`.
 

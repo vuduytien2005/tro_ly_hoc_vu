@@ -60,7 +60,7 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | NF-03 | Đổi nhà cung cấp LLM chỉ bằng biến môi trường |
 | NF-04 | Giao diện responsive, dùng được trên điện thoại |
 | NF-05 | Mã nguồn có test tự động cho nghiệp vụ QLSV, chunker, retriever, vòng lặp Agent (dùng LLM giả lập) |
-| NF-06 | Chạy được trên Windows 10/11 với MySQL 8 cài đặt cục bộ |
+| NF-06 | Chạy được trên Windows 10/11 với Microsoft SQL Server (bản Express trở lên) cài đặt cục bộ |
 
 ## 5. Phạm vi và giới hạn
 - Thao tác trên **hệ thống QLSV giả lập**, không kết nối hệ thống thật của trường.

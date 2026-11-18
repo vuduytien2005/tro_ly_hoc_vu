@@ -24,8 +24,8 @@ flowchart TB
     QLSV[qlsv_api :8001<br/>hệ thống QLSV giả lập]
     RAG[rag library<br/>chunker / retriever]
     LLM[(LLM qua LiteLLM)]
-    DBA[(MySQL: assistant)]
-    DBQ[(MySQL: qlsv)]
+    DBA[(SQL Server: tlhv_assistant)]
+    DBQ[(SQL Server: tlhv_qlsv)]
     CHROMA[(ChromaDB<br/>data/chroma)]
 
     WEB -->|REST + SSE| CHAT
