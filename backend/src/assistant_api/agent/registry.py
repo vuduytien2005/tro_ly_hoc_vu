@@ -137,6 +137,10 @@ class ToolRegistry:
         if (not self._last_sync or failing) and stale:
             await self.sync(db)
 
+    def available_tool_names(self) -> set[str]:
+        """Tên các tool server đang cung cấp (theo lần đồng bộ gần nhất)."""
+        return set(self._specs)
+
     # ----- chính sách ---------------------------------------------------------
     def policies(self, db: Session) -> dict[str, ToolPolicy]:
         rows = db.execute(select(CongCu, McpServer).join(McpServer)).all()

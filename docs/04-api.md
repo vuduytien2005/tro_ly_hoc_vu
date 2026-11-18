@@ -59,14 +59,15 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 ### Quản trị
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/api/admin/documents` | AD | Danh sách văn bản |
-| POST | `/api/admin/documents` | AD | multipart: `tep`, `ten`, `loai`, `phien_ban`, `ap_dung_tu_khoa?`, `ap_dung_den_khoa?`, `ngay_hieu_luc?`, `chien_luoc_chunk?` → lập chỉ mục nền (BackgroundTasks) |
-| GET | `/api/admin/documents/{id}/chunks?page=` | AD | Xem các đoạn |
-| POST | `/api/admin/documents/{id}/reindex` | AD | Lập chỉ mục lại |
-| DELETE | `/api/admin/documents/{id}` | AD | Xóa văn bản + vector |
-| POST | `/api/admin/rag/search` | AD | `{cau_hoi, ma_khoa, top_k}` → thử truy xuất (debug, kèm điểm) |
-| GET | `/api/admin/mcp-servers` | AD | Server + trạng thái kết nối + công cụ |
-| POST | `/api/admin/mcp-servers/refresh` | AD | Đồng bộ lại danh mục công cụ |
-| PATCH | `/api/admin/tools/{id}` | AD | `{bat?, can_xac_nhan?, muc_rui_ro?}` |
-| GET | `/api/admin/audit-logs` | AD | Lọc: `tu`, `den`, `nguoi_dung_id`, `ten_cong_cu`, `trang_thai`, phân trang |
-| GET | `/api/admin/stats?tu=&den=` | AD | Số hội thoại, số câu hỏi, tỉ lệ hữu ích, thời gian phản hồi TB, top công cụ, top câu bị chê |
+| GET | `/api/admin/documents` | AD | Danh sách văn bản `[{id, ten, loai, phien_ban, ap_dung_tu_khoa, ap_dung_den_khoa, ngay_hieu_luc, ten_tep, trang_thai, chien_luoc_chunk, so_doan, loi, created_at, updated_at}]` |
+| POST | `/api/admin/documents` | AD | multipart: `tep` (PDF/DOCX/TXT ≤ 20 MB, kiểm tra cả nội dung), `ten`, `loai`, `phien_ban`, `ap_dung_tu_khoa?` (22 hoặc K22), `ap_dung_den_khoa?`, `ngay_hieu_luc?` (YYYY-MM-DD), `chien_luoc_chunk?` → 202, `trang_thai = dang_xu_ly`; server `quy_che` lập chỉ mục nền (docs/02 mục 8). Trùng (ten, loai, phien_ban) → thay thế tệp cũ. Lỗi: 415 `DINH_DANG_KHONG_HO_TRO` / `TEP_KHONG_HOP_LE`, 413 `TEP_QUA_LON`, 422 `TEP_RONG`, 409 `VAN_BAN_DANG_XU_LY`, 503 `QUY_CHE_KHONG_KET_NOI` (văn bản chuyển `loi`) |
+| GET | `/api/admin/documents/{id}/chunks?page=&page_size=` | AD | `{tong, trang_so, so_moi_trang, doan: [{id, thu_tu, chuong, dieu, khoan, trang, so_token, noi_dung}]}` |
+| POST | `/api/admin/documents/{id}/reindex` | AD | Lập chỉ mục lại từ tệp gốc → 202. Mất tệp gốc → 409 `TEP_GOC_KHONG_CON` |
+| DELETE | `/api/admin/documents/{id}` | AD | Xóa văn bản + đoạn + vector (qua quy_che) + tệp gốc trong `data/van_ban/` → 204 |
+| POST | `/api/admin/rag/search` | AD | `{cau_hoi, ma_khoa, top_k (1–20), use_vector, use_keyword, use_version_filter, use_rerank}` → `{thoi_gian_ms, ghi_chu: [...], doan: [{so, van_ban, phien_ban, dieu, khoan, trang, noi_dung, diem, hang_vector, hang_tu_khoa, diem_rerank}]}`. Lỗi 422 `THIEU_MA_KHOA`, `CAN_BAT_MOT_NHANH`, `MA_KHOA_KHONG_HOP_LE` |
+| GET | `/api/admin/mcp-servers` | AD | `[{id, ten, mo_ta, dia_chi, bat, trang_thai ("ok" / "tắt" / lỗi kết nối), cong_cu: [{id, ten, mo_ta, muc_rui_ro, can_xac_nhan, bat, co_tren_server}]}]` |
+| POST | `/api/admin/mcp-servers/refresh` | AD | Kết nối lại, đồng bộ danh mục công cụ (tool mới thêm với `bat=0`) → như GET |
+| PATCH | `/api/admin/tools/{id}` | AD | `{bat?, can_xac_nhan?, muc_rui_ro?}` — có hiệu lực ngay ở lượt chat kế tiếp. Công cụ mức `ghi`/`nhay_cam` không được bỏ xác nhận → 422 `KHONG_THE_BO_XAC_NHAN` (bảo vệ quy tắc 2) |
+| GET | `/api/admin/audit-logs` | AD | Lọc: `tu`, `den` (ngày, tính trọn ngày giờ VN), `nguoi_dung_id`, `ten_cong_cu`, `trang_thai`; `page`, `page_size` (≤ 100). `{tong, trang_so, so_moi_trang, luot_goi: [{id, created_at, nguoi_dung {id, ho_ten, email}, hoi_thoai_id, mcp_server, ten_cong_cu, trang_thai, ly_do, thoi_gian_ms, tham_so, tham_so_llm, da_tiem_ngu_canh}]}` — `da_tiem_ngu_canh = tham_so_llm` khác `tham_so` |
+| GET | `/api/admin/audit-logs/{id}` | AD | Như một dòng ở trên + `ket_qua` |
+| GET | `/api/admin/stats?tu=&den=` | AD | Mặc định 30 ngày gần nhất. `{tu, den, so_hoi_thoai, so_cau_hoi (không tính tin "Xác nhận:/Hủy:" do hệ thống lưu), so_danh_gia, so_huu_ich, ti_le_huu_ich, thoi_gian_phan_hoi_tb_ms, so_luot_goi_cong_cu, top_cong_cu: [{ten_cong_cu, so_lan, so_loi}], theo_ngay: [{ngay, so_cau_hoi}], cau_bi_che: [{tin_nhan_id, hoi_thoai_id, nguoi_dung, cau_hoi, cau_tra_loi, gop_y, created_at}]}` |

@@ -53,12 +53,31 @@ def tool_label(name: str) -> str:
     return TOOL_LABELS.get(name, f"Đang dùng công cụ {name}")
 
 
-def system_prompt(user: NguoiDung, now: datetime) -> str:
-    """Chỉ phụ thuộc người dùng và NGÀY (không có giờ) -> ổn định cả ngày, giữ prompt cache."""
-    return SYSTEM_PROMPT.format(
-        ten_truong=get_settings().ten_truong,
-        ho_ten=user.ho_ten,
-        ma_sv=user.ma_sv or "(không có)",
-        ma_khoa=user.ma_khoa or "(không có)",
-        ngay=f"{WEEKDAYS[now.weekday()]}, {now:%d/%m/%Y}",
+PAUSED_NOTE = (
+    "\n- Các chức năng đang TẠM DỪNG (quản trị viên đã tắt): {ds}. Sinh viên yêu cầu những việc "
+    "này thì nói rõ chức năng đang tạm dừng, gợi ý liên hệ phòng ban phụ trách hoặc thử lại sau; "
+    "không hứa sẽ thực hiện."
+)
+
+
+def paused_label(name: str) -> str:
+    """'Đang đăng ký học phần' -> 'đăng ký học phần'."""
+    label = tool_label(name).removeprefix("Đang ")
+    return label[:1].lower() + label[1:]
+
+
+def system_prompt(user: NguoiDung, now: datetime, paused: list[str] | None = None) -> str:
+    """Chỉ phụ thuộc người dùng, NGÀY (không có giờ) và danh sách tool bị tắt -> ổn định,
+    giữ prompt cache. `paused`: tên các tool quản trị viên đã tắt (quy tắc 6: không đưa cho LLM,
+    nhưng nói cho LLM biết để trả lời "tạm dừng" thay vì đoán)."""
+    note = PAUSED_NOTE.format(ds=", ".join(paused_label(n) for n in paused)) if paused else ""
+    return (
+        SYSTEM_PROMPT.format(
+            ten_truong=get_settings().ten_truong,
+            ho_ten=user.ho_ten,
+            ma_sv=user.ma_sv or "(không có)",
+            ma_khoa=user.ma_khoa or "(không có)",
+            ngay=f"{WEEKDAYS[now.weekday()]}, {now:%d/%m/%Y}",
+        )
+        + note
     )

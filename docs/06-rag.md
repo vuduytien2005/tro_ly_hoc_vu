@@ -2,6 +2,8 @@
 
 ## 1. Nguồn văn bản
 Đặt PDF/DOCX vào `data/van_ban/`, tải lên qua trang quản trị (hoặc `scripts/ingest_folder.py` đọc file `data/van_ban/danh_muc.csv`).
+
+> **Lưu ý (GĐ8):** `ingest_folder.py` là tiến trình riêng ghi thẳng vào ChromaDB. Nếu server `quy_che` đang chạy thì nó KHÔNG thấy vector mới (Chroma giữ chỉ mục trong RAM từng tiến trình, xem docs/02 mục 8) → chạy script khi quy_che đã tắt, hoặc khởi động lại quy_che sau khi nạp. Tải lên qua trang quản trị không gặp vấn đề này (quy_che tự lập chỉ mục).
 Gợi ý nguồn: quy chế đào tạo, sổ tay sinh viên, quy định học phí, hướng dẫn đăng ký học phần, quy định xét tốt nghiệp của chính trường bạn (văn bản công khai); quy chế đào tạo trình độ đại học của Bộ GD&ĐT (kiểm tra số hiệu văn bản hiện hành).
 Để thực nghiệm **phiên bản theo khóa**, cần ít nhất 2 phiên bản của cùng một văn bản (bản cũ áp dụng cho khóa cũ, bản mới cho khóa mới). Nếu trường không có, tạo một "bản sửa đổi giả lập" và ghi rõ trong khóa luận.
 

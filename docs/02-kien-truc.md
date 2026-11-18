@@ -168,3 +168,46 @@ Khi assistant_api khởi động: kết nối từng MCP server đang bật → 
 - tool có trên server nhưng chưa có trong DB → thêm với `muc_rui_ro='ghi'`, `can_xac_nhan=1`, `bat=0` (an toàn mặc định, quản trị viên phải bật).
 - tool có trong DB nhưng server không còn → đánh dấu không khả dụng ở API quản trị (không xóa).
 - Lưu cache schema trong bộ nhớ; nút "Làm mới" ở trang quản trị gọi lại.
+
+## 8. Lập chỉ mục văn bản từ trang quản trị (GĐ8)
+
+```mermaid
+sequenceDiagram
+    actor AD as Quản trị viên
+    participant W as Web
+    participant A as assistant_api
+    participant Q as quy_che (:9104)
+    participant C as ChromaDB
+    AD->>W: Kéo thả PDF + khai báo phiên bản, khóa áp dụng
+    W->>A: POST /api/admin/documents (multipart)
+    A->>A: Kiểm tra đuôi/nội dung/dung lượng, lưu data/van_ban/, van_ban = dang_xu_ly
+    A->>Q: POST /internal/documents/{id}/index (Bearer INTERNAL_API_TOKEN)
+    Q-->>A: 202 (lập chỉ mục chạy nền)
+    A-->>W: 202 dang_xu_ly
+    Q->>C: đọc -> chia đoạn -> embedding -> upsert
+    Q->>Q: van_ban = da_lap_chi_muc (hoặc loi + thông báo)
+    W->>A: hỏi lại danh sách mỗi 2 giây cho tới khi hết "Đang xử lý"
+```
+
+**Vì sao lập chỉ mục trong tiến trình `quy_che` chứ không ở `assistant_api` (đổi so với thiết kế gốc
+"BackgroundTasks của assistant_api"):** ChromaDB chế độ persistent nạp chỉ mục HNSW vào RAM của từng
+tiến trình. Đã kiểm chứng với chromadb 1.5.9: tiến trình B ghi vector thì tiến trình A (đang chạy)
+thấy `count()` tăng nhưng **truy vấn vector không trả về dữ liệu mới** cho tới khi khởi động lại. Nếu
+assistant_api ghi Chroma, PDF mới chỉ tìm được bằng BM25 → trượt yêu cầu "tải lên là hỏi được ngay".
+Giải pháp: chỉ `quy_che` đọc/ghi Chroma; assistant_api gọi API nội bộ của nó:
+
+| Đường dẫn (quy_che, chỉ 127.0.0.1) | Việc |
+|---|---|
+| `POST /internal/documents/{id}/index` | Lập chỉ mục nền văn bản đã có bản ghi (khóa: mỗi lúc một văn bản) |
+| `DELETE /internal/documents/{id}` | Xóa bản ghi + đoạn + vector |
+| `POST /internal/rag/search` | Thử truy xuất với cờ bật/tắt vector, từ khóa, lọc phiên bản, rerank |
+
+Các route này KHÔNG phải tool MCP (LLM không thấy) và dùng chung middleware Bearer với `/mcp`.
+Lợi ích phụ: mô hình embedding chỉ nạp một lần (trong quy_che).
+
+## 9. Kịch bản demo 7 — tắt công cụ
+
+Quản trị viên tắt `register_course` → ở lượt chat kế tiếp, `tools_for_llm` không còn công cụ này
+(quy tắc 6), đồng thời system prompt thêm dòng "Các chức năng đang TẠM DỪNG: đăng ký học phần…" để
+trợ lý trả lời rõ là tạm dừng thay vì đoán. Nếu LLM vẫn cố gọi tên công cụ, vòng lặp từ chối
+(`CONG_CU_TAM_DUNG`) và ghi nhật ký `bi_tu_choi`. Chính sách đọc từ CSDL mỗi lượt → có hiệu lực ngay.

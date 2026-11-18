@@ -64,6 +64,13 @@ PENDING_GUIDE = (
     "Không gọi lại công cụ này."
 )
 CONFIRMED_NOTE = "Sinh viên đã bấm Xác nhận trên thẻ; đây là kết quả thực hiện thật."
+
+
+def paused_tools(policies: dict[str, ToolPolicy]) -> list[str]:
+    """Tool server vẫn cung cấp nhưng bị tắt (tool hoặc server) -> báo LLM là đang tạm dừng."""
+    return sorted(n for n, p in policies.items() if p.spec is not None and not p.bat)
+
+
 CONFIRM_PREFIX = "Xác nhận: "
 CANCEL_PREFIX = "Hủy: "
 SYSTEM_LOOKUP_REASON = "Hệ thống tự tra cứu để dựng thẻ xác nhận"
@@ -332,7 +339,7 @@ class AgentRunner:
         policies = self.registry.policies(db)
         tools = self.registry.tools_for_llm(policies)
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": system_prompt(user, now)},
+            {"role": "system", "content": system_prompt(user, now, paused_tools(policies))},
             *load_history(db, conversation.id, self.history_limit),
         ]
         sources: dict[int, dict[str, Any]] = {}

@@ -41,6 +41,7 @@ cd web; npm install; npm run dev            # mở http://localhost:5173
 - Vite chuyển `/api/*` và `/health` sang `assistant_api` (`127.0.0.1:8000`), nên trình duyệt chỉ cần nói chuyện với cổng 5173 (không cần CORS).
 - Tài khoản demo (do `backend/scripts/seed_users.py` tạo): sinh viên `sv22001@truong.example` / `Sv@123456`; quản trị `admin@truong.example` / `Admin@123456`.
 - Kiểm tra web: `cd web; npm test` (vitest), `npm run build` (kiểm tra kiểu TypeScript + đóng gói).
+- Trang quản trị (đăng nhập tài khoản admin): **Tài liệu** (tải lên → lập chỉ mục, xem đoạn), **Thử truy xuất**, **MCP & quyền**, **Nhật ký**, **Thống kê**. Nạp quy chế nên làm ở trang Tài liệu; nếu dùng `scripts/ingest_folder.py` thì chạy khi server `quy_che` đang tắt (xem docs/06).
 - Hạn chế đã biết: JWT lưu trong `localStorage` (đơn giản, nhưng đọc được nếu web bị XSS; phương án tốt hơn là cookie HttpOnly + chống CSRF).
 
 ## Kiến trúc tóm tắt

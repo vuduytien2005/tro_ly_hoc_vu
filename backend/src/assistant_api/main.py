@@ -21,7 +21,8 @@ from src.assistant_api.agent.loop import AgentRunner
 from src.assistant_api.agent.registry import ToolRegistry
 from src.assistant_api.errors import ApiError
 from src.assistant_api.mcp_client.client import McpClient
-from src.assistant_api.routers import actions, auth, conversations, my_requests
+from src.assistant_api.rag_admin import RagAdminClient
+from src.assistant_api.routers import actions, admin, auth, conversations, my_requests
 from src.shared.config import get_settings
 from src.shared.db import assistant_session_factory
 
@@ -36,14 +37,17 @@ def create_app(
     registry: ToolRegistry | None = None,
     llm: LLM | None = None,
     session_factory: Callable[[], Session] | None = None,
+    rag_admin: RagAdminClient | None = None,
 ) -> FastAPI:
-    """Test truyền registry (MCP server chạy trong tiến trình), FakeLLM và session_factory riêng."""
+    """Test truyền registry (MCP server chạy trong tiến trình), FakeLLM, session_factory riêng
+    và rag_admin (gọi app quy_che trong tiến trình)."""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.session_factory = session_factory or assistant_session_factory()
         app.state.registry = registry or ToolRegistry(McpClient({}))
         app.state.runner = AgentRunner(app.state.registry, llm or LiteLlm())
+        app.state.rag_admin = rag_admin or RagAdminClient()
         if registry is None:
             with app.state.session_factory() as db:
                 await app.state.registry.sync(db)
@@ -55,7 +59,7 @@ def create_app(
     app = FastAPI(
         title="Trợ lý học vụ — assistant_api",
         description="Bấm **Authorize**, dán `access_token` nhận từ `/api/auth/login`.",
-        version="0.6.0",
+        version="0.8.0",
         lifespan=lifespan,
     )
     app.add_middleware(
@@ -93,6 +97,7 @@ def create_app(
     app.include_router(conversations.router)
     app.include_router(actions.router)
     app.include_router(my_requests.router)
+    app.include_router(admin.router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
     def health(request: Request) -> dict[str, object]:

@@ -122,6 +122,18 @@ class Retriever:
         self._stamp: tuple[Any, ...] | None = None
         self._keyword_indexes: dict[int | None, KeywordIndex[int]] = {}
 
+    @property
+    def store(self) -> VectorStore:
+        return self._store
+
+    @property
+    def embedder(self) -> Embedder:
+        return self._embedder
+
+    @property
+    def has_reranker(self) -> bool:
+        return self._reranker is not None
+
     # ----- BM25 cache --------------------------------------------------------
     @staticmethod
     def _data_stamp(db: Session) -> tuple[Any, ...]:

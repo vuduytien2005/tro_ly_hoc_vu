@@ -1,0 +1,37 @@
+import { describe, expect, it } from 'vitest'
+import { cohortRange, formatMs, formatPercent, injectedKeys, toQuery } from './admin'
+
+describe('cohortRange', () => {
+  it('mô tả phạm vi khóa áp dụng', () => {
+    expect(cohortRange(null, null)).toBe('Mọi khóa')
+    expect(cohortRange(22, null)).toBe('Từ K22')
+    expect(cohortRange(null, 21)).toBe('Đến K21')
+    expect(cohortRange(20, 23)).toBe('K20 – K23')
+    expect(cohortRange(22, 22)).toBe('K22')
+  })
+})
+
+describe('injectedKeys', () => {
+  it('phát hiện ma_sv do hệ thống điền hoặc ghi đè', () => {
+    expect(injectedKeys({ hoc_ky: null }, { ma_sv: 'SV22001', hoc_ky: null })).toEqual(
+      new Set(['ma_sv']),
+    )
+    expect(injectedKeys({ ma_sv: 'SV99999' }, { ma_sv: 'SV22001' })).toEqual(new Set(['ma_sv']))
+    expect(injectedKeys({ a: [1, 2] }, { a: [1, 2] }).size).toBe(0)
+    expect(injectedKeys(null, { ma_sv: 'x' }).size).toBe(0)
+  })
+})
+
+describe('định dạng', () => {
+  it('toQuery bỏ giá trị rỗng', () => {
+    expect(toQuery({ a: 1, b: '', c: null, d: 'x y' })).toBe('?a=1&d=x+y')
+    expect(toQuery({ a: undefined })).toBe('')
+  })
+
+  it('phần trăm và thời gian', () => {
+    expect(formatPercent(0.8571)).toBe('85.7%')
+    expect(formatPercent(null)).toBe('—')
+    expect(formatMs(850)).toBe('850 ms')
+    expect(formatMs(2345)).toBe('2.3 giây')
+  })
+})
