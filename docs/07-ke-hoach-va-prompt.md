@@ -57,7 +57,7 @@ Thực hiện Giai đoạn 2: xây src/qlsv_api (FastAPI, cổng 8001, chỉ 127
 ## Giai đoạn 3 — MCP servers đọc dữ liệu (dao_tao, tai_chinh, ctsv phần đọc)
 ```
 Đọc CLAUDE.md, docs/05-mcp-servers.md.
-Kiểm tra tài liệu chính thức mới nhất của Python MCP SDK (FastMCP, streamable HTTP, cách thêm middleware xác thực) trước khi viết.
+Kiểm tra tài liệu chính thức mới nhất của Python MCP SDK (MCPServer — bản 1.x gọi là FastMCP, streamable HTTP, cách thêm middleware xác thực) trước khi viết.
 Thực hiện Giai đoạn 3:
 - src/mcp_servers/common.py: QlsvClient, xác thực Bearer INTERNAL_API_TOKEN, chuẩn trả lỗi.
 - dao_tao.py (chỉ các tool đọc), tai_chinh.py, ctsv.py (chỉ list_my_requests, get_request_status).

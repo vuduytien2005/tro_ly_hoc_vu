@@ -7,7 +7,7 @@ Khóa luận tốt nghiệp ngành Công nghệ phần mềm. Một người là
 
 ## Hệ thống gồm gì
 1. **qlsv_api** – Hệ thống quản lý sinh viên GIẢ LẬP (FastAPI + SQL Server `tlhv_qlsv`). Đóng vai "hệ thống thật của trường" để Agent thao tác. Chỉ nhận request nội bộ có header `X-Internal-Token`.
-2. **mcp_servers** – 4 MCP server (Python SDK `mcp`, FastMCP, transport streamable HTTP):
+2. **mcp_servers** – 4 MCP server (Python SDK `mcp` 2.x, lớp `MCPServer`, transport streamable HTTP):
    - `dao_tao` (cổng 9101): hồ sơ, bảng điểm, lịch thi, tiến độ tốt nghiệp, đăng ký học phần.
    - `ctsv` (9102): giấy xác nhận sinh viên, đơn bảo lưu, đơn phúc khảo, tra cứu đơn.
    - `tai_chinh` (9103): tình trạng học phí.
@@ -27,7 +27,8 @@ Chi tiết: xem thư mục `docs/` (đọc file liên quan TRƯỚC khi code m�
   - Khóa hàng: **KHÔNG dùng `with_for_update()`** (SQLAlchemy bỏ qua im lặng trên SQL Server) → dùng `lock_for_update()` / `lock_range_for_update()` (table hint `WITH (UPDLOCK, ROWLOCK)` / `WITH (UPDLOCK, HOLDLOCK)`). CSDL bật `READ_COMMITTED_SNAPSHOT`. `LIMIT` viết bằng `.limit()/.offset()` — SQLAlchemy tự sinh `TOP` / `OFFSET FETCH`.
   - Test chạm CSDL: bọc trong transaction + `join_transaction_mode="create_savepoint"` rồi rollback (xem `tests/qlsv/conftest.py`).
   - Đổi từ thiết kế gốc MySQL ngày 18/11/2026 theo yêu cầu người dùng (xem `docs/03-co-so-du-lieu.md`).
-- MCP: package Python `mcp` (FastMCP). Kiểm tra API mới nhất trong tài liệu chính thức của SDK trước khi viết code MCP.
+- MCP: package Python `mcp` **2.x** — `from mcp.server.mcpserver import MCPServer` (bản 1.x gọi là `FastMCP`, import cũ báo lỗi). Client: `from mcp import Client`. Kiểm tra API mới nhất của SDK trước khi viết code MCP.
+  - Mô tả tham số `[INJECTED]` đặt trong `Annotated[..., Field(description=...)]` (alias `MaSv` ở `mcp_servers/common.py`), KHÔNG đặt trong docstring — SDK đưa nguyên docstring vào mô tả tool.
 - LLM: `litellm` (để đổi nhà cung cấp chỉ bằng biến môi trường `LLM_MODEL`)
 - RAG: `chromadb` (chế độ persistent, không cần server), `sentence-transformers`, `pymupdf`, `python-docx`, `rank-bm25`
 - Auth: JWT (`pyjwt`), mật khẩu băm `bcrypt`

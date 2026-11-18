@@ -1,13 +1,17 @@
 # 05. Thiết kế MCP servers
 
 ## Nguyên tắc chung
-- Python SDK chính thức `mcp`, lớp `FastMCP`. Transport **streamable HTTP**, endpoint `/mcp`, lắng nghe `127.0.0.1`.
+- Python SDK chính thức `mcp` **2.x**, lớp `MCPServer` (`from mcp.server.mcpserver import MCPServer`; bản 1.x gọi là `FastMCP`). Transport **streamable HTTP**, endpoint `/mcp`, lắng nghe `127.0.0.1`.
+  - Chế độ `stateless_http=True` + `json_response=True`: mỗi lệnh gọi độc lập, không giữ phiên, trả JSON (tool không cần streaming).
+  - SDK tự bật **chống DNS rebinding** khi host là `127.0.0.1` (Host lạ → 421).
   (Claude: kiểm tra cú pháp hiện hành của SDK trước khi viết — API của SDK có thể đã thay đổi.)
 - Mỗi server một file trong `backend/src/mcp_servers/`, dùng chung `common.py`:
   - `QlsvClient`: httpx.AsyncClient tới `QLSV_API_URL` với header `X-Internal-Token`.
-  - Middleware/kiểm tra `Authorization: Bearer {INTERNAL_API_TOKEN}` cho request tới MCP server.
-  - Hàm `to_tool_error(code, message)` để trả lỗi nghiệp vụ dạng có cấu trúc thay vì exception khó hiểu.
-- **Tham số đầu tiên** của tool dữ liệu cá nhân là `ma_sv: str`, docstring ghi `[INJECTED] Do hệ thống điền, không yêu cầu người dùng cung cấp.`
+  - `BearerAuthMiddleware` (ASGI thuần) kiểm `Authorization: Bearer {INTERNAL_API_TOKEN}` bằng `hmac.compare_digest`, bọc ngoài ứng dụng của SDK; sai/thiếu → 401 `{"detail","code"}`. (Không dùng `token_verifier`/`AuthSettings` của SDK vì đó là luồng OAuth đầy đủ, thừa cho token nội bộ.)
+  - Hàm `to_tool_error(code, message)` + decorator `@tool_errors`: lỗi nghiệp vụ từ qlsv_api, mất kết nối (`QLSV_KHONG_KET_NOI`), quá giờ (`QLSV_QUA_THOI_GIAN`), lỗi bất ngờ (`LOI_HE_THONG`, không lộ chi tiết) đều thành dict lỗi có cấu trúc.
+  - `path_segment()`: mã hóa tham số do LLM sinh khi ghép vào URL (chặn `../`).
+- **Tham số đầu tiên** của tool dữ liệu cá nhân là `ma_sv: MaSv` với `MaSv = Annotated[str, Field(description="Mã sinh viên. [INJECTED] Do hệ thống điền, không yêu cầu người dùng cung cấp.")]`.
+  **Ghi chú `[INJECTED]` đặt ở mô tả tham số, KHÔNG đặt trong docstring**: SDK đưa nguyên docstring vào `description` của tool, nên nếu viết trong docstring thì dù assistant_api xóa `ma_sv` khỏi schema, LLM vẫn đọc thấy tham số này. Đặt trong schema thì xóa thuộc tính là mất hết dấu vết (có test kiểm tra).
 - **Docstring viết tiếng Việt, rõ ràng, có ví dụ khi nào dùng** — vì LLM đọc docstring để chọn tool. Đây là một nội dung thực nghiệm (mô tả tool tốt/xấu ảnh hưởng độ chính xác chọn tool).
 - Kết quả trả về: dict JSON gọn, khóa tiếng Việt không dấu, có `thong_bao` ngắn tóm tắt cho LLM. Không trả dữ liệu thừa (giảm token).
 - Lỗi nghiệp vụ trả về `{"thanh_cong": false, "ma_loi": "...", "thong_bao": "..."}` (không ném exception) để LLM giải thích được cho sinh viên.
@@ -27,15 +31,16 @@
 Ví dụ docstring:
 ```python
 @mcp.tool()
-async def register_course(ma_sv: str, ma_lop: str) -> dict:
+@tool_errors
+async def register_course(
+    ma_sv: MaSv,
+    ma_lop: Annotated[str, Field(description='Mã lớp học phần, ví dụ "IT004.02".')],
+) -> dict[str, Any]:
     """Đăng ký một lớp học phần cho sinh viên trong học kỳ đang mở đăng ký.
+
     Dùng khi sinh viên muốn đăng ký / học lại / học thêm một môn và đã xác định được mã lớp.
     Nếu chưa biết mã lớp, gọi search_course_sections trước.
     Thao tác này cần sinh viên xác nhận trên giao diện.
-
-    Args:
-        ma_sv: [INJECTED] Do hệ thống điền, không yêu cầu người dùng cung cấp.
-        ma_lop: Mã lớp học phần, ví dụ "IT004.02".
     """
 ```
 

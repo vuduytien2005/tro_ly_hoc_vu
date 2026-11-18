@@ -23,7 +23,7 @@ dependencies = [
     "pyjwt>=2.8",
     "bcrypt>=4.1",
     # MCP + LLM
-    "mcp>=1.9",
+    "mcp>=2.3,<3",  # 2.x: FastMCP đổi tên thành MCPServer
     "litellm>=1.50",
     # RAG
     "chromadb>=0.5",

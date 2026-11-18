@@ -15,7 +15,7 @@ flowchart TB
         MCPC[MCP Client]
         ADMIN[Admin API]
     end
-    subgraph MCP["MCP servers (FastMCP, streamable HTTP)"]
+    subgraph MCP["MCP servers (MCPServer, streamable HTTP)"]
         DT[dao_tao :9101]
         CT[ctsv :9102]
         TC[tai_chinh :9103]
@@ -142,7 +142,7 @@ Nguyên tắc:
 | `error` | `{"detail": "...", "code": "..."}` |
 
 ## 6. Tiêm ngữ cảnh và xác thực nội bộ
-- Mỗi tool MCP khai báo `ma_sv: str` (và `ma_khoa: str` với `search_regulations`) là **tham số đầu tiên**. Docstring ghi `[INJECTED]`.
+- Mỗi tool MCP khai báo `ma_sv: str` (và `ma_khoa: str` với `search_regulations`) là **tham số đầu tiên**. Ghi chú `[INJECTED]` nằm trong mô tả của tham số (JSON schema), không nằm trong docstring.
 - `ToolRegistry` khi nạp schema: xóa các khóa `ma_sv`, `ma_khoa` khỏi `properties` và `required`.
 - Khi gọi: `args.pop("ma_sv", None); args["ma_sv"] = user.ma_sv` (tương tự `ma_khoa`). Ghi cả `tham_so_llm` (gốc) và `tham_so` (sau tiêm) vào nhật ký → minh chứng thực nghiệm an toàn.
 - assistant_api gọi MCP server với header `Authorization: Bearer {INTERNAL_API_TOKEN}`; MCP server từ chối nếu sai.
