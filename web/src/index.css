@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+
+/* Bảng màu và font theo docs/08-giao-dien.md */
+@theme {
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --color-page: #f5f7fb;
+  --color-navy: #0f1f4b;
+  --color-navy-light: #1b2d63;
+  --color-primary: #1d4ed8;
+  --color-primary-dark: #1e40af;
+  --color-accent: #f59e0b;
+  --color-line: #e3e8f0;
+  --color-ok: #065f46;
+  --color-ok-bg: #ecfdf5;
+  --color-warn: #9a3412;
+  --color-warn-bg: #fff7ed;
+  --color-err: #991b1b;
+  --color-err-bg: #fef2f2;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-page font-sans text-slate-800 antialiased;
+}
+
+/* Nội dung markdown trong câu trả lời */
+.prose-chat p {
+  @apply my-2 first:mt-0 last:mb-0 leading-relaxed;
+}
+.prose-chat ul {
+  @apply my-2 list-disc pl-5;
+}
+.prose-chat ol {
+  @apply my-2 list-decimal pl-5;
+}
+.prose-chat li {
+  @apply my-1;
+}
+.prose-chat strong {
+  @apply font-semibold;
+}
+.prose-chat table {
+  @apply my-2 w-full border-collapse text-sm;
+}
+.prose-chat th,
+.prose-chat td {
+  @apply border border-line px-2 py-1 text-left;
+}
+.prose-chat th {
+  @apply bg-page font-semibold;
+}
+.prose-chat code {
+  @apply rounded bg-page px-1 text-[0.9em];
+}
+.prose-chat a:not(.cite) {
+  @apply text-primary underline;
+}

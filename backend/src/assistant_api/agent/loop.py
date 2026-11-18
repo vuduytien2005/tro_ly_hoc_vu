@@ -157,8 +157,20 @@ def load_history(db: Session, conversation_id: int, limit: int) -> list[dict[str
 
 
 # ----- trích dẫn -----------------------------------------------------------------
+TAG_RE = re.compile(r"</?\s*tai_lieu[^>]*>", re.IGNORECASE)
+EXCERPT_MAX = 300
+
+
+def excerpt(noi_dung: Any) -> str | None:
+    """Trích đoạn ngắn cho popover trích dẫn: bỏ thẻ <tai_lieu>, gộp khoảng trắng, cắt 300 ký tự."""
+    if not isinstance(noi_dung, str):
+        return None
+    text = " ".join(TAG_RE.sub(" ", noi_dung).split())
+    return text if len(text) <= EXCERPT_MAX else text[: EXCERPT_MAX - 1].rstrip() + "…"
+
+
 def collect_sources(result: Any) -> dict[int, dict[str, Any]]:
-    """Kết quả search_regulations -> {so: thông tin đoạn} (không gồm nội dung)."""
+    """Kết quả search_regulations -> {so: thông tin đoạn + trích đoạn ngắn}."""
     if not isinstance(result, dict):
         return {}
     sources = {}
@@ -173,6 +185,7 @@ def collect_sources(result: Any) -> dict[int, dict[str, Any]]:
                 "dieu": d.get("dieu"),
                 "khoan": d.get("khoan"),
                 "trang": d.get("trang"),
+                "trich_doan": excerpt(d.get("noi_dung")),
             }
     return sources
 

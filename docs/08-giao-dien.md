@@ -27,8 +27,9 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 - **Sidebar trái** (nền xanh đậm): logo, nút "Cuộc trò chuyện mới", danh sách hội thoại gần đây, liên kết "Thủ tục của em", thông tin sinh viên ở đáy.
 - **Khung chat:** tin người dùng căn phải nền xanh; tin trợ lý căn trái nền trắng.
 - **Chip tiến trình** phía trên câu trả lời khi đang xử lý: "Đang tra cứu quy chế…", "Đang xem bảng điểm của em…", chuyển ✓ khi xong. Nhãn lấy từ map tên tool → câu tiếng Việt ở frontend.
-- **Trích dẫn:** `[1]` hiển thị dạng nút nhỏ; bên dưới câu trả lời có các thẻ "Nguồn tham khảo" (văn bản, Điều, trang).
+- **Trích dẫn:** `[1]` hiển thị dạng nút nhỏ; bên dưới câu trả lời có các thẻ "Nguồn tham khảo" (văn bản, Điều, trang). Bấm `[n]` mở popover: tên văn bản (phiên bản), Điều/Khoản/trang và trích đoạn (`trich_doan`, ≤ 300 ký tự).
 - **Thẻ xác nhận hành động:** viền xanh nhạt, tiêu đề "Đề xuất thực hiện", mô tả, đồng hồ "Hết hạn sau 09:41", hai nút "Hủy" / "Xác nhận". Sau khi xử lý: chuyển thành trạng thái "Đã xác nhận ✓" hoặc "Đã hủy" (không bấm lại được).
+  - Cài đặt (GĐ7): sau khi bấm, thẻ biến mất và trong luồng chat hiện dòng trạng thái từ tin hệ thống lưu ở backend ("Đã xác nhận: <mô tả>" nền xanh lá / "Đã hủy: <mô tả>"), nên tải lại trang vẫn đúng. Hết giờ (theo `het_han_luc`) thì thẻ khóa nút, hiện "Đã hết hạn". Backend trả 409 (đã xử lý / hết hạn) thì thẻ hiện thông báo lỗi.
 - **Đánh giá:** nút 👍/👎 (dùng icon, không dùng emoji) dưới câu trả lời; 👎 mở ô góp ý.
 - **Ô nhập:** textarea tự giãn, Enter gửi, Shift+Enter xuống dòng; dòng nhắc "Câu trả lời do AI tạo, hãy đối chiếu văn bản gốc".
 - **Câu hỏi gợi ý** khi hội thoại trống: "Em còn thiếu gì để tốt nghiệp?", "Lịch thi của em", "Học lại môn bị F thế nào?", "Xin giấy xác nhận sinh viên".

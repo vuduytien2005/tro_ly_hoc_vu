@@ -30,6 +30,19 @@ Bộ thiết kế này dùng để làm dự án bằng **VS Code + Claude Code 
 5. **Làm việc với Claude:** mở thư mục trong VS Code → Terminal → `claude` → gõ `/giai-doan 1`.
 6. Lặp lại cho các giai đoạn 2 → 10 theo `docs/07-ke-hoach-va-prompt.md`. Commit sau mỗi giai đoạn, gõ `/clear` trước giai đoạn mới.
 
+## Chạy hệ thống (máy dev)
+```powershell
+# 1) Backend: qlsv_api, 4 MCP server, assistant_api (mỗi service một cửa sổ)
+cd backend; .\scripts\run_all.ps1          # tắt: .\scripts\run_all.ps1 -Stop
+
+# 2) Web (cửa sổ khác)
+cd web; npm install; npm run dev            # mở http://localhost:5173
+```
+- Vite chuyển `/api/*` và `/health` sang `assistant_api` (`127.0.0.1:8000`), nên trình duyệt chỉ cần nói chuyện với cổng 5173 (không cần CORS).
+- Tài khoản demo (do `backend/scripts/seed_users.py` tạo): sinh viên `sv22001@truong.example` / `Sv@123456`; quản trị `admin@truong.example` / `Admin@123456`.
+- Kiểm tra web: `cd web; npm test` (vitest), `npm run build` (kiểm tra kiểu TypeScript + đóng gói).
+- Hạn chế đã biết: JWT lưu trong `localStorage` (đơn giản, nhưng đọc được nếu web bị XSS; phương án tốt hơn là cookie HttpOnly + chống CSRF).
+
 ## Kiến trúc tóm tắt
 ```
 Web (React) ──► assistant_api :8000 ──► LLM (LiteLLM)

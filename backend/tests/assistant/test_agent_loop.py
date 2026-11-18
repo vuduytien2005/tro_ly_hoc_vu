@@ -60,6 +60,7 @@ def test_regulation_question_injects_ma_khoa_and_cites(
     citations = dict(events)["citations"]
     assert [c["so"] for c in citations] == [1, 2]
     assert citations[0]["dieu"] == "Điều 12" and "noi_dung" not in citations[0]
+    assert citations[0]["trich_doan"] == "Sinh viên bị điểm F phải đăng ký học lại."
 
     # LLM không hề thấy tham số ma_khoa trong schema
     tools = {t["function"]["name"]: t for t in llm.calls[0]["tools"]}
@@ -254,3 +255,12 @@ def test_sanitize_history_drops_broken_turns() -> None:
     clean = sanitize_history(history)
     assert [m["role"] for m in clean] == ["user", "assistant"]
     assert clean[0]["content"] == "hỏi 3"
+
+
+def test_excerpt_strips_tags_and_truncates() -> None:
+    from src.assistant_api.agent.loop import excerpt
+
+    assert excerpt('<tai_lieu so="3">\n  Điều 5.\n Nội   dung\n</tai_lieu>') == "Điều 5. Nội dung"
+    long = excerpt("x " * 400)
+    assert long is not None and len(long) == 300 and long.endswith("…")
+    assert excerpt(None) is None

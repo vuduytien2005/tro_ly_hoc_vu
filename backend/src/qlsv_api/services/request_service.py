@@ -134,6 +134,7 @@ def list_requests(db: Session, ma_sv: str, trang_thai: str | None) -> list[Reque
             ma_don=d.ma_don,
             loai_don=d.loai_don,
             trang_thai=d.trang_thai,
+            tao_boi=d.tao_boi,
             created_at=from_db(d.created_at),  # type: ignore[arg-type]
         )
         for d in request_repo.list_for_student(db, sv.id, trang_thai)

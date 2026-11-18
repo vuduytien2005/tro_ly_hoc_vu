@@ -230,6 +230,7 @@ class RequestSummaryOut(Schema):
     ma_don: str
     loai_don: str
     trang_thai: str
+    tao_boi: str
     created_at: datetime
 
 

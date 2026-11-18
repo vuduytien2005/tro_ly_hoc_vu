@@ -36,6 +36,7 @@ TRANG_THAI_DON = {
     "tu_choi": "bị từ chối",
     "hoan_tat": "hoàn tất",
 }
+TAO_BOI = {"sinh_vien": "Sinh viên", "tro_ly_ai": "Trợ lý AI"}
 
 
 @mcp.tool()
@@ -60,6 +61,8 @@ async def list_my_requests(
             "ma_don": d["ma_don"],
             "loai_don": LOAI_DON.get(d["loai_don"], d["loai_don"]),
             "trang_thai": TRANG_THAI_DON.get(d["trang_thai"], d["trang_thai"]),
+            "ma_trang_thai": d["trang_thai"],
+            "tao_boi": TAO_BOI.get(d.get("tao_boi", ""), d.get("tao_boi")),
             "ngay_tao": d["created_at"][:10],
         }
         for d in rows
@@ -90,6 +93,8 @@ async def get_request_status(
         "loai_don": loai,
         "noi_dung": d["noi_dung"],
         "trang_thai": trang_thai,
+        "ma_trang_thai": d["trang_thai"],
+        "tao_boi": TAO_BOI.get(d.get("tao_boi", ""), d.get("tao_boi")),
         "ghi_chu_xu_ly": d.get("ghi_chu_xu_ly"),
         "ngay_tao": d["created_at"][:10],
         "cap_nhat_luc": d["updated_at"],

@@ -17,7 +17,7 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 | POST | `/internal/students/{ma_sv}/registrations` | Body `{ma_lop}` → 201 hoặc 409 với mã lỗi (xem 03) |
 | DELETE | `/internal/students/{ma_sv}/registrations/{ma_lop}` | Hủy (chỉ trong thời gian đăng ký) |
 | POST | `/internal/students/{ma_sv}/requests` | Body `{loai_don, noi_dung, tao_boi}` → `{ma_don, trang_thai}` |
-| GET | `/internal/students/{ma_sv}/requests?trang_thai=` | Danh sách đơn |
+| GET | `/internal/students/{ma_sv}/requests?trang_thai=` | Danh sách đơn `[{ma_don, loai_don, trang_thai, tao_boi, created_at}]` |
 | GET | `/internal/students/{ma_sv}/requests/{ma_don}` | Chi tiết đơn (404 nếu không thuộc sinh viên này) |
 | PATCH | `/internal/requests/{ma_don}` | (Cán bộ) Body `{trang_thai, ghi_chu_xu_ly}` |
 | GET | `/internal/semesters/current` | Học kỳ hiện tại và học kỳ đang mở đăng ký |
@@ -53,8 +53,8 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 ### Thủ tục của em
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/api/my/requests?trang_thai=` | SV | Gọi tool `list_my_requests` trực tiếp (không qua LLM), tiêm ma_sv, ghi nhật ký (`hoi_thoai_id = NULL`). Tool tắt → 503 `CHUC_NANG_TAM_DUNG` |
-| GET | `/api/my/requests/{ma_don}` | SV | Chi tiết (tool `get_request_status`); đơn không thuộc em → 404 `DON_KHONG_TON_TAI` |
+| GET | `/api/my/requests?trang_thai=` | SV | Gọi tool `list_my_requests` trực tiếp (không qua LLM), tiêm ma_sv, ghi nhật ký (`hoi_thoai_id = NULL`). Trả `{don: [{ma_don, loai_don, trang_thai (nhãn tiếng Việt), ma_trang_thai (mã gốc, để tô màu nhãn), tao_boi ("Sinh viên"/"Trợ lý AI"), ngay_tao}], thong_bao}`. Tool tắt → 503 `CHUC_NANG_TAM_DUNG` |
+| GET | `/api/my/requests/{ma_don}` | SV | Chi tiết (tool `get_request_status`): thêm `noi_dung`, `ghi_chu_xu_ly`, `cap_nhat_luc`, cũng có `ma_trang_thai`, `tao_boi`; đơn không thuộc em → 404 `DON_KHONG_TON_TAI` |
 
 ### Quản trị
 | Method | Đường dẫn | Quyền | Mô tả |

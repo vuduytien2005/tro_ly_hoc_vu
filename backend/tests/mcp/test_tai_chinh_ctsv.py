@@ -96,7 +96,9 @@ async def test_ctsv_tools() -> None:
 async def test_list_my_requests(qlsv_mock: respx.MockRouter) -> None:
     route = qlsv_mock.get("/internal/students/SV22001/requests").respond(
         200,
-        json=[{k: REQUEST[k] for k in ("ma_don", "loai_don", "trang_thai", "created_at")}],
+        json=[
+            {k: REQUEST[k] for k in ("ma_don", "loai_don", "trang_thai", "tao_boi", "created_at")}
+        ],
     )
     out = await call_tool(
         ctsv.mcp, "list_my_requests", {"ma_sv": "SV22001", "trang_thai": "dang_xu_ly"}
@@ -107,6 +109,8 @@ async def test_list_my_requests(qlsv_mock: respx.MockRouter) -> None:
             "ma_don": "DT-2026-0001",
             "loai_don": "Giấy xác nhận sinh viên",
             "trang_thai": "đang xử lý",
+            "ma_trang_thai": "dang_xu_ly",
+            "tao_boi": "Sinh viên",
             "ngay_tao": "2026-11-10",
         }
     ]

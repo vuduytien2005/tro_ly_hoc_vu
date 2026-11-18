@@ -151,7 +151,7 @@ Nguyên tắc:
 | `token` | `{"text": "..."}` |
 | `tool_start` | `{"ten": "get_transcript", "nhan": "Đang xem bảng điểm của em"}` |
 | `tool_end` | `{"ten": "...", "trang_thai": "thanh_cong"\|"loi"}` |
-| `citations` | `[{"so":1,"van_ban":"...","dieu":"...","trang":12,"doan_id":34}]` |
+| `citations` | `[{"so":1,"doan_id":34,"van_ban_id":2,"van_ban":"...","phien_ban":"...","dieu":"...","khoan":"...","trang":12,"trich_doan":"≤300 ký tự đầu của đoạn, đã bỏ thẻ <tai_lieu>"}]` (cũng lưu ở `tin_nhan.trich_dan`; web hiện popover khi bấm `[n]`) |
 | `pending_action` | `{"ma":"uuid","ten_cong_cu":"register_course","mo_ta":"...","het_han_luc":"...+07:00"}` |
 | `done` | `{"tin_nhan_id": 123}` |
 | `error` | `{"detail": "...", "code": "..."}` |
