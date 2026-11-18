@@ -1,6 +1,8 @@
 """MCP server `dao_tao` (:9101) — hồ sơ, bảng điểm, lịch học, lịch thi, tốt nghiệp, lớp học phần.
 
-Giai đoạn 3: chỉ các tool ĐỌC. Tool ghi (register_course, cancel_course_registration) ở Giai đoạn 6.
+Tool ĐỌC: hồ sơ, bảng điểm, lịch, tiến độ tốt nghiệp, tìm lớp.
+Tool GHI (register_course, cancel_course_registration): assistant_api KHÔNG gọi ngay mà tạo thẻ xác
+nhận; chỉ gọi khi sinh viên bấm "Xác nhận" (bảng cong_cu: can_xac_nhan = 1).
 Chạy: python -m src.mcp_servers.dao_tao
 """
 
@@ -27,9 +29,10 @@ mcp = MCPServer(
     title="Phòng Đào tạo",
     instructions=(
         "Tra cứu thông tin học tập của sinh viên đang đăng nhập: hồ sơ, bảng điểm, GPA, "
-        "thời khóa biểu, lịch thi, tiến độ tốt nghiệp và các lớp học phần đang mở đăng ký."
+        "thời khóa biểu, lịch thi, tiến độ tốt nghiệp và các lớp học phần đang mở đăng ký; "
+        "đăng ký / hủy đăng ký lớp học phần (cần sinh viên xác nhận)."
     ),
-    version="0.3.0",
+    version="0.6.0",
 )
 
 
@@ -229,6 +232,57 @@ async def search_course_sections(
         else f"Không có lớp nào đang mở phù hợp với '{tu_khoa}'."
     )
     return {"lop": sections, "thong_bao": note}
+
+
+MaLop = Annotated[
+    str,
+    Field(
+        min_length=2,
+        max_length=30,
+        description='Mã lớp học phần, ví dụ "IT004.02" (lấy từ kết quả search_course_sections).',
+    ),
+]
+
+
+@mcp.tool()
+@tool_errors
+async def register_course(ma_sv: MaSv, ma_lop: MaLop) -> dict[str, Any]:
+    """Đăng ký một lớp học phần cho sinh viên trong học kỳ đang mở đăng ký.
+
+    Dùng khi sinh viên muốn đăng ký / học lại / học thêm một môn và đã xác định được mã lớp.
+    Nếu chưa biết mã lớp, gọi search_course_sections trước để tìm lớp phù hợp (đúng thứ, còn chỗ).
+    Thao tác này cần sinh viên xác nhận trên giao diện.
+    Lỗi thường gặp: TRUNG_LICH (trùng lịch lớp đã đăng ký), LOP_DA_DAY, VUOT_TIN_CHI_TOI_DA,
+    CHUA_DAT_TIEN_QUYET, DA_DANG_KY_HOC_PHAN, NGOAI_THOI_GIAN_DANG_KY.
+    """
+    r = await qlsv.request(
+        "POST", _student_path(ma_sv, "/registrations"), json_body={"ma_lop": ma_lop}
+    )
+    return {
+        "thanh_cong": True,
+        "ma_lop": r["ma_lop"],
+        "ten_hp": r["ten_hp"],
+        "tin_chi": r["tin_chi"],
+        "lich": r["lich"],
+        "thong_bao": f"Đã đăng ký lớp {r['ma_lop']} – {r['ten_hp']} ({r['lich']}).",
+    }
+
+
+@mcp.tool()
+@tool_errors
+async def cancel_course_registration(ma_sv: MaSv, ma_lop: MaLop) -> dict[str, Any]:
+    """Hủy đăng ký một lớp học phần sinh viên đã đăng ký (chỉ trong thời gian đăng ký).
+
+    Dùng khi sinh viên muốn rút / bỏ / hủy một lớp đã đăng ký. Nếu chưa rõ mã lớp, gọi
+    get_current_schedule để xem các lớp đã đăng ký. Thao tác này cần sinh viên xác nhận.
+    """
+    r = await qlsv.request("DELETE", _student_path(ma_sv, f"/registrations/{path_segment(ma_lop)}"))
+    return {
+        "thanh_cong": True,
+        "ma_lop": r["ma_lop"],
+        "ten_hp": r["ten_hp"],
+        "thong_bao": f"Đã hủy đăng ký lớp {r['ma_lop']} – {r['ten_hp']}.",
+    }
 
 
 def main() -> None:

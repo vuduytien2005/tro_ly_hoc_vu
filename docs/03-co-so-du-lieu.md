@@ -106,7 +106,7 @@ erDiagram
 
 ### Chống đăng ký trùng khi nhiều yêu cầu đến cùng lúc (SQL Server)
 - Trong một transaction: khóa hàng `sinh_vien` rồi hàng `lop_hoc_phan` bằng table hint **`WITH (UPDLOCK, ROWLOCK)`**, sau đó mới đếm sĩ số / kiểm tra / ghi; commit nhả khóa. Luôn khóa theo cùng thứ tự để tránh deadlock.
-  **Không dùng `with_for_update()`**: SQLAlchemy bỏ qua nó một cách im lặng với SQL Server (câu SQL không có khóa) → dùng `lock_for_update()` trong `qlsv_api/repositories/locking.py` (bọc `with_hint`).
+  **Không dùng `with_for_update()`**: SQLAlchemy bỏ qua nó một cách im lặng với SQL Server (câu SQL không có khóa) → dùng `lock_for_update()` trong `shared/locking.py` (bọc `with_hint`).
 - Mã đơn sinh dưới khóa khoảng `WITH (UPDLOCK, HOLDLOCK)`; UNIQUE `ma_don` là chốt chặn cuối.
 - Cả 2 CSDL bật **`READ_COMMITTED_SNAPSHOT`**: lệnh đọc không bị chặn bởi hàng đang ghi dở của transaction khác (nếu không, 2 sinh viên đăng ký 2 lớp KHÁC nhau vẫn phải chờ nhau vì câu đếm sĩ số quét bảng `dang_ky_hoc_phan`).
 - Minh chứng: `tests/qlsv/test_locking.py` mở 2 kết nối thật; kết nối thứ hai bị chặn (lỗi 1222 sau `LOCK_TIMEOUT 1000`). Bỏ UPDLOCK thì test này thất bại.

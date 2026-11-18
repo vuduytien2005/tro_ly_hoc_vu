@@ -55,8 +55,11 @@ TRANSCRIPT = {
 }
 
 
-async def test_only_read_tools_exposed() -> None:
-    assert set(await list_tools(dao_tao.mcp)) == READ_TOOLS
+WRITE_TOOLS = {"register_course", "cancel_course_registration"}
+
+
+async def test_tools_exposed() -> None:
+    assert set(await list_tools(dao_tao.mcp)) == READ_TOOLS | WRITE_TOOLS
 
 
 async def test_ma_sv_is_injected_parameter_not_in_description() -> None:

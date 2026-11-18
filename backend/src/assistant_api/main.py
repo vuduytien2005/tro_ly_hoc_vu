@@ -21,7 +21,7 @@ from src.assistant_api.agent.loop import AgentRunner
 from src.assistant_api.agent.registry import ToolRegistry
 from src.assistant_api.errors import ApiError
 from src.assistant_api.mcp_client.client import McpClient
-from src.assistant_api.routers import auth, conversations
+from src.assistant_api.routers import actions, auth, conversations, my_requests
 from src.shared.config import get_settings
 from src.shared.db import assistant_session_factory
 
@@ -55,7 +55,7 @@ def create_app(
     app = FastAPI(
         title="Trợ lý học vụ — assistant_api",
         description="Bấm **Authorize**, dán `access_token` nhận từ `/api/auth/login`.",
-        version="0.5.0",
+        version="0.6.0",
         lifespan=lifespan,
     )
     app.add_middleware(
@@ -91,6 +91,8 @@ def create_app(
 
     app.include_router(auth.router)
     app.include_router(conversations.router)
+    app.include_router(actions.router)
+    app.include_router(my_requests.router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
     def health(request: Request) -> dict[str, object]:

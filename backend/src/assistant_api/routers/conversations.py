@@ -33,7 +33,7 @@ from src.assistant_api.schemas import (
     MessagesOut,
     PendingActionOut,
 )
-from src.shared.time import to_db
+from src.shared.time import to_db, wall_clock
 
 router = APIRouter(prefix="/api", tags=["Hội thoại"])
 
@@ -104,7 +104,7 @@ def delete_conversation(conversation_id: int, user: Student, db: DbSession) -> R
     response_model=MessagesOut,
     summary="Tin nhắn user/assistant (ẩn tool), kèm trích dẫn và hành động chờ xác nhận",
 )
-def list_messages(conversation_id: int, user: Student, db: DbSession, now: Now) -> MessagesOut:
+def list_messages(conversation_id: int, user: Student, db: DbSession) -> MessagesOut:
     conversation = own_conversation(db, user, conversation_id)
     rows = db.scalars(
         select(TinNhan)
@@ -125,7 +125,7 @@ def list_messages(conversation_id: int, user: Student, db: DbSession, now: Now) 
             HanhDongChoXacNhan.hoi_thoai_id == conversation.id,
             HanhDongChoXacNhan.nguoi_dung_id == user.id,
             HanhDongChoXacNhan.trang_thai == "cho",
-            HanhDongChoXacNhan.het_han_luc > to_db(now),
+            HanhDongChoXacNhan.het_han_luc > to_db(wall_clock()),  # hạn tính theo giờ thật
         )
         .order_by(HanhDongChoXacNhan.id)
     ).all()

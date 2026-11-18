@@ -1,8 +1,8 @@
 """MCP server `ctsv` (:9102) — Công tác sinh viên: đơn từ.
 
-Giai đoạn 3: chỉ các tool ĐỌC (list_my_requests, get_request_status).
-Tool ghi (request_student_certificate, submit_deferral_request, submit_regrade_request)
-ở Giai đoạn 6.
+Tool ĐỌC: list_my_requests, get_request_status.
+Tool GHI (request_student_certificate, submit_deferral_request, submit_regrade_request): chỉ được
+assistant_api gọi sau khi sinh viên bấm "Xác nhận"; đơn ghi nhận tao_boi = "tro_ly_ai".
 Chạy: python -m src.mcp_servers.ctsv
 """
 
@@ -18,10 +18,10 @@ mcp = MCPServer(
     name="ctsv",
     title="Phòng Công tác sinh viên",
     instructions=(
-        "Tra cứu các đơn sinh viên đã gửi (giấy xác nhận sinh viên, bảo lưu, phúc khảo) "
-        "và trạng thái xử lý."
+        "Nộp và tra cứu các đơn của sinh viên (giấy xác nhận sinh viên, bảo lưu, phúc khảo) "
+        "cùng trạng thái xử lý. Nộp đơn cần sinh viên xác nhận."
     ),
-    version="0.3.0",
+    version="0.6.0",
 )
 
 LOAI_DON = {
@@ -95,6 +95,90 @@ async def get_request_status(
         "cap_nhat_luc": d["updated_at"],
         "thong_bao": note,
     }
+
+
+async def _create_request(ma_sv: str, loai_don: str, noi_dung: dict[str, Any]) -> dict[str, Any]:
+    d = await qlsv.request(
+        "POST",
+        f"/internal/students/{path_segment(ma_sv)}/requests",
+        json_body={"loai_don": loai_don, "noi_dung": noi_dung, "tao_boi": "tro_ly_ai"},
+    )
+    loai = LOAI_DON.get(d["loai_don"], d["loai_don"])
+    return {
+        "thanh_cong": True,
+        "ma_don": d["ma_don"],
+        "loai_don": loai,
+        "trang_thai": TRANG_THAI_DON.get(d["trang_thai"], d["trang_thai"]),
+        "thong_bao": (
+            f"Đã tạo {loai.lower()} mã {d['ma_don']}. "
+            'Sinh viên theo dõi tiến độ ở mục "Thủ tục của em".'
+        ),
+    }
+
+
+@mcp.tool()
+@tool_errors
+async def request_student_certificate(
+    ma_sv: MaSv,
+    muc_dich: Annotated[
+        str,
+        Field(
+            min_length=2,
+            max_length=200,
+            description='Mục đích xin giấy, vd "làm hồ sơ vay vốn ngân hàng chính sách".',
+        ),
+    ],
+    so_ban: Annotated[int, Field(ge=1, le=5, description="Số bản cần cấp (1–5).")] = 1,
+) -> dict[str, Any]:
+    """Tạo yêu cầu cấp giấy xác nhận sinh viên (đang học tại trường).
+
+    Dùng khi sinh viên cần giấy xác nhận để vay vốn, xin học bổng, tạm hoãn nghĩa vụ quân sự,
+    làm hồ sơ... Hỏi lại mục đích nếu sinh viên chưa nói. Thao tác này cần sinh viên xác nhận.
+    """
+    return await _create_request(
+        ma_sv, "giay_xac_nhan_sv", {"muc_dich": muc_dich, "so_ban": so_ban}
+    )
+
+
+@mcp.tool()
+@tool_errors
+async def submit_deferral_request(
+    ma_sv: MaSv,
+    ly_do: Annotated[str, Field(min_length=2, max_length=500, description="Lý do xin bảo lưu.")],
+    tu_hoc_ky: Annotated[
+        str,
+        Field(description='Học kỳ bắt đầu bảo lưu, mã dạng "2025-2026-HK2".'),
+    ],
+    so_hoc_ky: Annotated[int, Field(ge=1, le=2, description="Số học kỳ xin bảo lưu (1–2).")] = 1,
+) -> dict[str, Any]:
+    """Nộp đơn xin bảo lưu kết quả học tập (tạm dừng học).
+
+    Đây là thao tác NHẠY CẢM: chỉ dùng khi sinh viên nói rõ muốn bảo lưu và đã cho biết lý do,
+    học kỳ bắt đầu. Nên tra cứu quy chế về bảo lưu trước để nhắc sinh viên điều kiện.
+    Lỗi thường gặp: NO_HOC_PHI (còn nợ học phí), SV_KHONG_DANG_HOC. Cần sinh viên xác nhận.
+    """
+    return await _create_request(
+        ma_sv, "bao_luu", {"ly_do": ly_do, "so_hoc_ky": so_hoc_ky, "tu_hoc_ky": tu_hoc_ky}
+    )
+
+
+@mcp.tool()
+@tool_errors
+async def submit_regrade_request(
+    ma_sv: MaSv,
+    ma_hp: Annotated[
+        str,
+        Field(min_length=2, max_length=20, description='Mã học phần cần phúc khảo, vd "IT004".'),
+    ],
+    ly_do: Annotated[str, Field(min_length=2, max_length=500, description="Lý do xin phúc khảo.")],
+) -> dict[str, Any]:
+    """Nộp đơn phúc khảo điểm thi một học phần của học kỳ vừa kết thúc.
+
+    Dùng khi sinh viên thấy điểm thi chưa đúng và muốn chấm lại. Nếu chưa rõ mã học phần,
+    gọi get_transcript trước. Lỗi thường gặp: KHONG_CO_DIEM_HOC_KY_GAN_NHAT.
+    Thao tác này cần sinh viên xác nhận.
+    """
+    return await _create_request(ma_sv, "phuc_khao", {"ma_hp": ma_hp, "ly_do": ly_do})
 
 
 def main() -> None:

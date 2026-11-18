@@ -53,6 +53,10 @@ async def register_course(
 | `list_my_requests` | `trang_thai: str \| None` | [{ma_don, loai_don, trang_thai, created_at}] | đọc |
 | `get_request_status` | `ma_don: str` | chi tiết đơn | đọc |
 
+- Tool ghi (cả `dao_tao`) **không tự kiểm tra xác nhận**: việc chặn thuộc assistant_api (bảng `cong_cu.can_xac_nhan`). MCP server chỉ thực thi khi được gọi, nên có thể dùng lại với ứng dụng MCP khác — khi đó ứng dụng đó phải tự xin xác nhận người dùng.
+- Đơn do trợ lý tạo gửi `tao_boi = "tro_ly_ai"` sang qlsv_api (phân biệt với đơn sinh viên tự nộp).
+- Lỗi nghiệp vụ hay gặp (từ qlsv_api, giữ nguyên mã): `TRUNG_LICH`, `LOP_DA_DAY`, `VUOT_TIN_CHI_TOI_DA`, `CHUA_DAT_TIEN_QUYET`, `DA_DANG_KY_HOC_PHAN`, `NGOAI_THOI_GIAN_DANG_KY`, `CHUA_DANG_KY_LOP`, `NO_HOC_PHI`, `SV_KHONG_DANG_HOC`, `KHONG_CO_DIEM_HOC_KY_GAN_NHAT`.
+
 ## 3. Server `tai_chinh` (:9103)
 | Tool | Tham số | Trả về | Rủi ro |
 |---|---|---|---|

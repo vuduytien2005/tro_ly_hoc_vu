@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from src.qlsv_api.models import ChungChi, ChuongTrinh, ChuongTrinhHocPhan, SinhVien
-from src.qlsv_api.repositories.locking import lock_for_update
+from src.shared.locking import lock_for_update
 
 
 def get_by_ma_sv(db: Session, ma_sv: str) -> SinhVien | None:

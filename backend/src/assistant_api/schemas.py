@@ -101,3 +101,9 @@ class FeedbackOut(BaseModel):
     tin_nhan_id: int
     diem: int
     gop_y: str | None
+
+
+class ActionCancelOut(BaseModel):
+    ma: str
+    trang_thai: str
+    tin_nhan: MessageOut

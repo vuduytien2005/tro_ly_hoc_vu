@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.qlsv_api.models import DonTu
-from src.qlsv_api.repositories.locking import lock_range_for_update
+from src.shared.locking import lock_range_for_update
 
 
 def list_for_student(db: Session, sinh_vien_id: int, trang_thai: str | None) -> list[DonTu]:

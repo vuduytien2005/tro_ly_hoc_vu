@@ -80,9 +80,15 @@ REQUEST = {
 }
 
 
-async def test_ctsv_exposes_only_read_tools() -> None:
+async def test_ctsv_tools() -> None:
     tools = await list_tools(ctsv.mcp)
-    assert set(tools) == {"list_my_requests", "get_request_status"}
+    assert set(tools) == {
+        "list_my_requests",
+        "get_request_status",
+        "request_student_certificate",
+        "submit_deferral_request",
+        "submit_regrade_request",
+    }
     for tool in tools.values():
         assert next(iter(tool.input_schema["properties"])) == "ma_sv"
 

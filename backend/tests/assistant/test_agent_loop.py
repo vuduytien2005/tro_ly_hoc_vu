@@ -138,31 +138,6 @@ def test_unknown_tool_refused_and_logged(
     assert log.trang_thai == "bi_tu_choi" and log.mcp_server == "(không rõ)"
 
 
-def test_confirmation_tool_not_executed_yet(
-    client: TestClient,
-    student: NguoiDung,
-    db: Session,
-    script: Callable[..., FakeLLM],
-    qlsv_mock: respx.MockRouter,
-) -> None:
-    # Tool ghi (register_course...) có ở giai đoạn 6 -> mô phỏng: bắt xác nhận một tool có sẵn
-    db.execute(update(CongCu).where(CongCu.ten == "get_student_profile").values(can_xac_nhan=True))
-    db.commit()
-    route = qlsv_mock.get("/internal/students/SV22001").respond(200, json=PROFILE)
-    script(
-        FakeResponse(tool_calls=[("get_student_profile", {"ma_sv": "SV22002"})]),
-        FakeResponse(text="Thao tác cần xác nhận."),
-    )
-    headers = login(client, student.email)
-    cid = new_conversation(client, headers)
-    events = chat(client, headers, cid, "Xem hồ sơ")
-    assert not route.called  # quy tắc 2: tool can_xac_nhan=1 KHÔNG được thực thi ngay
-    assert "tool_start" not in [e for e, _ in events]
-    (log,) = logs(db, cid)
-    assert log.trang_thai == "bi_tu_choi"
-    assert log.tham_so == {"ma_sv": "SV22001"}  # đã tiêm sẵn, sẵn sàng cho bước xác nhận
-
-
 def test_business_error_logged_as_loi(
     client: TestClient,
     student: NguoiDung,

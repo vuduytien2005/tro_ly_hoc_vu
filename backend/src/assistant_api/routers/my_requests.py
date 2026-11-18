@@ -1,0 +1,71 @@
+"""Trang "Thủ tục của em": gọi thẳng tool MCP (không qua LLM).
+
+Vẫn áp dụng đủ quy tắc bảo mật: tool phải đang bật (quy tắc 6), ma_sv lấy từ tài khoản đăng nhập
+(quy tắc 1), mỗi lần gọi ghi nhật ký (quy tắc 3, hoi_thoai_id = NULL).
+"""
+
+from typing import Any, Literal
+
+from fastapi import APIRouter, Request
+
+from src.assistant_api.agent.executor import ToolLog, invoke
+from src.assistant_api.agent.registry import ToolRegistry, inject_context
+from src.assistant_api.deps import DbSession, Student
+from src.assistant_api.errors import ApiError
+from src.assistant_api.models import NguoiDung
+
+router = APIRouter(prefix="/api/my", tags=["Thủ tục của em"])
+
+DIRECT_REASON = "Gọi trực tiếp từ trang Thủ tục của em"
+NOT_FOUND_CODES = {"DON_KHONG_TON_TAI", "SV_KHONG_TON_TAI"}
+
+
+async def call_direct(
+    request: Request, db: DbSession, user: NguoiDung, tool: str, args: dict[str, Any]
+) -> dict[str, Any]:
+    registry: ToolRegistry = request.app.state.registry
+    await registry.ensure_fresh(db)
+    policy = registry.policies(db).get(tool)
+    if policy is None or not policy.available or policy.spec is None:
+        raise ApiError("CHUC_NANG_TAM_DUNG", "Chức năng này hiện đang tạm dừng.", 503)
+    log = ToolLog(
+        db,
+        user_id=user.id,
+        conversation_id=None,
+        server=policy.server,
+        tool=tool,
+        llm_args=None,
+    )
+    full_args = inject_context(policy.spec, args, user)
+    log.set_args(full_args)
+    outcome = await invoke(registry.client, policy.server, tool, full_args)
+    outcome.reason = outcome.reason or DIRECT_REASON
+    log.save(outcome)
+    result = outcome.result
+    if outcome.status != "thanh_cong" or not isinstance(result, dict):
+        data = result if isinstance(result, dict) else {}
+        code = str(data.get("ma_loi") or "LOI_CONG_CU")
+        message = str(data.get("thong_bao") or "Không lấy được dữ liệu, vui lòng thử lại sau.")
+        status = 404 if code in NOT_FOUND_CODES else 502
+        if code == "DICH_VU_KHONG_KHA_DUNG":
+            status = 503
+        raise ApiError(code, message, status)
+    return result
+
+
+@router.get("/requests", summary="Danh sách đơn của em (gọi tool list_my_requests)")
+async def list_requests(
+    request: Request,
+    user: Student,
+    db: DbSession,
+    trang_thai: Literal["moi_tao", "dang_xu_ly", "da_duyet", "tu_choi", "hoan_tat"] | None = None,
+) -> dict[str, Any]:
+    args = {"trang_thai": trang_thai} if trang_thai else {}
+    return await call_direct(request, db, user, "list_my_requests", args)
+
+
+@router.get("/requests/{ma_don}", summary="Chi tiết một đơn (gọi tool get_request_status)")
+async def get_request(
+    request: Request, ma_don: str, user: Student, db: DbSession
+) -> dict[str, Any]:
+    return await call_direct(request, db, user, "get_request_status", {"ma_don": ma_don})

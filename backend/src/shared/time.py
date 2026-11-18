@@ -35,3 +35,9 @@ def from_db(dt: datetime | None) -> datetime | None:
     if dt is None:
         return None
     return dt.replace(tzinfo=VN_TZ) if dt.tzinfo is None else dt.astimezone(VN_TZ)
+
+
+def wall_clock() -> datetime:
+    """Giờ THẬT (bỏ qua DEMO_NOW), giờ Việt Nam. Dùng cho mọi hạn bảo mật đo thời gian trôi qua:
+    hạn token, hạn xác nhận hành động. DEMO_NOW cố định nên không dùng được cho các hạn này."""
+    return datetime.now(VN_TZ)

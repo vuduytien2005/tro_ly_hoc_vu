@@ -113,12 +113,19 @@ input: user, hoi_thoai, noi_dung
 5. Hết bước: trả lời "Yêu cầu quá phức tạp, em thử chia nhỏ câu hỏi nhé."
 ```
 
-**Khi xác nhận** (`POST /api/actions/{ma}/confirm`): kiểm tra chủ sở hữu + còn hạn + trạng thái 'cho' → thực thi tool → cập nhật nhật ký → thêm tin nhắn tool mang kết quả thật (tool_call_id mới, kèm một tin assistant tổng hợp tool_call tương ứng để lịch sử hợp lệ) → chạy tiếp vòng lặp (không thêm tin user) để LLM báo kết quả.
+**Khi xác nhận** (`POST /api/actions/{ma}/confirm`): kiểm tra chủ sở hữu + còn hạn + trạng thái 'cho' → thực thi tool → cập nhật nhật ký → thêm tin nhắn tool mang kết quả thật (tool_call_id mới, kèm một tin assistant tổng hợp tool_call tương ứng để lịch sử hợp lệ) → chạy tiếp vòng lặp để LLM báo kết quả.
+
+**Cài đặt cơ chế xác nhận (giai đoạn 6):**
+- Tạo thẻ: kiểm tra tham số theo JSON schema của tool (`jsonschema`) → dựng `mo_ta` TỪ MẪU theo từng tool (`agent/actions.py`), không dùng câu chữ của LLM. Với đăng ký/hủy lớp, hệ thống tự gọi `search_course_sections` (ghi nhật ký với `tham_so_llm = NULL`) để lấy tên học phần, số tín chỉ, lịch, phòng; không tìm thấy lớp → không tạo thẻ, LLM nhận lỗi `LOP_KHONG_TON_TAI`. Tham số sai → `THAM_SO_KHONG_HOP_LE`.
+- Xác nhận/hủy: khóa hàng `WITH (UPDLOCK, ROWLOCK)`, kiểm tra theo thứ tự: tồn tại (404) → chủ sở hữu (403) → trạng thái 'cho' (409 `HANH_DONG_DA_XU_LY`) → còn hạn (409 `HANH_DONG_HET_HAN`, đổi sang `het_han`). Đổi sang `da_xac_nhan` và COMMIT TRƯỚC khi thực thi → bấm hai lần (kể cả đồng thời) chỉ thực thi một lần.
+- Hạn 10 phút tính theo GIỜ THẬT (`shared/time.wall_clock`), không theo `DEMO_NOW` (giờ demo cố định thì thẻ không bao giờ hết hạn).
+- Sau xác nhận: lưu tin user "Xác nhận: <mo_ta>" (giữ lịch sử xen kẽ user/assistant hợp lệ và làm dấu vết trong khung chat) → tool_call tổng hợp (chỉ tham số LLM thấy, không có ma_sv) → kết quả thật kèm `ghi_chu_he_thong`. Dòng nhật ký `cho_xac_nhan` được CẬP NHẬT thành `thanh_cong`/`loi` (một thao tác = một dòng). Công cụ bị tắt trong lúc thẻ đang chờ → `bi_tu_choi`.
+- Hủy: không gọi LLM; lưu "Hủy: <mo_ta>" + câu trả lời cố định; nhật ký `da_huy`. Thẻ hết hạn: nhật ký `da_huy`, `ly_do` "Hết hạn xác nhận".
 
 **Chi tiết cài đặt (giai đoạn 5):**
 - Lịch sử: lấy `AGENT_HISTORY_MESSAGES` tin gần nhất rồi "làm sạch" (`sanitize_history`): bắt đầu bằng tin user; bỏ tool_call thiếu kết quả (lượt bị gián đoạn); hai tin user liền nhau (lượt trước lỗi LLM) → giữ tin sau.
 - Hậu kiểm trích dẫn: chỉ giữ `[n]` có trong kết quả `search_regulations` của CHÍNH lượt này (nhiều lần gọi → dùng lần gọi cuối); `[n]` bịa bị xóa khỏi câu trả lời lưu trong CSDL; sự kiện `citations` chỉ chứa nguồn hợp lệ.
-- Ghi nhật ký: `bi_tu_choi` (tool không tồn tại/đang tắt/thiếu ma_sv), `loi` (tham số JSON hỏng, MCP không kết nối, kết quả `thanh_cong: false`), `thanh_cong`. Tool `can_xac_nhan=1` ở GĐ 5 ghi `bi_tu_choi` (GĐ 6 đổi thành `cho_xac_nhan`).
+- Ghi nhật ký: `bi_tu_choi` (tool không tồn tại/đang tắt/thiếu ma_sv), `loi` (tham số JSON hỏng, MCP không kết nối, kết quả `thanh_cong: false`), `thanh_cong`. Tool `can_xac_nhan=1` ghi `cho_xac_nhan` (xem cơ chế xác nhận ở trên).
 - Lỗi LLM → sự kiện `error` mã `LOI_MO_HINH_NGON_NGU`; tin user vẫn được lưu.
 - Luồng SSE dùng phiên CSDL riêng; phiên của request đóng ngay sau khi kiểm tra quyền.
 - **LLM mặc định: Claude Opus 5.5** qua LiteLLM (`LLM_MODEL=anthropic/claude-opus-5-5`). Mô hình này: không nhận `temperature` (để trống `LLM_TEMPERATURE`), chỉ dùng `tool_choice="auto"`, luôn "thinking" (token thinking tính vào `LLM_MAX_TOKENS` → mặc định 16000). Khối thinking được gửi lại nguyên vẹn trong CÙNG lượt có tool_call; giữa các lượt, lịch sử chỉ gồm văn bản + tool_call + kết quả (bỏ toàn bộ thinking cũ — API cho phép). Từ chối do bộ lọc an toàn (`finish_reason=refusal`) → thử lại với `LLM_FALLBACK_MODEL` nếu có.
@@ -145,7 +152,7 @@ Nguyên tắc:
 | `tool_start` | `{"ten": "get_transcript", "nhan": "Đang xem bảng điểm của em"}` |
 | `tool_end` | `{"ten": "...", "trang_thai": "thanh_cong"\|"loi"}` |
 | `citations` | `[{"so":1,"van_ban":"...","dieu":"...","trang":12,"doan_id":34}]` |
-| `pending_action` | `{"ma":"uuid","mo_ta":"...","het_han_luc":"..."}` |
+| `pending_action` | `{"ma":"uuid","ten_cong_cu":"register_course","mo_ta":"...","het_han_luc":"...+07:00"}` |
 | `done` | `{"tin_nhan_id": 123}` |
 | `error` | `{"detail": "...", "code": "..."}` |
 
