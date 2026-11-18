@@ -1,0 +1,115 @@
+"""assistant_api — Backend trợ lý học vụ (đăng nhập, hội thoại, vòng lặp Agent).
+Chạy (từ thư mục backend/):  python -m src.assistant_api.main   -> http://127.0.0.1:8000/docs
+- Lỗi luôn có dạng {"detail": "<tiếng Việt>", "code": "<MA_LOI>"}.
+- Khởi động: đồng bộ danh mục công cụ với các MCP server (server chưa chạy -> thử lại sau 30 giây).
+"""
+
+import logging
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from src.assistant_api.agent.llm import LLM, LiteLlm
+from src.assistant_api.agent.loop import AgentRunner
+from src.assistant_api.agent.registry import ToolRegistry
+from src.assistant_api.errors import ApiError
+from src.assistant_api.mcp_client.client import McpClient
+from src.assistant_api.routers import auth, conversations
+from src.shared.config import get_settings
+from src.shared.db import assistant_session_factory
+
+logger = logging.getLogger("assistant_api")
+
+
+def error_response(status: int, detail: str, code: str) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"detail": detail, "code": code})
+
+
+def create_app(
+    registry: ToolRegistry | None = None,
+    llm: LLM | None = None,
+    session_factory: Callable[[], Session] | None = None,
+) -> FastAPI:
+    """Test truyền registry (MCP server chạy trong tiến trình), FakeLLM và session_factory riêng."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app.state.session_factory = session_factory or assistant_session_factory()
+        app.state.registry = registry or ToolRegistry(McpClient({}))
+        app.state.runner = AgentRunner(app.state.registry, llm or LiteLlm())
+        if registry is None:
+            with app.state.session_factory() as db:
+                await app.state.registry.sync(db)
+            logger.info("Trạng thái MCP server: %s", app.state.registry.server_status)
+        if not get_settings().llm_model and llm is None:
+            logger.warning("Chưa đặt LLM_MODEL trong .env -> trợ lý sẽ báo lỗi khi trò chuyện.")
+        yield
+
+    app = FastAPI(
+        title="Trợ lý học vụ — assistant_api",
+        description="Bấm **Authorize**, dán `access_token` nhận từ `/api/auth/login`.",
+        version="0.5.0",
+        lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in get_settings().cors_origins.split(",") if o.strip()],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.exception_handler(ApiError)
+    async def api_error_handler(_: Request, exc: ApiError) -> JSONResponse:
+        return error_response(exc.status, exc.message, exc.code)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+        fields = ", ".join(".".join(str(p) for p in e["loc"][1:]) or "body" for e in exc.errors())
+        return error_response(
+            422, f"Dữ liệu gửi lên không hợp lệ (kiểm tra: {fields}).", "DU_LIEU_KHONG_HOP_LE"
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+        if exc.status_code == 404:
+            return error_response(404, "Không tìm thấy đường dẫn yêu cầu.", "KHONG_TIM_THAY")
+        if exc.status_code == 405:
+            return error_response(405, "Phương thức không được hỗ trợ.", "PHUONG_THUC_KHONG_HO_TRO")
+        return error_response(exc.status_code, str(exc.detail), "LOI_HTTP")
+
+    @app.exception_handler(Exception)
+    async def unhandled_error_handler(_: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Lỗi không xử lý được", exc_info=exc)
+        return error_response(500, "Lỗi hệ thống, vui lòng thử lại sau.", "LOI_HE_THONG")
+
+    app.include_router(auth.router)
+    app.include_router(conversations.router)
+
+    @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
+    def health(request: Request) -> dict[str, object]:
+        return {
+            "trang_thai": "ok",
+            "mcp_server": request.app.state.registry.server_status,
+            "llm_da_cau_hinh": bool(get_settings().llm_model),
+        }
+
+    return app
+
+
+app = create_app()
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO)
+    uvicorn.run(app, host="127.0.0.1", port=get_settings().assistant_api_port)
+
+
+if __name__ == "__main__":
+    main()

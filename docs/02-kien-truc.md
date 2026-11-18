@@ -115,6 +115,14 @@ input: user, hoi_thoai, noi_dung
 
 **Khi xác nhận** (`POST /api/actions/{ma}/confirm`): kiểm tra chủ sở hữu + còn hạn + trạng thái 'cho' → thực thi tool → cập nhật nhật ký → thêm tin nhắn tool mang kết quả thật (tool_call_id mới, kèm một tin assistant tổng hợp tool_call tương ứng để lịch sử hợp lệ) → chạy tiếp vòng lặp (không thêm tin user) để LLM báo kết quả.
 
+**Chi tiết cài đặt (giai đoạn 5):**
+- Lịch sử: lấy `AGENT_HISTORY_MESSAGES` tin gần nhất rồi "làm sạch" (`sanitize_history`): bắt đầu bằng tin user; bỏ tool_call thiếu kết quả (lượt bị gián đoạn); hai tin user liền nhau (lượt trước lỗi LLM) → giữ tin sau.
+- Hậu kiểm trích dẫn: chỉ giữ `[n]` có trong kết quả `search_regulations` của CHÍNH lượt này (nhiều lần gọi → dùng lần gọi cuối); `[n]` bịa bị xóa khỏi câu trả lời lưu trong CSDL; sự kiện `citations` chỉ chứa nguồn hợp lệ.
+- Ghi nhật ký: `bi_tu_choi` (tool không tồn tại/đang tắt/thiếu ma_sv), `loi` (tham số JSON hỏng, MCP không kết nối, kết quả `thanh_cong: false`), `thanh_cong`. Tool `can_xac_nhan=1` ở GĐ 5 ghi `bi_tu_choi` (GĐ 6 đổi thành `cho_xac_nhan`).
+- Lỗi LLM → sự kiện `error` mã `LOI_MO_HINH_NGON_NGU`; tin user vẫn được lưu.
+- Luồng SSE dùng phiên CSDL riêng; phiên của request đóng ngay sau khi kiểm tra quyền.
+- **LLM mặc định: Claude Opus 5.5** qua LiteLLM (`LLM_MODEL=anthropic/claude-opus-5-5`). Mô hình này: không nhận `temperature` (để trống `LLM_TEMPERATURE`), chỉ dùng `tool_choice="auto"`, luôn "thinking" (token thinking tính vào `LLM_MAX_TOKENS` → mặc định 16000). Khối thinking được gửi lại nguyên vẹn trong CÙNG lượt có tool_call; giữa các lượt, lịch sử chỉ gồm văn bản + tool_call + kết quả (bỏ toàn bộ thinking cũ — API cho phép). Từ chối do bộ lọc an toàn (`finish_reason=refusal`) → thử lại với `LLM_FALLBACK_MODEL` nếu có.
+
 **LLM giả lập cho test:** `FakeLLM` trả về chuỗi phản hồi định sẵn (có tool_calls) để test vòng lặp mà không tốn tiền API.
 
 ## 4. System prompt (khung)

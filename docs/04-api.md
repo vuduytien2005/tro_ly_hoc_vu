@@ -28,7 +28,7 @@ Header `Authorization: Bearer <JWT>` (trừ login). Quyền: `SV` = sinh viên, 
 ### Xác thực
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
-| POST | `/api/auth/login` | – | `{email, mat_khau}` → `{access_token, nguoi_dung}` |
+| POST | `/api/auth/login` | – | `{email, mat_khau}` → `{access_token, token_type, het_han_luc, nguoi_dung}`. Sai email hoặc mật khẩu đều trả 401 `SAI_THONG_TIN_DANG_NHAP` (không dò được email); tài khoản khóa 403 `TAI_KHOAN_BI_KHOA` |
 | GET | `/api/auth/me` | SV, AD | Thông tin tài khoản |
 
 ### Hội thoại
@@ -38,9 +38,11 @@ Header `Authorization: Bearer <JWT>` (trừ login). Quyền: `SV` = sinh viên, 
 | POST | `/api/conversations` | SV | Tạo mới |
 | PATCH | `/api/conversations/{id}` | SV | Đổi tiêu đề |
 | DELETE | `/api/conversations/{id}` | SV | Xóa |
-| GET | `/api/conversations/{id}/messages` | SV | Tin nhắn user/assistant (ẩn tool), kèm trích dẫn, hành động chờ xác nhận còn hiệu lực |
+| GET | `/api/conversations/{id}/messages` | SV | `{tin_nhan: [{id, vai_tro, noi_dung, trich_dan, danh_gia, created_at}], hanh_dong_cho_xac_nhan: [{ma, ten_cong_cu, mo_ta, het_han_luc}]}` — ẩn tin tool và bước trung gian chỉ có tool_call |
 | POST | `/api/conversations/{id}/messages` | SV | `{noi_dung}` → **SSE** (xem 02 mục 5). Tự đặt tiêu đề từ câu hỏi đầu |
-| POST | `/api/messages/{id}/feedback` | SV | `{diem: 1\|-1, gop_y?}` |
+| POST | `/api/messages/{id}/feedback` | SV | `{diem: 1\|-1, gop_y?}`; gửi lại thì ghi đè; chỉ đánh giá được câu trả lời trong hội thoại của mình |
+
+Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (401), `KHONG_DU_QUYEN`, `TAI_KHOAN_BI_KHOA` (403). Hội thoại của người khác trả 404 `KHONG_TIM_THAY_HOI_THOAI` (không lộ việc id tồn tại). `GET /health` trả trạng thái từng MCP server.
 
 ### Hành động chờ xác nhận
 | Method | Đường dẫn | Quyền | Mô tả |

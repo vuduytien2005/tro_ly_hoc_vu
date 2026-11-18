@@ -56,8 +56,13 @@ class Settings(BaseSettings):
 
     # ---------- LLM ----------
     llm_model: str = ""
-    llm_temperature: float = 0.2
-    llm_max_tokens: int = 1500
+    # Bỏ trống = không gửi temperature (Claude Opus 5.5/Sonnet 5.5... từ chối tham số này)
+    llm_temperature: float | None = None
+    # Với Claude, token "thinking" tính vào max_tokens -> để rộng
+    llm_max_tokens: int = 16000
+    # Mô hình thử lại khi mô hình chính từ chối trả lời (stop_reason "refusal"); trống = không
+    llm_fallback_model: str = ""
+    llm_timeout_seconds: float = 120.0
 
     # ---------- RAG ----------
     embedding_model: str = "intfloat/multilingual-e5-base"
@@ -73,7 +78,7 @@ class Settings(BaseSettings):
     agent_history_messages: int = 20
     action_expire_minutes: int = 10
 
-    @field_validator("demo_now", mode="before")
+    @field_validator("demo_now", "llm_temperature", mode="before")
     @classmethod
     def _empty_demo_now(cls, v: object) -> object:
         # "DEMO_NOW=" (bỏ trống) nghĩa là dùng giờ hệ thống
