@@ -67,5 +67,31 @@ Văn bản không có cấu trúc Điều (thông báo, hướng dẫn) → tự
 Nằm trong vòng lặp Agent (LLM nhận kết quả tool `search_regulations`). System prompt bắt buộc trích dẫn `[so]`. Backend hậu kiểm: số trích dẫn trong câu trả lời phải nằm trong danh sách đoạn đã trả về; số lạ bị loại khỏi `citations` và ghi cảnh báo vào log (phục vụ đo "trích dẫn sai").
 
 ## 5. Kiểm thử
-- `tests/rag/test_chunker.py`: văn bản mẫu có Chương/Điều/Khoản → số đoạn và tiêu đề đúng.
-- `tests/rag/test_retriever.py`: dữ liệu nhỏ 2 phiên bản → K21 chỉ nhận đoạn bản cũ, K22 chỉ nhận bản mới.
+- `tests/rag/test_chunking.py`: văn bản mẫu giả lập (`tests/rag/fixtures/quy_che_mau.txt`, 3 trang có header/footer,
+  số trang, dòng bị ngắt) → làm sạch đúng, mỗi Điều 1 đoạn, tiêu đề/chương/trang đúng, Điều dài tách theo Khoản,
+  rơi về `co_dinh` khi không có Điều; loader PDF/DOCX; BM25.
+- `tests/rag/test_retriever.py`: 2 phiên bản giả (2021 → ≤K21, 2023 → ≥K22) → K21 chỉ nhận bản cũ, K22 chỉ nhận bản mới,
+  kiểm tra riêng từng nhánh (chỉ vector / chỉ BM25); lập chỉ mục lại không trùng; RRF; rerank.
+  Đã thử "đột biến" (bỏ bộ lọc phiên bản) → test thất bại, chứng tỏ test có ý nghĩa.
+- `tests/rag/test_quy_che_server.py`: tool qua giao thức MCP, bọc `<tai_lieu>`, chặn thẻ giả trong tài liệu, lỗi.
+- Test dùng `HashingEmbedder` (embedding giả, tất định) + Chroma trong thư mục tạm + CSDL rollback → không cần tải mô hình.
+
+## 6. Quyết định cài đặt (Giai đoạn 4)
+- **Làm sạch:** header/footer = dòng ở 2 dòng đầu/cuối trang lặp lại ≥ 50% số trang (so sánh sau khi thay chữ số bằng `#`),
+  chỉ áp dụng khi ≥ 3 trang. Không nối dòng vào/qua dòng cấu trúc (Chương, Điều, khoản `1.`, điểm `a)`, gạch đầu dòng).
+- **Nhận diện Điều chống nhầm câu dẫn chiếu:** tiêu đề phải dạng `Điều <số>.`/`Điều <số>:` và số Điều tăng dần
+  (lớn hơn Điều trước tối đa 3) — "Điều 6 của Quy chế này" bị ngắt dòng không thành Điều mới.
+- **Đếm token** bằng tokenizer của chính mô hình embedding (e5/bge-m3 cắt ở 512 token → đoạn không vượt quá).
+  Phần mở đầu (trước Điều 1) chia theo `co_dinh`. Khoản quá dài → cửa sổ cố định, chồng lấn ≤ 1/4 cửa sổ.
+- `ngu_nghia`: để Giai đoạn 8; hiện rơi về `theo_dieu` (có cảnh báo trong log).
+- **Văn bản nhận diện theo (ten, loai, phien_ban)**; lập chỉ mục lại → xóa đoạn + vector cũ (idempotent).
+  Ghi CSDL (flush) → upsert Chroma → commit; vector "mồ côi" (commit lỗi) bị retriever bỏ qua vì chỉ nhận vector có
+  đoạn thuộc văn bản `da_lap_chi_muc`. Lỗi → `van_ban.trang_thai = 'loi'`, `van_ban.loi` ghi lý do.
+- **Lọc phiên bản 2 lớp:** điều kiện `where` trong Chroma + kiểm tra lại ở CSDL khi đổi vector_id → doan_id.
+- **BM25 tự làm mới:** mỗi lần tìm kiểm tra "dấu vết" `COUNT(van_ban), MAX(updated_at), COUNT(doan_van_ban)`;
+  đổi thì dựng lại (cache theo khóa). Server `quy_che` đang chạy thấy ngay văn bản mới nạp bằng script.
+- **`ma_khoa`** nhận `K22`/`k22`/`22`; sai định dạng → `MA_KHOA_KHONG_HOP_LE`.
+- Kết quả `search_regulations` có thêm `van_ban_id` (để gọi `get_article`).
+- Công cụ dòng lệnh: `scripts/ingest_folder.py` (in bảng thời gian đọc/chia/embedding và số đoạn),
+  `scripts/try_search.py` (in hạng vector / BM25 / điểm RRF để gỡ lỗi; các cờ `--no-vector`, `--no-keyword`,
+  `--no-filter`, `--rerank`).

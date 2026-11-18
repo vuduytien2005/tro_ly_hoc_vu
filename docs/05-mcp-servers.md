@@ -61,10 +61,13 @@ async def register_course(
 ## 4. Server `quy_che` (:9104) — nhánh RAG
 | Tool | Tham số | Trả về | Rủi ro |
 |---|---|---|---|
-| `search_regulations` | `ma_khoa: str` [INJECTED], `cau_hoi: str`, `top_k: int = 5` (≤ 8) | `{"doan": [{"so", "doan_id", "van_ban", "phien_ban", "dieu", "khoan", "trang", "noi_dung"}], "ghi_chu": "..."}` — `noi_dung` bọc trong `<tai_lieu>...</tai_lieu>` | đọc |
+| `search_regulations` | `ma_khoa: str` [INJECTED], `cau_hoi: str`, `top_k: int = 5` (≤ 8) | `{"doan": [{"so", "doan_id", "van_ban_id", "van_ban", "phien_ban", "dieu", "khoan", "trang", "noi_dung"}], "ghi_chu": "..."}` — `noi_dung` bọc trong `<tai_lieu>...</tai_lieu>` | đọc |
 | `get_article` | `van_ban_id: int`, `dieu: str` | toàn văn các đoạn thuộc Điều đó | đọc |
 
 - `search_regulations` không cần `ma_sv`, chỉ cần `ma_khoa` để lọc phiên bản.
+- Thẻ `<tai_lieu ...>` / `</tai_lieu>` có sẵn trong văn bản bị vô hiệu hóa (đổi `<` thành `[`) để tài liệu không "thoát" khỏi thẻ.
+- Truy xuất (embedding, CPU nặng) chạy trong thread riêng (`anyio.to_thread`) để không chặn server.
+- Lỗi: `MA_KHOA_KHONG_HOP_LE`, `VAN_BAN_KHONG_TON_TAI`, `DIEU_KHONG_TON_TAI`, `DIEU_KHONG_HOP_LE`.
 - `assistant_api` dùng trường `so`, `van_ban`, `dieu`, `trang` để dựng sự kiện `citations`.
 
 ## 5. Kiểm thử MCP server

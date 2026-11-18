@@ -41,6 +41,10 @@ P = ParamSpec("P")
 INJECTED_NOTE = "[INJECTED] Do hệ thống điền, không yêu cầu người dùng cung cấp."
 
 MaSv = Annotated[str, Field(description=f"Mã sinh viên. {INJECTED_NOTE}")]
+MaKhoa = Annotated[
+    str,
+    Field(description=f"Mã khóa của sinh viên (vd K22), để lọc phiên bản quy chế. {INJECTED_NOTE}"),
+]
 MaHocKy = Annotated[
     str | None,
     Field(
@@ -55,13 +59,20 @@ MaHocKy = Annotated[
 # ---------------------------------------------------------------------------
 # Gọi qlsv_api
 # ---------------------------------------------------------------------------
-class QlsvError(Exception):
-    """Lỗi từ qlsv_api (nghiệp vụ 4xx) hoặc lỗi kết nối."""
+class ToolFailure(Exception):
+    """Lỗi nghiệp vụ của tool -> `@tool_errors` đổi thành dict lỗi có cấu trúc cho LLM."""
 
-    def __init__(self, code: str, message: str, status: int) -> None:
+    def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+class QlsvError(ToolFailure):
+    """Lỗi từ qlsv_api (nghiệp vụ 4xx) hoặc lỗi kết nối."""
+
+    def __init__(self, code: str, message: str, status: int) -> None:
+        super().__init__(code, message)
         self.status = status
 
 
@@ -152,7 +163,7 @@ def tool_errors(
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
         try:
             return await fn(*args, **kwargs)
-        except QlsvError as exc:
+        except ToolFailure as exc:
             return to_tool_error(exc.code, exc.message)
         except Exception:
             logger.exception("Tool %s lỗi không mong đợi", fn.__name__)
