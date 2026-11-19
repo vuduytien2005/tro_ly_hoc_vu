@@ -1,0 +1,13 @@
+# TN1 — truy xuất. Chạy: python evaluation/run_rag_retrieval.py --configs R5
+ma: R5
+ten: "R4 + rerank (cross-encoder)"
+du_lieu: evaluation/datasets/rag_questions.jsonl
+corpus: evaluation/corpus_demo        # thư mục văn bản + danh_muc.csv (đổi sang data/van_ban khi có PDF thật)
+chien_luoc_chunk: theo_dieu
+embedding: intfloat/multilingual-e5-base
+reranker: BAAI/bge-reranker-v2-m3
+use_vector: true
+use_keyword: true
+use_version_filter: true
+use_rerank: true
+top_k: 5

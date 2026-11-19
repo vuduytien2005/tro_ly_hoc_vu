@@ -1,0 +1,10 @@
+# TN3 (agent) / TN4 (an toàn). Chạy: python evaluation/run_agent.py --configs agent_haiku_toi_gian
+ma: agent_haiku_toi_gian
+ten: "Claude Haiku 5.5, mô tả công cụ tối giản"
+llm_model: anthropic/claude-haiku-5-5
+mo_ta_cong_cu: toi_gian      # day_du = docstring thật | toi_gian = chỉ tên công cụ + mô tả tham số tối thiểu
+corpus: evaluation/corpus_demo
+embedding: intfloat/multilingual-e5-base
+# Ghi đè giá (USD / 1 triệu token) nếu bảng giá của LiteLLM chưa đúng; để trống = dùng LiteLLM
+gia_vao_usd_trieu_token:
+gia_ra_usd_trieu_token:

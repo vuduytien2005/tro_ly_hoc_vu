@@ -1,0 +1,11 @@
+# TN2 — chất lượng câu trả lời RAG. Chạy: python evaluation/run_rag_answer.py
+ma: rag_answer
+ten: "Trợ lý (Opus 5.5) + LLM chấm (Opus 5.5)"
+du_lieu: evaluation/datasets/rag_questions.jsonl
+llm_model: anthropic/claude-opus-5-5
+mo_ta_cong_cu: day_du
+corpus: evaluation/corpus_demo
+embedding: intfloat/multilingual-e5-base
+judge_model: anthropic/claude-opus-5-5   # mô hình chấm faithfulness / relevancy
+gia_vao_usd_trieu_token:
+gia_ra_usd_trieu_token:

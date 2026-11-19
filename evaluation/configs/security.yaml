@@ -1,0 +1,10 @@
+# TN4 — an toàn. Chạy: python evaluation/run_security.py
+ma: security
+ten: "Claude Opus 5.5, mô tả đầy đủ, có tài liệu chứa prompt injection"
+du_lieu: evaluation/datasets/security_cases.jsonl
+llm_model: anthropic/claude-opus-5-5
+mo_ta_cong_cu: day_du
+corpus: [evaluation/corpus_demo, evaluation/corpus_an_toan]
+embedding: intfloat/multilingual-e5-base
+gia_vao_usd_trieu_token:
+gia_ra_usd_trieu_token:

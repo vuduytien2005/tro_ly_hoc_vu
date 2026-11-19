@@ -1,0 +1,13 @@
+# TN1 — truy xuất. Chạy: python evaluation/run_rag_retrieval.py --configs R4
+ma: R4
+ten: "R3 + lọc phiên bản theo khóa"
+du_lieu: evaluation/datasets/rag_questions.jsonl
+corpus: evaluation/corpus_demo        # thư mục văn bản + danh_muc.csv (đổi sang data/van_ban khi có PDF thật)
+chien_luoc_chunk: theo_dieu
+embedding: intfloat/multilingual-e5-base
+reranker: null
+use_vector: true
+use_keyword: true
+use_version_filter: true
+use_rerank: false
+top_k: 5

@@ -43,6 +43,19 @@ cd web; npm install; npm run dev            # mở http://localhost:5173
 - Kiểm tra web: `cd web; npm test` (vitest), `npm run build` (kiểm tra kiểu TypeScript + đóng gói).
 - Trang quản trị (đăng nhập tài khoản admin): **Tài liệu** (tải lên → lập chỉ mục, xem đoạn), **Thử truy xuất**, **MCP & quyền**, **Nhật ký**, **Thống kê**. Nạp quy chế nên làm ở trang Tài liệu; nếu dùng `scripts/ingest_folder.py` thì chạy khi server `quy_che` đang tắt (xem docs/06).
 - Hạn chế đã biết: JWT lưu trong `localStorage` (đơn giản, nhưng đọc được nếu web bị XSS; phương án tốt hơn là cookie HttpOnly + chống CSRF).
+- Đưa dữ liệu QLSV về mẫu ban đầu sau khi demo tay: `cd backend; .\scripts\reset_demo.ps1`.
+
+## Thực nghiệm (Chương 4)
+```powershell
+# Từ thư mục gốc, venv backend đã kích hoạt; không cần bật service
+pip install -e "backend[dev,eval]"
+python evaluation\run_rag_retrieval.py      # TN1 truy xuất (không gọi LLM, miễn phí)
+python evaluation\run_agent.py --dry-run    # kiểm tra đường ống TN3 bằng LLM giả (miễn phí)
+python evaluation\run_agent.py --limit 10   # TN3 thật (tốn tiền API; script in token + chi phí)
+python evaluation\run_security.py           # TN4;  python evaluation\run_rag_answer.py  # TN2
+python evaluation\plot_results.py           # biểu đồ PNG cho lượt chạy mới nhất
+```
+Kết quả ở `evaluation/results/<thời gian>_<tn>/` (`bang.md`, `chi_tiet.csv`, `*.png`). Chi tiết, cách tính chỉ số và lý do thiết kế: `docs/09-danh-gia.md`.
 
 ## Kiến trúc tóm tắt
 ```

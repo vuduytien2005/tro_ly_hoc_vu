@@ -93,6 +93,8 @@ class QlsvClient:
         self._base_url = base_url
         self._token = token
         self._timeout = timeout
+        # Thực nghiệm (evaluation/) gắn qlsv_api chạy trong tiến trình: httpx.ASGITransport(app)
+        self.transport: httpx.AsyncBaseTransport | None = None
 
     async def request(
         self,
@@ -109,6 +111,7 @@ class QlsvClient:
             base_url=self._base_url or settings.qlsv_api_url,
             headers=headers,
             timeout=self._timeout,
+            transport=self.transport,
         ) as client:
             try:
                 response = await client.request(method, path, params=clean_params, json=json_body)

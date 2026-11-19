@@ -1,0 +1,13 @@
+# TN1 — truy xuất. Chạy: python evaluation/run_rag_retrieval.py --configs R1
+ma: R1
+ten: "Chia cố định 400 token, chỉ vector"
+du_lieu: evaluation/datasets/rag_questions.jsonl
+corpus: evaluation/corpus_demo        # thư mục văn bản + danh_muc.csv (đổi sang data/van_ban khi có PDF thật)
+chien_luoc_chunk: co_dinh
+embedding: intfloat/multilingual-e5-base
+reranker: null
+use_vector: true
+use_keyword: false
+use_version_filter: false
+use_rerank: false
+top_k: 5
