@@ -34,7 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         json: { email, mat_khau: password },
       })
       setToken(res.access_token)
-      queryClient.clear()
+      // Xóa dữ liệu của phiên trước nhưng GIỮ query ['me']: AuthProvider đang theo dõi
+      // đúng đối tượng query này. clear() sẽ xóa nó, setQueryData tạo query mới mà
+      // AuthProvider không nghe -> user vẫn null -> bị đẩy về /login.
+      queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' })
       queryClient.setQueryData(['me'], res.nguoi_dung)
       return res.nguoi_dung
     },
