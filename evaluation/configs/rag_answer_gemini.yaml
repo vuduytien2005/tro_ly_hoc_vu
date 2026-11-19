@@ -1,0 +1,11 @@
+# TN2 — chất lượng câu trả lời RAG. Chạy: python evaluation/run_rag_answer.py --config rag_answer_gemini
+ma: rag_answer_gemini
+ten: "Trợ lý (Gemini 3.5 Flash-Lite) + LLM chấm (Gemini 3.5 Flash-Lite)"
+du_lieu: evaluation/datasets/rag_questions.jsonl
+llm_model: gemini/gemini-3.5-flash-lite
+mo_ta_cong_cu: day_du
+corpus: evaluation/corpus_demo
+embedding: intfloat/multilingual-e5-base
+judge_model: gemini/gemini-3.5-flash-lite   # mô hình chấm faithfulness / relevancy
+gia_vao_usd_trieu_token: 0   # gói miễn phí Google AI Studio
+gia_ra_usd_trieu_token: 0

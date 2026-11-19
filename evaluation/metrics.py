@@ -147,12 +147,17 @@ def params_match(
     return any(c["ten_cong_cu"] in tools and matches(c, expected) for c in calls)
 
 
-def tool_selection(called: Iterable[str], expected: Iterable[str]) -> dict[str, Any]:
+def tool_selection(
+    called: Iterable[str], expected: Iterable[str], allowed_extra: Iterable[str] = ()
+) -> dict[str, Any]:
+    """`allowed_extra` (cong_cu_chap_nhan_them): công cụ gọi thêm cũng hợp lý, không tính là thừa
+    (vd hỏi "còn thiếu gì để tốt nghiệp" → tra thêm quy chế tốt nghiệp như demo 2 ở docs/01)."""
     got, want = set(called), set(expected)
+    extra = got - want - set(allowed_extra)
     return {
-        "dung_tap_cong_cu": got == want,
+        "dung_tap_cong_cu": want <= got and not extra,
         "du_cong_cu": want <= got,  # gọi đủ (có thể thừa)
-        "thua": sorted(got - want),
+        "thua": sorted(extra),
         "thieu": sorted(want - got),
     }
 

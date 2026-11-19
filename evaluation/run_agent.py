@@ -60,7 +60,9 @@ def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
     result = harness.run(case["dang_nhap"], case["yeu_cau"], bool(case.get("tu_dong_xac_nhan")))
     llm_calls = result.llm_calls
     called = [c["ten_cong_cu"] for c in llm_calls]
-    selection = metrics.tool_selection(called, case.get("cong_cu_mong_doi") or [])
+    selection = metrics.tool_selection(
+        called, case.get("cong_cu_mong_doi") or [], case.get("cong_cu_chap_nhan_them") or []
+    )
     params_ok = metrics.params_match(
         llm_calls, case.get("tham_so_mong_doi") or {}, case.get("cong_cu_mong_doi") or []
     )

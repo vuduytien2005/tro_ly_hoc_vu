@@ -64,13 +64,33 @@ Chỉ trả về một đối tượng JSON, không thêm chữ nào khác:
 {{"faithfulness": <1-5>, "relevancy": <1-5>, "ly_do": "<một câu ngắn>"}}"""
 
 
-def judge(model: str, question: str, reference: str, context: str, answer: str) -> dict[str, Any]:
+def _completion_with_wait(max_wait: float = 180.0, **params: Any) -> Any:
+    """litellm.completion + chờ đúng thời gian nhà cung cấp yêu cầu khi gặp 429/503 (gói miễn phí,
+    vd Gemini 15 lượt/phút). Hết hạn mức ngày (phải chờ quá lâu) thì báo lỗi luôn."""
+    import time
+
     import litellm
+    from src.assistant_api.agent.llm import retry_delay_seconds
+
+    waited = 0.0
+    while True:
+        try:
+            return litellm.completion(**params)
+        except (litellm.RateLimitError, litellm.ServiceUnavailableError) as exc:
+            delay = retry_delay_seconds(exc)
+            if waited + delay > max_wait:
+                raise
+            print(f"    (LLM chấm vượt hạn mức, chờ {delay:.0f}s)")
+            time.sleep(delay)
+            waited += delay
+
+
+def judge(model: str, question: str, reference: str, context: str, answer: str) -> dict[str, Any]:
 
     prompt = JUDGE_PROMPT.format(
         question=question, reference=reference, context=context or "(không có)", answer=answer
     )
-    response = litellm.completion(
+    response = _completion_with_wait(
         model=model, messages=[{"role": "user", "content": prompt}], max_tokens=2000
     )
     text = response.choices[0].message.content or ""

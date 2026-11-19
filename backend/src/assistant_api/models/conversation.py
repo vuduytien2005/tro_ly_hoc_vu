@@ -55,7 +55,8 @@ class TinNhan(AssistantBase):
     hoi_thoai_id: Mapped[int] = mapped_column(ForeignKey("hoi_thoai.id", ondelete="CASCADE"))
     vai_tro: Mapped[str] = mapped_column(Enum("user", "assistant", "tool", name="vai_tro_tn"))
     noi_dung: Mapped[str] = mapped_column(UnicodeText)
-    tool_call_id: Mapped[str | None] = mapped_column(Unicode(100))
+    # Gemini (qua LiteLLM) nhúng "thought signature" vào id -> dài hàng trăm ký tự trở lên
+    tool_call_id: Mapped[str | None] = mapped_column(UnicodeText)
     tool_calls: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON(none_as_null=True))
     trich_dan: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON(none_as_null=True))
     so_token_vao: Mapped[int | None] = mapped_column(Integer)

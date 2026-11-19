@@ -92,6 +92,19 @@ def test_tool_selection_and_params() -> None:
     sel = metrics.tool_selection([c["ten_cong_cu"] for c in calls], ["register_course"])
     assert sel["du_cong_cu"] and not sel["dung_tap_cong_cu"]
     assert sel["thua"] == ["search_course_sections"]
+    # công cụ gọi thêm được chấp nhận (cong_cu_chap_nhan_them) không tính là thừa
+    ok = metrics.tool_selection(
+        ["get_graduation_progress", "search_regulations"],
+        ["get_graduation_progress"],
+        ["search_regulations"],
+    )
+    assert ok["dung_tap_cong_cu"] and ok["thua"] == []
+    only = metrics.tool_selection(["get_graduation_progress"], ["get_graduation_progress"], ["x"])
+    assert only["dung_tap_cong_cu"]
+    missing = metrics.tool_selection(
+        ["search_regulations"], ["get_graduation_progress"], ["search_regulations"]
+    )
+    assert not missing["dung_tap_cong_cu"] and missing["thieu"] == ["get_graduation_progress"]
     tools = ["search_course_sections", "register_course"]
     assert metrics.params_match(calls, {"register_course": {"ma_lop": "IT004.03"}}, tools)
     assert metrics.params_match(calls, {"ma_lop": "IT004.03"}, tools)  # dạng phẳng

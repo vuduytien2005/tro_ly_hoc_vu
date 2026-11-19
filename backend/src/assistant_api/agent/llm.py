@@ -11,14 +11,17 @@ Lưu ý với Claude Opus 5.5 (mặc định của dự án):
 - Bộ lọc an toàn có thể từ chối (finish_reason "refusal") -> thử lại với LLM_FALLBACK_MODEL nếu có.
 """
 
+import asyncio
 import json
 import logging
 import os
+import re
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 import litellm
+import openai
 
 from src.shared.config import get_settings
 
@@ -101,6 +104,38 @@ def llm_key_present(model: str) -> bool | None:
     return True if key is None else bool(os.environ.get(key, "").strip())
 
 
+DEFAULT_RETRY_DELAY = 30.0  # giây, khi nhà cung cấp không nói phải chờ bao lâu
+LONG_QUOTA_SECONDS = 600.0  # phải chờ lâu hơn thế -> hết hạn mức ngày, không phải "quá tải"
+
+
+def retry_delay_seconds(exc: Exception) -> float:
+    """Thời gian nhà cung cấp yêu cầu chờ: Gemini ghi `"retryDelay": "31s"` trong thân lỗi,
+    hoặc câu "Please retry in 31.2s". Cộng 1 giây dự phòng."""
+    text = str(exc)
+    found = re.search(r'retryDelay"?\s*:\s*"?(\d+(?:\.\d+)?)s', text) or re.search(
+        r"retry in (\d+(?:\.\d+)?)\s*s", text, re.IGNORECASE
+    )
+    return float(found.group(1)) + 1 if found else DEFAULT_RETRY_DELAY
+
+
+def _friendly(exc: Exception) -> Exception:
+    """Lỗi thô của nhà cung cấp -> LlmError tiếng Việt (lỗi khác giữ nguyên)."""
+    if isinstance(exc, LlmError):
+        return exc
+    if isinstance(exc, litellm.AuthenticationError):
+        return LlmError("Khóa API của mô hình ngôn ngữ không hợp lệ (kiểm tra .env).")
+    if isinstance(exc, litellm.Timeout):
+        return LlmError("Mô hình ngôn ngữ phản hồi quá lâu, vui lòng thử lại.")
+    if isinstance(exc, litellm.NotFoundError):
+        return LlmError(
+            "Không tìm thấy mô hình ngôn ngữ đã cấu hình (kiểm tra LLM_MODEL trong .env)."
+        )
+    if isinstance(exc, openai.APIError):  # gốc của mọi lỗi LiteLLM (litellm.APIError thì không)
+        logger.error("LLM lỗi: %r", exc)
+        return LlmError("Không gọi được mô hình ngôn ngữ, vui lòng thử lại sau.")
+    return exc
+
+
 class LiteLlm:
     def __init__(self, model: str | None = None) -> None:
         settings = get_settings()
@@ -109,6 +144,8 @@ class LiteLlm:
         self.max_tokens = settings.llm_max_tokens
         self.temperature = settings.llm_temperature
         self.timeout = settings.llm_timeout_seconds
+        self.num_retries = settings.llm_num_retries
+        self.rate_limit_wait = settings.llm_rate_limit_wait_seconds
 
     def _params(
         self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
@@ -120,6 +157,7 @@ class LiteLlm:
             "stream": True,
             "stream_options": {"include_usage": True},
             "timeout": self.timeout,
+            "num_retries": self.num_retries,
         }
         if tools:
             params["tools"] = tools
@@ -131,22 +169,35 @@ class LiteLlm:
     async def _stream_once(
         self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     ) -> AsyncIterator[str | LlmTurn]:
-        try:
-            response = await litellm.acompletion(**self._params(model, messages, tools))
+        waited = 0.0
+        while True:
             chunks: list[Any] = []
-            async for chunk in response:
-                chunks.append(chunk)
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-        except litellm.AuthenticationError as exc:
-            raise LlmError("Khóa API của mô hình ngôn ngữ không hợp lệ (kiểm tra .env).") from exc
-        except litellm.RateLimitError as exc:
-            raise LlmError("Mô hình ngôn ngữ đang quá tải, vui lòng thử lại sau ít phút.") from exc
-        except litellm.Timeout as exc:
-            raise LlmError("Mô hình ngôn ngữ phản hồi quá lâu, vui lòng thử lại.") from exc
-        except litellm.APIError as exc:
-            logger.exception("LLM lỗi")
-            raise LlmError("Không gọi được mô hình ngôn ngữ, vui lòng thử lại sau.") from exc
+            try:
+                response = await litellm.acompletion(**self._params(model, messages, tools))
+                async for chunk in response:
+                    chunks.append(chunk)
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    if delta and delta.content:
+                        yield delta.content
+                break
+            except (litellm.RateLimitError, litellm.ServiceUnavailableError) as exc:
+                # Gói miễn phí (vd Gemini 5 lượt/phút): chờ đúng thời gian nhà cung cấp yêu cầu
+                # rồi gọi lại — chỉ khi chưa gửi chữ nào cho người dùng (tránh lặp đoạn).
+                delay = retry_delay_seconds(exc)
+                if chunks or waited + delay > self.rate_limit_wait:
+                    if delay > LONG_QUOTA_SECONDS:  # vd Gemini miễn phí: 20 lượt/ngày/model
+                        raise LlmError(
+                            "Trợ lý đã dùng hết hạn mức của mô hình ngôn ngữ trong ngày, "
+                            "vui lòng báo quản trị viên hoặc thử lại sau."
+                        ) from exc
+                    raise LlmError(
+                        "Mô hình ngôn ngữ đang quá tải, vui lòng thử lại sau ít phút."
+                    ) from exc
+                logger.warning("LLM quá tải/hết hạn mức, chờ %.0f giây rồi gọi lại", delay)
+                await asyncio.sleep(delay)
+                waited += delay
+            except Exception as exc:
+                raise _friendly(exc) from exc
 
         final = litellm.stream_chunk_builder(chunks, messages=messages)
         if final is None or not final.choices:

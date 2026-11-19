@@ -45,7 +45,14 @@ def quiet_logs() -> None:
     dựng app vì một số thư viện cấu hình lại logging khi khởi tạo."""
     import logging
 
-    for name in ("httpx", "httpx2", "mcp", "src.rag.retriever", "sentence_transformers"):
+    for name in (
+        "httpx",
+        "httpx2",
+        "mcp",
+        "src.rag.retriever",
+        "sentence_transformers",
+        "LiteLLM",  # mỗi lượt gọi LLM in một dòng INFO "completion() model=..."
+    ):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 

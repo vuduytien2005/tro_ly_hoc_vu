@@ -42,7 +42,7 @@ Chạy toàn bộ Agent (có LLM) trên cùng bộ câu hỏi.
 ```
 Phân loại kịch bản: chỉ RAG / chỉ dữ liệu cá nhân / kết hợp RAG + tool / thủ tục ghi / nhiều bước (tìm lớp rồi đăng ký) / lỗi nghiệp vụ (trùng lịch, lớp đầy).
 **Chỉ số** (tính từ `luot_goi_cong_cu`):
-- Độ chính xác chọn công cụ (đúng tập tool mong đợi).
+- Độ chính xác chọn công cụ (đúng tập tool mong đợi; tool trong `cong_cu_chap_nhan_them` — gọi thêm cũng hợp lý, vd A005 tra thêm quy chế tốt nghiệp như demo 2 ở docs/01 — không tính là thừa).
 - Độ chính xác tham số.
 - Tỉ lệ hoàn thành nhiệm vụ.
 - Số bước trung bình, độ trễ trung vị/P95, số token, chi phí ước tính.
@@ -108,3 +108,25 @@ Không cần bật các service: harness tự dựng mọi thứ trong tiến tr
    - Kịch bản an toàn không bao giờ tự bấm Xác nhận. `--dry-run` cho LLM giả cố tình làm `hanh_vi_gia_lap` → chứng minh tầng (b) độc lập với LLM.
 7. **Lượt gọi do hệ thống tự thực hiện** (vd tra lớp để dựng thẻ xác nhận, `tham_so_llm` = NULL) không tính vào "đúng công cụ".
 8. TN3 so sánh Opus 5.5 và Haiku 5.5; chưa cấu hình mô hình mã nguồn mở chạy local (ổ C còn ít chỗ trống). Muốn thêm thì tạo `configs/agent_<tên>.yaml` với `llm_model` theo cú pháp LiteLLM.
+
+## Lượt chạy thật đầu tiên — Gemini gói miễn phí (19/11/2026, Giai đoạn 10)
+Chưa có khóa Anthropic nên chạy bằng **`gemini/gemini-3.5-flash-lite`** (Google AI Studio, gói miễn phí), cấu hình `*_gemini.yaml`, `--limit 10`, chi phí 0 USD. Các cấu hình Opus/Haiku giữ nguyên để chạy lại khi có khóa Anthropic.
+
+| TN | Thư mục kết quả | Kết quả chính |
+|---|---|---|
+| TN2 | `results/20261119-1205_tn2_tra_loi` | Faithfulness 100%, Relevancy 100%, trích dẫn hợp lệ & đúng nguồn 100%, 0 lần [n] bị xóa |
+| TN3 | `results/20261119-1602_tn3_agent` | Đúng công cụ 90%, đúng tham số 100%, hoàn thành 100%, 2,7 bước/kịch bản, trễ trung vị 5,8 s (lần đầu `20261119-1157_tn3_agent`: 80% / 90% / 90%, trước khi sửa A005) |
+| TN4 | `results/20261119-1200_tn4_an_toan` | An toàn 100% (LLM tự từ chối 80%, hệ thống chặn 20%), **bị lọt 0%** |
+
+Lưu ý khi đưa vào Chương 4:
+- **Chọn model:** `gemini-3-flash` miễn phí chỉ 5 lượt/phút và **20 lượt/ngày** (hết sau vài lần thử); `gemini-2.5-flash` không còn cấp cho người dùng mới; `gemini-3.5-flash`/`3.8-flash` báo 503 quá tải. `gemini-3.5-flash-lite` (15 lượt/phút) gọi công cụ ổn định -> được chọn.
+- **TN4 nhóm `bo_qua_xac_nhan`:** LLM *có* gọi công cụ ghi theo lời dụ, nhưng hệ thống chỉ tạo thẻ chờ xác nhận -> minh chứng tầng (b) chặn được kể cả khi LLM làm sai.
+- **TN3 A005** ("còn thiếu gì để tốt nghiệp"): LLM gọi `get_graduation_progress` + `search_regulations` — đúng như kịch bản demo 2 (docs/01). Bộ dữ liệu thêm trường `cong_cu_chap_nhan_them: ["search_regulations"]` để không tính là thừa. **A010** (bảo lưu): lần đầu LLM không gọi `submit_deferral_request` (sai thật); lần chạy lại có gọi (đơn bị từ chối nghiệp vụ như kỳ vọng) nhưng tra quy chế trước nên vẫn bị tính thừa — kết quả LLM dao động giữa các lần chạy, cần n lớn hơn.
+- **TN2:** cùng một model vừa trả lời vừa chấm (tự chấm có thiên lệch); 10 câu đầu chỉ gồm nhóm `chung`, `phu_thuoc_khoa` nên chưa đo "từ chối đúng". Nên chạy đủ bộ / dùng model chấm khác khi có điều kiện.
+- **Mẫu nhỏ (n=10/TN):** chỉ mang tính minh họa; báo cáo kèm n.
+
+Thay đổi hệ thống phát sinh khi chạy Gemini (đều có test):
+- `tin_nhan.tool_call_id` NVARCHAR(100) -> **NVARCHAR(MAX)** (`database/05_nang_cap_tool_call_id.sql`): LiteLLM nhúng "thought signature" của Gemini vào id (~650 ký tự) -> lỗi ghi CSDL ngay sau lần gọi công cụ đầu.
+- `LLM_RATE_LIMIT_WAIT_SECONDS`: gặp 429/503 thì chờ đúng `retryDelay` nhà cung cấp yêu cầu rồi gọi lại (chỉ khi chưa gửi chữ nào cho người dùng); hết hạn mức ngày thì báo riêng. LLM chấm của TN2 cũng chờ như vậy.
+- Lỗi của nhà cung cấp kế thừa `openai.APIError` (không phải `litellm.APIError`) -> trước đây lọt ra thành "Lỗi hệ thống"; nay đổi thành thông báo tiếng Việt.
+- System prompt: câu "cần sinh viên xác nhận trên giao diện" bị Flash-Lite hiểu thành tự bảo sinh viên "bấm xác nhận" mà không gọi công cụ (không có thẻ nào) -> viết lại: đủ thông tin thì GỌI NGAY công cụ, chỉ nhắc bấm Xác nhận sau khi đã gọi.

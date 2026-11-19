@@ -4,10 +4,10 @@ Chạy từ thư mục backend/:
     python scripts/demo_check.py                 # không gọi LLM (miễn phí): sức khỏe, đăng nhập,
                                                  # công cụ MCP, RAG, chặn truy cập chéo
     python scripts/demo_check.py --llm           # + chạy kịch bản demo 1–7 (docs/01 mục 6), tự
-                                                 # bấm "Xác nhận" (TỐN TIỀN API, ~7 lượt hỏi)
+                                                 # bấm "Xác nhận" (gọi LLM thật, ~7 lượt hỏi)
     python scripts/demo_check.py --llm --lan 3   # chạy 3 lần liên tiếp, reset giữa các lần
 Mặc định reset dữ liệu demo (reset_demo.ps1) TRƯỚC mỗi lần chạy kịch bản: demo 3–4 phụ thuộc trạng
-thái đăng ký. Sau khi chạy xong cũng nên reset lại trước khi demo tay. Mã thoát 0 = tất cả đạt.
+thái đăng ký. Chạy xong tự reset lại (trừ khi --khong-reset). Mã thoát 0 = tất cả đạt.
 """
 
 import argparse
@@ -301,6 +301,8 @@ def demo_scenarios(api: Api, rep: Report) -> None:
     def demo7() -> None:
         servers = api.http.get("/api/admin/mcp-servers", headers=admin).json()
         tool = next(t for s in servers for t in s["cong_cu"] if t["ten"] == "register_course")
+        url = "/api/admin/audit-logs?ten_cong_cu=register_course"
+        seen = {r["id"] for r in api.http.get(url, headers=admin).json().get("luot_goi", [])}
         r = api.http.patch(f"/api/admin/tools/{tool['id']}", json={"bat": False}, headers=admin)
         rep.check(r.status_code == 200, "Quản trị viên tắt register_course")
         try:
@@ -312,13 +314,14 @@ def demo_scenarios(api: Api, rep: Report) -> None:
                 "Trợ lý báo chức năng tạm dừng",
                 t.text[:160].replace("\n", " "),
             )
-            logs = api.http.get(
-                "/api/admin/audit-logs?ten_cong_cu=register_course", headers=admin
-            ).json()
+            logs = api.http.get(url, headers=admin).json()
+            # LLM đọc system prompt thấy "tạm dừng" thì thường không thử gọi -> không có dòng nào
+            # (đúng). Nếu LLM vẫn thử gọi thì lượt đó phải được ghi là bi_tu_choi (quy tắc 3).
+            rows = [r for r in logs.get("luot_goi", []) if r["id"] not in seen]  # sau khi tắt
             rep.check(
-                logs.get("tong", 0) >= 1,
-                "Nhật ký có lượt gọi register_course",
-                f"{logs.get('tong')} dòng",
+                all(r["trang_thai"] == "bi_tu_choi" for r in rows),
+                "Nhật ký: lượt gọi công cụ đã tắt (nếu có) bị từ chối",
+                f"{len(rows)} lượt LLM thử gọi",
             )
         finally:
             api.http.patch(f"/api/admin/tools/{tool['id']}", json={"bat": True}, headers=admin)
@@ -346,7 +349,7 @@ def reset_demo() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Kiểm tra hệ thống trước buổi demo")
     parser.add_argument("--base", default="http://127.0.0.1:8000", help="địa chỉ assistant_api")
-    parser.add_argument("--llm", action="store_true", help="chạy kịch bản demo 1–7 (tốn tiền API)")
+    parser.add_argument("--llm", action="store_true", help="chạy kịch bản demo 1–7 (gọi LLM thật)")
     parser.add_argument("--lan", type=int, default=1, help="số lần chạy kịch bản liên tiếp")
     parser.add_argument(
         "--khong-reset", action="store_true", help="không reset dữ liệu trước mỗi lần"
@@ -364,8 +367,11 @@ def main() -> int:
                 reset_demo()
                 print("  (đã reset dữ liệu demo)")
             demo_scenarios(api, rep)
+        if not args.khong_reset:
+            reset_demo()  # để lại hệ thống sạch cho demo tay (đăng ký, đơn, hội thoại vừa tạo)
+            print("\n(đã reset dữ liệu demo sau khi chạy)")
     elif not args.llm:
-        print("\n(Bỏ qua kịch bản demo 1–7: thêm --llm để chạy, tốn tiền API.)")
+        print("\n(Bỏ qua kịch bản demo 1–7: thêm --llm để chạy, gọi LLM thật.)")
 
     total = rep.passed + len(rep.failed)
     print(f"\nKết quả: {rep.passed}/{total} đạt.")

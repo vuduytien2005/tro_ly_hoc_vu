@@ -74,7 +74,7 @@ CREATE TABLE tin_nhan (
   vai_tro       NVARCHAR(10)  NOT NULL
                 CONSTRAINT chk_tn_vai_tro CHECK (vai_tro IN (N'user', N'assistant', N'tool')),
   noi_dung      NVARCHAR(MAX) NOT NULL,
-  tool_call_id  NVARCHAR(100) NULL,          -- với vai_tro = tool
+  tool_call_id  NVARCHAR(MAX) NULL,          -- với vai_tro = tool; Gemini nhúng "thought signature" vào id (hàng trăm-nghìn ký tự)
   tool_calls    NVARCHAR(MAX) NULL CONSTRAINT chk_tn_tool_calls CHECK (ISJSON(tool_calls) = 1),
   trich_dan     NVARCHAR(MAX) NULL CONSTRAINT chk_tn_trich_dan  CHECK (ISJSON(trich_dan) = 1),
   so_token_vao  INT           NULL,

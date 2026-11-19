@@ -40,7 +40,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -DbServer "localhos
 6. `npm ci` cho web.
 7. Nếu chưa có văn bản quy chế: hỏi có nạp **bộ quy chế giả lập** `evaluation/corpus_demo` không (`-VanBanMau` để nạp luôn; lần đầu tải mô hình embedding ~1,1 GB). Văn bản thật (PDF/DOCX) nạp ở trang **Tài liệu** của quản trị viên.
 
-Sau đó **tự điền khóa API** vào `.env` (`ANTHROPIC_API_KEY=...`, hoặc đổi `LLM_MODEL` sang nhà cung cấp khác). Không có khóa thì mọi thứ vẫn chạy, chỉ trợ lý chưa trả lời được (web hiện banner đỏ "Trợ lý chưa sẵn sàng").
+Sau đó **tự điền khóa API** vào `.env` (`ANTHROPIC_API_KEY=...`, hoặc đổi `LLM_MODEL` sang nhà cung cấp khác). **Miễn phí:** tạo khóa ở https://aistudio.google.com/apikey rồi đặt `LLM_MODEL=gemini/gemini-3.5-flash-lite`, `GEMINI_API_KEY=...`, `LLM_RATE_LIMIT_WAIT_SECONDS=90` (gói miễn phí giới hạn 15 lượt/phút; hệ thống tự chờ rồi gọi lại). Không có khóa thì mọi thứ vẫn chạy, chỉ trợ lý chưa trả lời được (web hiện banner đỏ "Trợ lý chưa sẵn sàng").
 
 ## Chạy hệ thống
 ```powershell

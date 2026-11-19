@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     # Mô hình thử lại khi mô hình chính từ chối trả lời (stop_reason "refusal"); trống = không
     llm_fallback_model: str = ""
     llm_timeout_seconds: float = 120.0
+    # Số lần LiteLLM tự thử lại (có giãn cách) khi lỗi 429 / quá tải — cần cho gói miễn phí
+    # (vd Gemini giới hạn số lượt mỗi phút)
+    llm_num_retries: int = 2
+    # Gặp 429/503 thì chờ đúng thời gian nhà cung cấp yêu cầu rồi gọi lại, tổng tối đa bấy
+    # nhiêu giây cho một lượt (0 = báo lỗi ngay). Gemini miễn phí (5 lượt/phút): đặt 90.
+    llm_rate_limit_wait_seconds: float = 0.0
 
     # ---------- RAG ----------
     embedding_model: str = "intfloat/multilingual-e5-base"
