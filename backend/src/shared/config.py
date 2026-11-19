@@ -8,12 +8,13 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
 # backend/src/shared/config.py -> parents[3] = thư mục gốc dự án (tro-ly-hoc-vu/)
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
+MIN_SECRET_LENGTH = 32  # JWT_SECRET, INTERNAL_API_TOKEN
 ENV_FILE: Path = PROJECT_ROOT / ".env"
 
 
@@ -85,6 +86,21 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.strip():
             return None
         return v
+
+    @field_validator("jwt_secret", "internal_api_token", mode="after")
+    @classmethod
+    def _strong_secret(cls, v: str, info: ValidationInfo) -> str:
+        # Quy tắc bảo mật 4: chuỗi mẫu của .env.example công khai trên Git -> ai cũng ký được JWT
+        # admin / gọi được MCP server. Từ chối khởi động thay vì chạy với bí mật yếu.
+        name = (info.field_name or "").upper()
+        weak = len(v.strip()) < MIN_SECRET_LENGTH or len(set(v.strip())) < 10  # vd "AAAA…"
+        if v.strip().lower().startswith("thay_bang") or weak:
+            raise ValueError(
+                f"{name} trong .env phải là chuỗi ngẫu nhiên dài ít nhất {MIN_SECRET_LENGTH} ký tự "
+                "(không dùng giá trị mẫu). Tạo bằng: "
+                'python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            )
+        return v.strip()
 
     @field_validator("chroma_dir", "upload_dir", mode="after")
     @classmethod

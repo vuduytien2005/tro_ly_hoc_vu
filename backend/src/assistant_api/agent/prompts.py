@@ -66,11 +66,26 @@ def paused_label(name: str) -> str:
     return label[:1].lower() + label[1:]
 
 
-def system_prompt(user: NguoiDung, now: datetime, paused: list[str] | None = None) -> str:
-    """Chỉ phụ thuộc người dùng, NGÀY (không có giờ) và danh sách tool bị tắt -> ổn định,
-    giữ prompt cache. `paused`: tên các tool quản trị viên đã tắt (quy tắc 6: không đưa cho LLM,
-    nhưng nói cho LLM biết để trả lời "tạm dừng" thay vì đoán)."""
+UNAVAILABLE_NOTE = (
+    "\n- Các chức năng đang GIÁN ĐOẠN do sự cố kết nối hệ thống: {ds}. Sinh viên yêu cầu những "
+    "việc này thì xin lỗi, nói rõ hệ thống liên quan đang gián đoạn tạm thời và mời thử lại sau "
+    "ít phút; không đoán dữ liệu."
+)
+
+
+def system_prompt(
+    user: NguoiDung,
+    now: datetime,
+    paused: list[str] | None = None,
+    unavailable: list[str] | None = None,
+) -> str:
+    """Chỉ phụ thuộc người dùng, NGÀY (không có giờ) và danh sách tool bị tắt / gián đoạn -> ổn
+    định, giữ prompt cache. `paused`: tool quản trị viên đã tắt; `unavailable`: tool của MCP server
+    đang không kết nối được (quy tắc 6: cả hai đều không đưa cho LLM, nhưng nói cho LLM biết để
+    trả lời "tạm dừng" / "gián đoạn" thay vì đoán)."""
     note = PAUSED_NOTE.format(ds=", ".join(paused_label(n) for n in paused)) if paused else ""
+    if unavailable:
+        note += UNAVAILABLE_NOTE.format(ds=", ".join(paused_label(n) for n in unavailable))
     return (
         SYSTEM_PROMPT.format(
             ten_truong=get_settings().ten_truong,

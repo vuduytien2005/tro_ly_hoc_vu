@@ -54,3 +54,15 @@ def test_disabled_tool_returns_503(client: TestClient, student: NguoiDung, db: S
     db.commit()
     r = client.get("/api/my/requests", headers=login(client, student.email))
     assert r.status_code == 503 and r.json()["code"] == "CHUC_NANG_TAM_DUNG"
+    # Quy tắc 3: lần bị từ chối vẫn có dòng nhật ký
+    db.expire_all()
+    log = db.scalars(
+        select(LuotGoiCongCu)
+        .where(
+            LuotGoiCongCu.nguoi_dung_id == student.id,
+            LuotGoiCongCu.ten_cong_cu == "list_my_requests",
+        )
+        .order_by(LuotGoiCongCu.id.desc())
+    ).first()
+    assert log is not None
+    assert log.trang_thai == "bi_tu_choi" and log.ket_qua["ma_loi"] == "CONG_CU_TAM_DUNG"

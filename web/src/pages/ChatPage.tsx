@@ -1,14 +1,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CircleCheck, GraduationCap, Sparkles, XCircle } from 'lucide-react'
+import { CircleAlert, CircleCheck, GraduationCap, RotateCcw, Sparkles, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { AnswerText, SourceList } from '../components/chat/Answer'
 import { Composer } from '../components/chat/Composer'
 import { Feedback } from '../components/chat/Feedback'
 import { PendingActionCard, type CardState } from '../components/chat/PendingActionCard'
+import { StatusBanner } from '../components/chat/StatusBanner'
 import { ToolChips, toolLabel, type ToolChip } from '../components/chat/ToolChips'
 import { ApiError, api } from '../lib/api'
 import { CANCEL_PREFIX, CONFIRM_PREFIX } from '../lib/format'
+import { isRetryable } from '../lib/health'
 import { postSse } from '../lib/sse'
 import type {
   AgentEvent,
@@ -36,6 +38,12 @@ interface LiveTurn {
   finished: boolean
 }
 
+/** Lỗi hiển thị dưới cuộc trò chuyện; `retryText` = tin nhắn gửi lại khi bấm "Thử lại". */
+interface ChatError {
+  text: string
+  retryText?: string
+}
+
 interface CardOverride {
   state: CardState | 'an'
   error?: string
@@ -48,7 +56,8 @@ export default function ChatPage() {
   const queryClient = useQueryClient()
 
   const [live, setLive] = useState<LiveTurn | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ChatError | null>(null)
+  const lastTextRef = useRef<string | null>(null)
   const [liveCards, setLiveCards] = useState<PendingAction[]>([])
   const [overrides, setOverrides] = useState<Record<string, CardOverride>>({})
   const abortRef = useRef<AbortController | null>(null)
@@ -122,7 +131,11 @@ export default function ChatPage() {
         setLiveCards((cards) => [...cards.filter((c) => c.ma !== event.data.ma), event.data])
         break
       case 'error':
-        setError(event.data.detail)
+        // Lỗi trong luồng (vd mô hình ngôn ngữ quá tải / sai khóa API) -> cho thử lại nếu hợp lý
+        setError({
+          text: event.data.detail,
+          retryText: isRetryable(event.data.code) ? (lastTextRef.current ?? undefined) : undefined,
+        })
         break
       case 'done':
         break
@@ -158,6 +171,7 @@ export default function ChatPage() {
 
   async function send(text: string) {
     let convId = conversationId
+    lastTextRef.current = text
     try {
       if (convId == null) {
         const created = await api<Conversation>('/api/conversations', { method: 'POST', json: {} })
@@ -167,7 +181,11 @@ export default function ChatPage() {
       }
       await runStream(convId, `/api/conversations/${convId}/messages`, { noi_dung: text }, text)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không gửi được tin nhắn, vui lòng thử lại.')
+      const apiError = err instanceof ApiError ? err : null
+      setError({
+        text: apiError?.message ?? 'Không gửi được tin nhắn, vui lòng thử lại.',
+        retryText: !apiError || isRetryable(apiError.code, apiError.status) ? text : undefined,
+      })
     }
   }
 
@@ -232,6 +250,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full flex-col">
+      <StatusBanner />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-3 py-6 sm:px-6">
           {empty && !live && <Welcome onPick={send} disabled={busy} />}
@@ -268,7 +287,18 @@ export default function ChatPage() {
 
           {error && (
             <div role="alert" className="my-3 flex items-start gap-2 rounded-xl bg-err-bg px-4 py-3 text-sm text-err">
-              <CircleAlert size={18} className="mt-0.5 shrink-0" /> {error}
+              <CircleAlert size={18} className="mt-0.5 shrink-0" />
+              <span className="flex-1">{error.text}</span>
+              {error.retryText && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => error.retryText && send(error.retryText)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-err/30 bg-white px-2.5 py-1 font-medium hover:bg-err-bg disabled:opacity-50"
+                >
+                  <RotateCcw size={14} /> Thử lại
+                </button>
+              )}
             </div>
           )}
           <div ref={bottomRef} />

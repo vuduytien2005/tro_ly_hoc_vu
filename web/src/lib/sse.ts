@@ -1,7 +1,7 @@
 // Đọc Server-Sent Events từ một request POST (EventSource chỉ hỗ trợ GET và không gửi được
 // header Authorization) -> dùng fetch + ReadableStream và tự tách sự kiện.
 
-import { authHeaders, toApiError } from './api'
+import { ApiError, authHeaders, toApiError } from './api'
 import type { AgentEvent } from './types'
 
 /**
@@ -68,20 +68,35 @@ export async function postSse(
   onEvent: (event: AgentEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(path, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream' }),
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  })
+  let response: Response
+  try {
+    response = await fetch(path, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream' }),
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    })
+  } catch (err) {
+    if (signal?.aborted) throw err
+    throw new ApiError(0, 'MAT_KET_NOI', 'Không kết nối được máy chủ trợ lý. Em kiểm tra mạng rồi thử lại nhé.')
+  }
   if (!response.ok || !response.body) throw await toApiError(response)
 
   const parser = new SseParser()
   const reader = response.body.getReader()
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    parser.push(value).forEach(onEvent)
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      parser.push(value).forEach(onEvent)
+    }
+  } catch (err) {
+    if (signal?.aborted) throw err
+    throw new ApiError(
+      0,
+      'MAT_KET_NOI',
+      'Mất kết nối khi đang nhận câu trả lời. Phần đã lưu vẫn còn trong cuộc trò chuyện, em thử lại nhé.',
+    )
   }
   parser.flush().forEach(onEvent)
 }

@@ -13,6 +13,7 @@ Lưu ý với Claude Opus 5.5 (mặc định của dự án):
 
 import json
 import logging
+import os
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -78,6 +79,26 @@ def _uses_sampling_params(model: str) -> bool:
     return not (
         name.startswith("claude-") and any(f"-{v}" in name for v in ("5", "fable", "mythos"))
     )
+
+
+# Biến môi trường chứa khóa API theo tiền tố LLM_MODEL (LiteLLM tự nạp .env vào môi trường)
+PROVIDER_KEYS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "ollama": None,  # mô hình local, không cần khóa
+    "ollama_chat": None,
+}
+
+
+def llm_key_present(model: str) -> bool | None:
+    """Khóa API của nhà cung cấp đã được điền chưa (True/False); None = không biết nhà cung cấp.
+    Không dùng litellm.validate_environment vì nó coi biến có mặt nhưng RỖNG là đã có khóa."""
+    provider = model.split("/", 1)[0] if "/" in model else ""
+    if provider not in PROVIDER_KEYS:
+        return None
+    key = PROVIDER_KEYS[provider]
+    return True if key is None else bool(os.environ.get(key, "").strip())
 
 
 class LiteLlm:

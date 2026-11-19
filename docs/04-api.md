@@ -42,7 +42,7 @@ Header `Authorization: Bearer <JWT>` (trừ login). Quyền: `SV` = sinh viên, 
 | POST | `/api/conversations/{id}/messages` | SV | `{noi_dung}` → **SSE** (xem 02 mục 5). Tự đặt tiêu đề từ câu hỏi đầu |
 | POST | `/api/messages/{id}/feedback` | SV | `{diem: 1\|-1, gop_y?}`; gửi lại thì ghi đè; chỉ đánh giá được câu trả lời trong hội thoại của mình |
 
-Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (401), `KHONG_DU_QUYEN`, `TAI_KHOAN_BI_KHOA` (403). Hội thoại của người khác trả 404 `KHONG_TIM_THAY_HOI_THOAI` (không lộ việc id tồn tại). `GET /health` trả trạng thái từng MCP server.
+Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (401), `KHONG_DU_QUYEN`, `TAI_KHOAN_BI_KHOA` (403). Hội thoại của người khác trả 404 `KHONG_TIM_THAY_HOI_THOAI` (không lộ việc id tồn tại). `GET /health` (không cần đăng nhập) trả `mcp_server` (trạng thái từng MCP server), `gian_doan` (server đang không kết nối được — dò lại tối đa 15 giây/lần), `llm_da_cau_hinh`, `llm_co_khoa` (đã điền khóa API chưa; `null` = không xác định). Web đọc mỗi 30 giây để hiện banner; tool của server gián đoạn không đưa cho LLM và system prompt báo "đang gián đoạn" (khác "tạm dừng" do quản trị viên tắt).
 
 ### Hành động chờ xác nhận
 | Method | Đường dẫn | Quyền | Mô tả |

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.assistant_api.agent.llm import LLM, LiteLlm
+from src.assistant_api.agent.llm import LLM, LiteLlm, llm_key_present
 from src.assistant_api.agent.loop import AgentRunner
 from src.assistant_api.agent.registry import ToolRegistry
 from src.assistant_api.errors import ApiError
@@ -100,11 +100,21 @@ def create_app(
     app.include_router(admin.router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
-    def health(request: Request) -> dict[str, object]:
+    async def health(request: Request) -> dict[str, object]:
+        """Web đọc mỗi 30 giây để hiện banner "chức năng đang gián đoạn" (không cần đăng nhập,
+        không chứa dữ liệu nhạy cảm)."""
+        registry: ToolRegistry = request.app.state.registry
+        await registry.probe()
+        with request.app.state.session_factory() as db:
+            await registry.ensure_fresh(db)  # server vừa chết / sống lại -> đồng bộ danh mục tool
+        status = registry.server_status
+        model = get_settings().llm_model
         return {
             "trang_thai": "ok",
-            "mcp_server": request.app.state.registry.server_status,
-            "llm_da_cau_hinh": bool(get_settings().llm_model),
+            "mcp_server": status,
+            "gian_doan": sorted(s for s, v in status.items() if v not in ("ok", "tắt")),
+            "llm_da_cau_hinh": bool(model),
+            "llm_co_khoa": llm_key_present(model) if model else False,
         }
 
     return app

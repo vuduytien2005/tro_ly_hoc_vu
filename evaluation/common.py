@@ -179,7 +179,16 @@ def reset_qlsv() -> float:
     started = time.perf_counter()
     script = BACKEND / "scripts" / "reset_demo.ps1"
     result = subprocess.run(
-        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "-Quiet"],
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script),
+            "-ChiQlsv",
+            "-Quiet",
+        ],
         capture_output=True,
         text=True,
         encoding="utf-8",

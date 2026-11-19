@@ -96,7 +96,7 @@ Không cần bật các service: harness tự dựng mọi thứ trong tiến tr
    - `assistant_api`, vòng lặp Agent, 4 MCP server (`McpClient` nhận đối tượng `MCPServer`), `qlsv_api` (gắn qua `httpx.ASGITransport`, thuộc tính `QlsvClient.transport`) đều là code thật; chỉ khác đường truyền (không qua cổng HTTP).
    - `tlhv_assistant`: 1 transaction cho cả lượt chạy; `tlhv_qlsv`: 1 transaction **mỗi kịch bản** → kịch bản nào cũng bắt đầu từ dữ liệu mẫu, không phụ thuộc thứ tự, không để lại dữ liệu (có test kiểm tra).
    - Chroma: thư mục tạm → tránh lỗi Chroma giữa các tiến trình (docs/02 mục 8) và không lẫn văn bản thật.
-   - `backend/scripts/reset_demo.ps1` vẫn có, dùng sau khi demo tay.
+   - `backend/scripts/reset_demo.ps1` dùng sau khi demo tay (Giai đoạn 10: reset cả `tlhv_assistant`); thực nghiệm gọi `reset_demo.ps1 -ChiQlsv -Quiet`.
 2. **TN2 dùng LLM-làm-giám-khảo** (prompt cố định trong `run_rag_answer.py`, thang 1–5 quy về 0–1) thay cho `ragas` để không thêm phụ thuộc nặng.
 3. **Trích dẫn hợp lệ đo trên câu trả lời GỐC của LLM** (trước hậu kiểm). Hậu kiểm của hệ thống xóa `[n]` bịa trước khi lưu, nên nếu đo trên câu đã lưu thì luôn 100%. Bảng kết quả có thêm cột "[n] bị xóa" = số trích dẫn bịa mà hậu kiểm đã chặn.
 4. **TN1 khớp nguồn** theo văn bản + phiên bản + số Điều, **hoặc** đoạn chứa dòng tiêu đề "Điều N." (đoạn cắt cố định R1 có thể chứa nhiều Điều nhưng chỉ ghi Điều đầu tiên). Câu `ngoai_pham_vi` không tính Hit/MRR.

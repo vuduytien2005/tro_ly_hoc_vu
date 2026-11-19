@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 INJECTED_PARAMS = ("ma_sv", "ma_khoa")
 RESYNC_SECONDS = 30.0
+PROBE_SECONDS = 15.0
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ class ToolRegistry:
         self._specs: dict[str, ToolSpec] = {}  # tên tool -> spec
         self.server_status: dict[str, str] = {}  # server -> "ok" | thông báo lỗi
         self._last_sync = 0.0
+        self._last_probe = 0.0
 
     # ----- đồng bộ ------------------------------------------------------------
     async def sync(self, db: Session) -> None:
@@ -136,6 +138,29 @@ class ToolRegistry:
         stale = time.monotonic() - self._last_sync > RESYNC_SECONDS
         if (not self._last_sync or failing) and stale:
             await self.sync(db)
+
+    async def probe(self, max_age: float = PROBE_SECONDS) -> dict[str, str]:
+        """Dò nhanh các MCP server đang bật (dùng cho /health, tối đa 1 lần / max_age giây).
+        Server vừa chết -> đánh dấu lỗi, lần ensure_fresh sau sẽ đồng bộ lại (gỡ tool của nó);
+        server sống lại -> ensure_fresh cũng đồng bộ lại để có tool trở lại."""
+        if time.monotonic() - self._last_probe < max_age:
+            return self.server_status
+        self._last_probe = time.monotonic()
+        for name, status in list(self.server_status.items()):
+            if status == "tắt" or name not in self.client.servers:
+                continue
+            try:
+                await self.client.list_tools(name)
+            except McpUnavailableError as exc:
+                if status == "ok":
+                    logger.warning("MCP server %s mất kết nối: %s", name, exc)
+                self.server_status[name] = str(exc)
+                self._last_sync = 0.0  # cho phép ensure_fresh đồng bộ lại ngay
+            else:
+                if status != "ok":
+                    self._last_sync = 0.0
+                    self.server_status[name] = "khoi_phuc"
+        return self.server_status
 
     def available_tool_names(self) -> set[str]:
         """Tên các tool server đang cung cấp (theo lần đồng bộ gần nhất)."""

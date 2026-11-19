@@ -67,8 +67,18 @@ CONFIRMED_NOTE = "Sinh viên đã bấm Xác nhận trên thẻ; đây là kết
 
 
 def paused_tools(policies: dict[str, ToolPolicy]) -> list[str]:
-    """Tool server vẫn cung cấp nhưng bị tắt (tool hoặc server) -> báo LLM là đang tạm dừng."""
-    return sorted(n for n, p in policies.items() if p.spec is not None and not p.bat)
+    """Tool bị quản trị viên tắt (tool hoặc cả server) -> báo LLM là đang tạm dừng."""
+    return sorted(n for n, p in policies.items() if not p.bat)
+
+
+def unavailable_tools(policies: dict[str, ToolPolicy], server_status: dict[str, str]) -> list[str]:
+    """Tool đang bật nhưng MCP server của nó không kết nối được (lần đồng bộ gần nhất lỗi)
+    -> báo LLM là đang gián đoạn. Tool server đang chạy mà không còn cung cấp thì bỏ qua."""
+    return sorted(
+        n
+        for n, p in policies.items()
+        if p.bat and p.spec is None and server_status.get(p.server, "ok") not in ("ok", "tắt")
+    )
 
 
 CONFIRM_PREFIX = "Xác nhận: "
@@ -339,7 +349,15 @@ class AgentRunner:
         policies = self.registry.policies(db)
         tools = self.registry.tools_for_llm(policies)
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": system_prompt(user, now, paused_tools(policies))},
+            {
+                "role": "system",
+                "content": system_prompt(
+                    user,
+                    now,
+                    paused_tools(policies),
+                    unavailable_tools(policies, self.registry.server_status),
+                ),
+            },
             *load_history(db, conversation.id, self.history_limit),
         ]
         sources: dict[int, dict[str, Any]] = {}

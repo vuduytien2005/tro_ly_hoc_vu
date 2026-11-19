@@ -8,8 +8,12 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Request
 
-from src.assistant_api.agent.executor import ToolLog, invoke
-from src.assistant_api.agent.registry import ToolRegistry, inject_context
+from src.assistant_api.agent.executor import Outcome, ToolLog, failure, invoke
+from src.assistant_api.agent.registry import (
+    ContextInjectionError,
+    ToolRegistry,
+    inject_context,
+)
 from src.assistant_api.deps import DbSession, Student
 from src.assistant_api.errors import ApiError
 from src.assistant_api.models import NguoiDung
@@ -26,17 +30,26 @@ async def call_direct(
     registry: ToolRegistry = request.app.state.registry
     await registry.ensure_fresh(db)
     policy = registry.policies(db).get(tool)
-    if policy is None or not policy.available or policy.spec is None:
-        raise ApiError("CHUC_NANG_TAM_DUNG", "Chức năng này hiện đang tạm dừng.", 503)
     log = ToolLog(
         db,
         user_id=user.id,
         conversation_id=None,
-        server=policy.server,
+        server=policy.server if policy else "(không rõ)",
         tool=tool,
         llm_args=None,
     )
-    full_args = inject_context(policy.spec, args, user)
+    if policy is None or not policy.available or policy.spec is None:
+        # Quy tắc 3: lần bị từ chối cũng phải có dòng nhật ký
+        message = "Chức năng này hiện đang tạm dừng."
+        log.set_args(args)
+        log.save(Outcome(failure("CONG_CU_TAM_DUNG", message), "bi_tu_choi", DIRECT_REASON))
+        raise ApiError("CHUC_NANG_TAM_DUNG", message, 503)
+    try:
+        full_args = inject_context(policy.spec, args, user)
+    except ContextInjectionError as exc:
+        log.set_args(args)
+        log.save(Outcome(failure("KHONG_DU_QUYEN", str(exc)), "bi_tu_choi", str(exc)))
+        raise ApiError("KHONG_DU_QUYEN", str(exc), 403) from exc
     log.set_args(full_args)
     outcome = await invoke(registry.client, policy.server, tool, full_args)
     outcome.reason = outcome.reason or DIRECT_REASON
