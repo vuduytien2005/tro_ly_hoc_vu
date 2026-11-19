@@ -12,6 +12,7 @@ from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
 from src.mcp_servers.common import (
+    ChiKiemTra,
     MaHocKy,
     MaSv,
     day_label,
@@ -246,7 +247,9 @@ MaLop = Annotated[
 
 @mcp.tool()
 @tool_errors
-async def register_course(ma_sv: MaSv, ma_lop: MaLop) -> dict[str, Any]:
+async def register_course(
+    ma_sv: MaSv, ma_lop: MaLop, chi_kiem_tra: ChiKiemTra = False
+) -> dict[str, Any]:
     """Đăng ký một lớp học phần cho sinh viên trong học kỳ đang mở đăng ký.
 
     Dùng khi sinh viên muốn đăng ký / học lại / học thêm một môn và đã xác định được mã lớp.
@@ -255,6 +258,15 @@ async def register_course(ma_sv: MaSv, ma_lop: MaLop) -> dict[str, Any]:
     Lỗi thường gặp: TRUNG_LICH (trùng lịch lớp đã đăng ký), LOP_DA_DAY, VUOT_TIN_CHI_TOI_DA,
     CHUA_DAT_TIEN_QUYET, DA_DANG_KY_HOC_PHAN, NGOAI_THOI_GIAN_DANG_KY.
     """
+    if chi_kiem_tra:
+        r = await qlsv.request(
+            "POST", _student_path(ma_sv, "/registrations/check"), json_body={"ma_lop": ma_lop}
+        )
+        return {
+            "thanh_cong": True,
+            "ma_lop": r["ma_lop"],
+            "thong_bao": f"Lớp {r['ma_lop']} đủ điều kiện đăng ký (chưa đăng ký).",
+        }
     r = await qlsv.request(
         "POST", _student_path(ma_sv, "/registrations"), json_body={"ma_lop": ma_lop}
     )

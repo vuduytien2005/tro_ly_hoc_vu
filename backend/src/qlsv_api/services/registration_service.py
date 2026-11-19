@@ -67,9 +67,13 @@ def _to_out(lop: LopHocPhan, trang_thai: str) -> RegistrationOut:
     )
 
 
-def register(db: Session, ma_sv: str, ma_lop: str, now: datetime) -> RegistrationOut:
+def register(
+    db: Session, ma_sv: str, ma_lop: str, now: datetime, dry_run: bool = False
+) -> RegistrationOut:
     """Kiểm tra lần lượt 9 điều kiện (đúng thứ tự trong docs/03) rồi ghi đăng ký.
 
+    `dry_run=True`: chỉ kiểm tra, không ghi (trả trang_thai "hop_le") — dùng để báo lỗi
+    (trùng lịch, lớp đầy...) TRƯỚC khi hiện thẻ xác nhận.
     Không commit — tầng gọi (router) commit để nhả khóa.
     """
     # 1. Sinh viên đang học
@@ -141,6 +145,9 @@ def register(db: Session, ma_sv: str, ma_lop: str, now: datetime) -> Registratio
             "VUOT_TIN_CHI_TOI_DA",
             f"Tổng tín chỉ sau khi đăng ký là {total}, vượt mức tối đa {limit} tín chỉ{note}.",
         )
+
+    if dry_run:
+        return _to_out(lop, "hop_le")
 
     # Ghi: có bản ghi đã hủy (UNIQUE sinh_vien_id + lop_hoc_phan_id) thì kích hoạt lại
     record = registration_repo.get(db, sv.id, lop.id)

@@ -45,6 +45,7 @@ REGISTERED = {
     "lich": "Thứ 2, tiết 1-3, phòng B2.101",
     "trang_thai": "da_dang_ky",
 }
+CHECKED = {**REGISTERED, "trang_thai": "hop_le"}
 CARD = "Đăng ký lớp IT004.02 – Cơ sở dữ liệu (3 tín chỉ), Thứ 2, tiết 1-3, phòng B2.101"
 
 
@@ -56,6 +57,10 @@ def start_register(
     args: dict[str, Any] | None = None,
 ) -> tuple[int, list[tuple[str, Any]]]:
     qlsv_mock.get("/internal/course-sections").respond(200, json=[SECTION])
+    if "check" not in qlsv_mock.routes:
+        qlsv_mock.post("/internal/students/SV22001/registrations/check", name="check").respond(
+            200, json=CHECKED
+        )
     script(
         FakeResponse(tool_calls=[("register_course", args or {"ma_lop": "IT004.02"})]),
         FakeResponse(text="Em kiểm tra thẻ rồi bấm Xác nhận nhé."),
@@ -75,12 +80,17 @@ def action_row(db: Session, ma: str) -> HanhDongChoXacNhan:
     return row
 
 
-def tool_logs(db: Session, cid: int, tool: str) -> list[LuotGoiCongCu]:
+def tool_logs(db: Session, cid: int, tool: str, system: bool = False) -> list[LuotGoiCongCu]:
+    """Dòng nhật ký của một tool; mặc định chỉ lượt do LLM gọi, system=True: lượt hệ thống tự
+    gọi (tra lớp, kiểm tra trước khi tạo thẻ — tham_so_llm rỗng)."""
     db.expire_all()
+    origin = (
+        LuotGoiCongCu.tham_so_llm.is_(None) if system else LuotGoiCongCu.tham_so_llm.is_not(None)
+    )
     return list(
         db.scalars(
             select(LuotGoiCongCu).where(
-                LuotGoiCongCu.hoi_thoai_id == cid, LuotGoiCongCu.ten_cong_cu == tool
+                LuotGoiCongCu.hoi_thoai_id == cid, LuotGoiCongCu.ten_cong_cu == tool, origin
             )
         )
     )
@@ -107,8 +117,10 @@ def test_write_tool_creates_card_and_is_not_executed(
     (log,) = tool_logs(db, cid, "register_course")
     assert log.trang_thai == "cho_xac_nhan"
     assert log.tham_so == {"ma_lop": "IT004.02", "ma_sv": "SV22001"}
-    (lookup,) = tool_logs(db, cid, "search_course_sections")
-    assert lookup.tham_so_llm is None and lookup.trang_thai == "thanh_cong"  # do hệ thống gọi
+    (lookup,) = tool_logs(db, cid, "search_course_sections", system=True)
+    assert lookup.trang_thai == "thanh_cong"  # do hệ thống gọi
+    (check,) = tool_logs(db, cid, "register_course", system=True)  # kiểm tra trước, không ghi
+    assert check.tham_so["chi_kiem_tra"] is True and check.trang_thai == "thanh_cong"
 
     action = action_row(db, card["ma"])
     assert action.trang_thai == "cho" and action.luot_goi_id == log.id
@@ -152,7 +164,7 @@ def test_invalid_arguments_create_no_card(
     assert "pending_action" not in dict(events)
     (log,) = tool_logs(db, cid, "register_course")
     assert log.ket_qua["ma_loi"] == "THAM_SO_KHONG_HOP_LE"
-    assert tool_logs(db, cid, "search_course_sections") == []  # dừng trước khi tra cứu
+    assert tool_logs(db, cid, "search_course_sections", system=True) == []  # dừng trước tra cứu
 
 
 # ----- xác nhận -----------------------------------------------------------------
@@ -265,6 +277,30 @@ def test_expired_action(
     assert confirm(client, headers, ma).json()["code"] == "HANH_DONG_DA_XU_LY"
 
 
+def test_schedule_conflict_detected_before_card(
+    client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    qlsv_mock: respx.MockRouter,
+) -> None:
+    """Demo 4: trùng lịch được báo NGAY (kiểm tra trước, không ghi), không hiện thẻ xác nhận."""
+    conflict = {
+        "detail": "Lớp SE105.02 trùng lịch với IT004.02 (Thứ 2, tiết 1-3).",
+        "code": "TRUNG_LICH",
+    }
+    qlsv_mock.post("/internal/students/SV22001/registrations/check", name="check").respond(
+        409, json=conflict
+    )
+    post = qlsv_mock.post("/internal/students/SV22001/registrations").respond(201, json=REGISTERED)
+    headers = login(client, student.email)
+    cid, events = start_register(client, headers, script, qlsv_mock)
+    assert "pending_action" not in dict(events) and not post.called
+    (log,) = tool_logs(db, cid, "register_course")
+    assert log.trang_thai == "loi" and log.ket_qua["ma_loi"] == "TRUNG_LICH"
+    assert db.scalars(select(HanhDongChoXacNhan)).all() == []
+
+
 def test_schedule_conflict_reaches_llm(
     client: TestClient,
     student: NguoiDung,
@@ -272,6 +308,7 @@ def test_schedule_conflict_reaches_llm(
     script: Callable[..., FakeLLM],
     qlsv_mock: respx.MockRouter,
 ) -> None:
+    # kiểm tra trước thì hợp lệ, nhưng đến lúc xác nhận đã trùng (vd vừa đăng ký lớp khác)
     qlsv_mock.post("/internal/students/SV22001/registrations").respond(
         409,
         json={

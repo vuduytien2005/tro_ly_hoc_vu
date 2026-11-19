@@ -72,7 +72,7 @@ erDiagram
 - **GPA tích lũy:** Σ(điểm hệ 4 × tín chỉ) / Σ tín chỉ, chỉ tính học phần đạt, làm tròn 2 chữ số.
 - **Tín chỉ tích lũy:** tổng tín chỉ các học phần đạt (mỗi học phần tính 1 lần).
 - **Cảnh báo học vụ (giả lập):** GPA tích lũy < 1.20 hoặc có ≥ 2 học phần F chưa học lại đạt → dùng `tin_chi_toi_da_canh_bao`.
-- **Đăng ký học phần** (`POST /internal/students/{ma_sv}/registrations`), kiểm tra theo thứ tự, trả mã lỗi:
+- **Đăng ký học phần** (`POST /internal/students/{ma_sv}/registrations`; bản chỉ kiểm tra không ghi: `.../registrations/check`), kiểm tra theo thứ tự, trả mã lỗi:
   | Kiểm tra | Mã lỗi |
   |---|---|
   | Sinh viên đang học (`trang_thai='dang_hoc'`) | `SV_KHONG_DANG_HOC` |

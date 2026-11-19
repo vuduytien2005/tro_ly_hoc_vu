@@ -43,7 +43,7 @@ from src.assistant_api.agent.executor import (
 from src.assistant_api.agent.llm import LLM, LlmError, LlmTurn, ToolCall
 from src.assistant_api.agent.prompts import system_prompt, tool_label
 from src.assistant_api.agent.registry import (
-    INJECTED_PARAMS,
+    HIDDEN_PARAMS,
     ContextInjectionError,
     ToolPolicy,
     ToolRegistry,
@@ -309,7 +309,7 @@ class AgentRunner:
 
         # Lịch sử: assistant(tool_call tổng hợp, chỉ tham số LLM thấy) + tool(kết quả thật)
         call_id = f"xac_nhan_{action.ma.replace('-', '')[:16]}"
-        visible = {k: v for k, v in action.tham_so.items() if k not in INJECTED_PARAMS}
+        visible = {k: v for k, v in action.tham_so.items() if k not in HIDDEN_PARAMS}
         result = outcome.result
         if isinstance(result, dict):
             result = {**result, "ghi_chu_he_thong": CONFIRMED_NOTE}

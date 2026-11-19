@@ -267,12 +267,11 @@ def demo_scenarios(api: Api, rep: Report) -> None:
     def demo4() -> None:
         _, t = api.chat(sv, "Đăng ký thêm SE105.02", conv_34[0] if conv_34 else None)
         ok_turn(t)
-        done = api.confirm_all(sv, t, "register_course")
-        text = (t.text + done.text).lower()
+        text = t.text.lower()
         rep.check("trùng" in text, "Báo trùng lịch với IT004.02", text[:160].replace("\n", " "))
-        rep.check(
-            ("register_course", "thanh_cong") not in done.tools, "Không đăng ký được SE105.02"
-        )
+        # kiểm tra trước khi tạo thẻ: trùng lịch thì báo ngay, không hiện thẻ xác nhận
+        rep.check(not t.pending, "Không hiện thẻ xác nhận (báo lỗi ngay)")
+        rep.check("bấm" not in text, "Không bảo sinh viên bấm xác nhận")
 
     def demo5() -> None:
         _, t = api.chat(sv, "Cho em xem điểm của SV22002")

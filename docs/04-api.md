@@ -15,6 +15,7 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 | GET | `/internal/students/{ma_sv}/tuition?ma_hoc_ky=` | Học phí |
 | GET | `/internal/course-sections?q=&ma_hoc_ky=` | Lớp học phần (mặc định học kỳ đang mở đăng ký), kèm `con_trong` |
 | POST | `/internal/students/{ma_sv}/registrations` | Body `{ma_lop}` → 201 hoặc 409 với mã lỗi (xem 03) |
+| POST | `/internal/students/{ma_sv}/registrations/check` | Body `{ma_lop}` → 200 `trang_thai: "hop_le"` hoặc 409 như trên; chỉ kiểm tra, KHÔNG ghi (dùng trước khi tạo thẻ xác nhận) |
 | DELETE | `/internal/students/{ma_sv}/registrations/{ma_lop}` | Hủy (chỉ trong thời gian đăng ký) |
 | POST | `/internal/students/{ma_sv}/requests` | Body `{loai_don, noi_dung, tao_boi}` → `{ma_don, trang_thai}` |
 | GET | `/internal/students/{ma_sv}/requests?trang_thai=` | Danh sách đơn `[{ma_don, loai_don, trang_thai, tao_boi, created_at}]` |

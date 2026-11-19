@@ -56,6 +56,24 @@ def test_course_sections_with_free_seats(client: TestClient) -> None:
     assert (full["si_so_toi_da"], full["da_dang_ky"], full["con_trong"]) == (2, 2, 0)
 
 
+def test_register_check_does_not_write(client: TestClient) -> None:
+    check = client.post(
+        "/internal/students/SV22001/registrations/check", json={"ma_lop": "IT004.02"}
+    )
+    assert check.status_code == 200 and check.json()["trang_thai"] == "hop_le"
+    # chưa ghi gì: kiểm tra lại vẫn hợp lệ, đăng ký thật vẫn được
+    again = client.post(
+        "/internal/students/SV22001/registrations/check", json={"ma_lop": "IT004.02"}
+    )
+    assert again.status_code == 200
+    ok = client.post("/internal/students/SV22001/registrations", json={"ma_lop": "IT004.02"})
+    assert ok.status_code == 201
+    conflict = client.post(
+        "/internal/students/SV22001/registrations/check", json={"ma_lop": "SE105.02"}
+    )
+    assert conflict.status_code == 409 and conflict.json()["code"] == "TRUNG_LICH"
+
+
 def test_register_201_then_409(client: TestClient) -> None:
     ok = client.post("/internal/students/SV22001/registrations", json={"ma_lop": "IT004.02"})
     assert ok.status_code == 201 and ok.json()["thanh_cong"] is True

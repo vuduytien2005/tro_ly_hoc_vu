@@ -26,6 +26,19 @@ def register(ma_sv: str, body: RegistrationIn, db: DbSession, now: Now) -> Regis
     )
 
 
+@router.post(
+    "/{ma_sv}/registrations/check",
+    response_model=RegistrationOut,
+    summary="Kiểm tra có đăng ký được lớp không (không ghi)",
+    description="Cùng các bước kiểm tra như đăng ký; hợp lệ trả trang_thai 'hop_le', không ghi gì.",
+)
+def check(ma_sv: str, body: RegistrationIn, db: DbSession, now: Now) -> RegistrationOut:
+    try:
+        return registration_service.register(db, ma_sv, body.ma_lop, now, dry_run=True)
+    finally:
+        db.rollback()  # nhả khóa UPDLOCK, không ghi gì
+
+
 @router.delete(
     "/{ma_sv}/registrations/{ma_lop}",
     response_model=RegistrationOut,

@@ -25,7 +25,7 @@
 | `get_current_schedule` | `ma_hoc_ky: str \| None` | {ma_lop, ten_hp, thu, tiet, phong, giang_vien} | đọc |
 | `get_graduation_progress` | – | xem API graduation-progress | đọc |
 | `search_course_sections` | `tu_khoa: str`, `ma_hoc_ky: str \| None` | {ma_lop, ma_hp, ten_hp, tin_chi, giang_vien, lich, con_trong} (tối đa 10) | đọc |
-| `register_course` | `ma_lop: str` | {thanh_cong, ma_lop, ten_hp, lich} hoặc lỗi | **ghi, xác nhận** |
+| `register_course` | `ma_lop: str`, `chi_kiem_tra: bool = False` [SYSTEM, ẩn khỏi LLM] | {thanh_cong, ma_lop, ten_hp, lich} hoặc lỗi; `chi_kiem_tra=true` → gọi `/registrations/check`, không ghi | **ghi, xác nhận** |
 | `cancel_course_registration` | `ma_lop: str` | {thanh_cong} hoặc lỗi | **ghi, xác nhận** |
 
 Ví dụ docstring:

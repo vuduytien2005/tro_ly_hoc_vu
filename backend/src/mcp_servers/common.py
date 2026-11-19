@@ -45,6 +45,13 @@ MaKhoa = Annotated[
     str,
     Field(description=f"Mã khóa của sinh viên (vd K22), để lọc phiên bản quy chế. {INJECTED_NOTE}"),
 ]
+ChiKiemTra = Annotated[
+    bool,
+    Field(
+        description="Chỉ kiểm tra điều kiện, không thực hiện. [SYSTEM] Do hệ thống tự đặt khi "
+        "chuẩn bị thẻ xác nhận; bị ẩn khỏi schema gửi cho LLM."
+    ),
+]
 MaHocKy = Annotated[
     str | None,
     Field(

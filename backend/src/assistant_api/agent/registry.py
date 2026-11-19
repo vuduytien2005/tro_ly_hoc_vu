@@ -26,6 +26,10 @@ from src.assistant_api.models import CongCu, McpServer, NguoiDung
 logger = logging.getLogger(__name__)
 
 INJECTED_PARAMS = ("ma_sv", "ma_khoa")
+# Tham số chỉ hệ thống được đặt (vd chi_kiem_tra khi chuẩn bị thẻ xác nhận): ẩn khỏi schema
+# gửi LLM và luôn bị bỏ nếu LLM tự gửi.
+SYSTEM_PARAMS = ("chi_kiem_tra",)
+HIDDEN_PARAMS = INJECTED_PARAMS + SYSTEM_PARAMS
 RESYNC_SECONDS = 30.0
 PROBE_SECONDS = 15.0
 
@@ -49,13 +53,13 @@ class ContextInjectionError(Exception):
 
 
 def strip_injected(schema: dict[str, Any]) -> dict[str, Any]:
-    """Bản sao schema đã xóa ma_sv/ma_khoa khỏi properties và required."""
+    """Bản sao schema đã xóa ma_sv/ma_khoa (và tham số hệ thống) khỏi properties và required."""
     clean = copy.deepcopy(schema)
     props = clean.get("properties") or {}
-    for key in INJECTED_PARAMS:
+    for key in HIDDEN_PARAMS:
         props.pop(key, None)
     if "required" in clean:
-        clean["required"] = [r for r in clean["required"] if r not in INJECTED_PARAMS]
+        clean["required"] = [r for r in clean["required"] if r not in HIDDEN_PARAMS]
         if not clean["required"]:
             clean.pop("required")
     clean.setdefault("type", "object")
@@ -65,7 +69,7 @@ def strip_injected(schema: dict[str, Any]) -> dict[str, Any]:
 
 def inject_context(spec: ToolSpec, llm_args: dict[str, Any], user: NguoiDung) -> dict[str, Any]:
     """Bỏ mọi ma_sv/ma_khoa LLM gửi; điền giá trị của tài khoản (chỉ tham số tool có khai báo)."""
-    args = {k: v for k, v in llm_args.items() if k not in INJECTED_PARAMS}
+    args = {k: v for k, v in llm_args.items() if k not in HIDDEN_PARAMS}
     declared = (spec.input_schema.get("properties") or {}).keys()
     values = {"ma_sv": user.ma_sv, "ma_khoa": user.ma_khoa}
     for key in INJECTED_PARAMS:

@@ -55,6 +55,22 @@ def validate_args(schema: dict[str, Any], args: dict[str, Any]) -> None:
         raise ActionRejected("THAM_SO_KHONG_HOP_LE", f"Tham số không hợp lệ ({details}).")
 
 
+# Lỗi hạ tầng: vẫn hiện thẻ, điều kiện được kiểm tra lại khi thực thi
+_INFRA_ERRORS = {"DICH_VU_KHONG_KHA_DUNG", "LOI_HE_THONG"}
+
+
+async def _precheck_registration(ma_sv: str, ma_lop: str, lookup: Lookup) -> None:
+    """Kiểm tra trước (không ghi) các điều kiện đăng ký — trùng lịch, lớp đầy, tiên quyết... —
+    để báo lỗi NGAY thay vì hiện thẻ rồi sinh viên bấm Xác nhận mới thất bại."""
+    outcome = await lookup(
+        "dao_tao", "register_course", {"ma_sv": ma_sv, "ma_lop": ma_lop, "chi_kiem_tra": True}
+    )
+    result = outcome.result if isinstance(outcome.result, dict) else {}
+    code = str(result.get("ma_loi") or "")
+    if outcome.status == "loi" and code and code not in _INFRA_ERRORS:
+        raise ActionRejected(code, str(result.get("thong_bao") or "Không đăng ký được lớp này."))
+
+
 # ----- mô tả thẻ xác nhận (template) ---------------------------------------------
 async def _section(ma_sv: str, ma_lop: str, lookup: Lookup) -> dict[str, Any] | None:
     """Tra lớp qua search_course_sections. None = không tra được (dịch vụ lỗi)."""
@@ -76,6 +92,8 @@ async def describe(tool: str, args: dict[str, Any], lookup: Lookup) -> str:
         ma_lop = str(args["ma_lop"]).strip()
         verb = "Đăng ký" if tool == "register_course" else "Hủy đăng ký"
         section = await _section(str(args["ma_sv"]), ma_lop, lookup)
+        if tool == "register_course":
+            await _precheck_registration(str(args["ma_sv"]), ma_lop, lookup)
         if section is None:
             return f"{verb} lớp {ma_lop}"
         return (

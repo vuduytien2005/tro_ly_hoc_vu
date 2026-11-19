@@ -47,6 +47,22 @@ async def test_register_course(qlsv_mock: respx.MockRouter) -> None:
     assert "IT004.02" in out["thong_bao"]
 
 
+async def test_register_course_check_only(qlsv_mock: respx.MockRouter) -> None:
+    check = qlsv_mock.post("/internal/students/SV22001/registrations/check").respond(
+        200, json={**REGISTRATION, "trang_thai": "hop_le"}
+    )
+    post = qlsv_mock.post("/internal/students/SV22001/registrations").respond(
+        201, json=REGISTRATION
+    )
+    out = await call_tool(
+        dao_tao.mcp,
+        "register_course",
+        {"ma_sv": "SV22001", "ma_lop": "IT004.02", "chi_kiem_tra": True},
+    )
+    assert check.called and not post.called
+    assert out["thanh_cong"] is True and "chưa đăng ký" in out["thong_bao"]
+
+
 async def test_register_course_conflict_is_structured(qlsv_mock: respx.MockRouter) -> None:
     qlsv_mock.post("/internal/students/SV22001/registrations").respond(
         409, json={"detail": "Trùng lịch với lớp IT004.02.", "code": "TRUNG_LICH"}

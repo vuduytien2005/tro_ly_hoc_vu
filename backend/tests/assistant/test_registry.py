@@ -32,6 +32,18 @@ def test_strip_injected_removes_properties_and_required() -> None:
     assert "ma_sv" in SCHEMA["properties"]  # không sửa schema gốc
 
 
+def test_system_params_hidden_and_dropped(student: NguoiDung) -> None:
+    schema = {
+        "type": "object",
+        "properties": {"ma_sv": {}, "ma_lop": {}, "chi_kiem_tra": {"type": "boolean"}},
+        "required": ["ma_sv", "ma_lop"],
+    }
+    assert set(strip_injected(schema)["properties"]) == {"ma_lop"}  # LLM không thấy
+    spec = ToolSpec("dao_tao", "register_course", "", schema)
+    args = inject_context(spec, {"ma_lop": "IT004.02", "chi_kiem_tra": True}, student)
+    assert args == {"ma_lop": "IT004.02", "ma_sv": "SV22001"}  # LLM gửi kèm -> bị bỏ
+
+
 def test_strip_injected_drops_empty_required() -> None:
     clean = strip_injected({"type": "object", "properties": {"ma_sv": {}}, "required": ["ma_sv"]})
     assert clean["properties"] == {} and "required" not in clean
