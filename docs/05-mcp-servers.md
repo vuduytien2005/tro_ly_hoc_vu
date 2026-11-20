@@ -27,6 +27,8 @@
 | `search_course_sections` | `tu_khoa: str`, `ma_hoc_ky: str \| None` | {ma_lop, ma_hp, ten_hp, tin_chi, giang_vien, lich, con_trong} (tối đa 10) | đọc |
 | `register_course` | `ma_lop: str`, `chi_kiem_tra: bool = False` [SYSTEM, ẩn khỏi LLM] | {thanh_cong, ma_lop, ten_hp, lich} hoặc lỗi; `chi_kiem_tra=true` → gọi `/registrations/check`, không ghi | **ghi, xác nhận** |
 | `cancel_course_registration` | `ma_lop: str` | {thanh_cong} hoặc lỗi | **ghi, xác nhận** |
+| `plan_next_semester` | – | kết quả `semester-plan` (04-api) + `thong_bao` tóm tắt gói, tổng tín chỉ, lý do loại từng môn | đọc |
+| `register_courses_bundle` | `ma_lop: list[str]` (1–8), `chi_kiem_tra: bool = False` [SYSTEM, ẩn khỏi LLM] | {thanh_cong, lop[{ma_lop, ten_hp, tin_chi, lich}], tong_tin_chi} hoặc lỗi (mã lỗi của lớp gây lỗi); nguyên khối | **ghi, xác nhận** — một thẻ cho cả gói, liệt kê từng lớp |
 
 Ví dụ docstring:
 ```python

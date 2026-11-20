@@ -3,7 +3,7 @@
 Chạy từ thư mục backend/:
     python scripts/demo_check.py                 # không gọi LLM (miễn phí): sức khỏe, đăng nhập,
                                                  # công cụ MCP, RAG, chặn truy cập chéo
-    python scripts/demo_check.py --llm           # + chạy kịch bản demo 1–8 (docs/01 mục 6), tự
+    python scripts/demo_check.py --llm           # + chạy kịch bản demo 1–9 (docs/01 mục 6), tự
                                                  # bấm "Xác nhận" (gọi LLM thật, ~7 lượt hỏi)
     python scripts/demo_check.py --llm --lan 3   # chạy 3 lần liên tiếp, reset giữa các lần
 Mặc định reset dữ liệu demo (reset_demo.ps1) TRƯỚC mỗi lần chạy kịch bản: demo 3–4 phụ thuộc trạng
@@ -374,6 +374,27 @@ def demo_scenarios(api: Api, rep: Report) -> None:
             str(done.tools) + " " + done.text[:120].replace("\n", " "),
         )
 
+    def demo9() -> None:
+        # Chạy SAU demo 3 (IT004.02 đã đăng ký) -> gói đề xuất còn SE201.01; lớp đã đăng ký vẫn
+        # chiếm lịch + tín chỉ. Một thẻ cho cả gói, xác nhận -> đăng ký nguyên khối.
+        _, t = api.chat(sv, "Lập kế hoạch học kỳ tới rồi đăng ký cả gói giúp em.")
+        ok_turn(t)
+        rep.check("plan_next_semester" in t.tool_names, "Gọi plan_next_semester", str(t.tool_names))
+        cards = [c for c in t.pending if c["ten_cong_cu"] == "register_courses_bundle"]
+        rep.check(
+            len(cards) == 1,
+            "Đúng một thẻ xác nhận register_courses_bundle",
+            cards[0]["mo_ta"].replace("\n", " | ") if cards else str(t.tool_names),
+        )
+        rep.check("SE201.01" in " ".join(c["mo_ta"] for c in cards), "Thẻ có lớp SE201.01")
+        done = api.confirm_all(sv, t, "register_courses_bundle")
+        ok_turn(done)
+        rep.check(
+            ("register_courses_bundle", "thanh_cong") in done.tools,
+            "Xác nhận -> đăng ký cả gói thành công",
+            str(done.tools),
+        )
+
     for title, fn in [
         ("Demo 1: hỏi quy chế (RAG + trích dẫn)", demo1),
         ("Demo 2: tiến độ tốt nghiệp", demo2),
@@ -383,6 +404,7 @@ def demo_scenarios(api: Api, rep: Report) -> None:
         ("Demo 6: SV21001 xin giấy xác nhận", demo6),
         ("Demo 7: công cụ bị tắt -> tạm dừng", demo7),
         ("Demo 8: thêm server Thư viện + gia hạn sách", demo8),
+        ("Demo 9: kế hoạch học kỳ tới + đăng ký cả gói", demo9),
     ]:
         scenario(title, fn)
 
@@ -398,7 +420,7 @@ def reset_demo() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Kiểm tra hệ thống trước buổi demo")
     parser.add_argument("--base", default="http://127.0.0.1:8000", help="địa chỉ assistant_api")
-    parser.add_argument("--llm", action="store_true", help="chạy kịch bản demo 1–8 (gọi LLM thật)")
+    parser.add_argument("--llm", action="store_true", help="chạy kịch bản demo 1–9 (gọi LLM thật)")
     parser.add_argument("--lan", type=int, default=1, help="số lần chạy kịch bản liên tiếp")
     parser.add_argument(
         "--khong-reset", action="store_true", help="không reset dữ liệu trước mỗi lần"
@@ -420,7 +442,7 @@ def main() -> int:
             reset_demo()  # để lại hệ thống sạch cho demo tay (đăng ký, đơn, hội thoại vừa tạo)
             print("\n(đã reset dữ liệu demo sau khi chạy)")
     elif not args.llm:
-        print("\n(Bỏ qua kịch bản demo 1–8: thêm --llm để chạy, gọi LLM thật.)")
+        print("\n(Bỏ qua kịch bản demo 1–9: thêm --llm để chạy, gọi LLM thật.)")
 
     total = rep.passed + len(rep.failed)
     print(f"\nKết quả: {rep.passed}/{total} đạt.")

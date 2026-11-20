@@ -17,6 +17,9 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 | POST | `/internal/students/{ma_sv}/registrations` | Body `{ma_lop}` → 201 hoặc 409 với mã lỗi (xem 03) |
 | POST | `/internal/students/{ma_sv}/registrations/check` | Body `{ma_lop}` → 200 `trang_thai: "hop_le"` hoặc 409 như trên; chỉ kiểm tra, KHÔNG ghi (dùng trước khi tạo thẻ xác nhận) |
 | DELETE | `/internal/students/{ma_sv}/registrations/{ma_lop}` | Hủy (chỉ trong thời gian đăng ký) |
+| GET | `/internal/students/{ma_sv}/semester-plan` | Kế hoạch học kỳ đang mở đăng ký (chỉ đọc): `{hoc_ky, ten_hoc_ky, tin_chi_toi_da, tin_chi_da_dang_ky, de_xuat[{ma_lop, ma_hp, ten_hp, tin_chi, lich, bat_buoc, ly_do_chon}], tong_tin_chi_de_xuat, bi_loai[{ma_hp, ten_hp, ma_loi, ly_do, lop[{ma_lop, ma_loi, ly_do}]}]}`. Không có học kỳ mở đăng ký → 409 `KHONG_CO_HOC_KY_MO_DANG_KY` |
+| POST | `/internal/students/{ma_sv}/registrations/bundle` | Body `{ma_lop: [..]}` (1–8 mã, không trùng) → 201 `{thanh_cong, trang_thai: "da_dang_ky", lop[], tong_tin_chi}`. Nguyên khối: một lớp lỗi → 409 với mã lỗi của lớp đó, `detail` bắt đầu "Lớp {ma_lop}: …", không lớp nào được ghi. Mã trùng → 422 `DANH_SACH_LOP_KHONG_HOP_LE` |
+| POST | `/internal/students/{ma_sv}/registrations/bundle/check` | Như trên nhưng chỉ kiểm tra (ghi tạm rồi rollback) → 200 `trang_thai: "hop_le"` |
 | POST | `/internal/students/{ma_sv}/requests` | Body `{loai_don, noi_dung, tao_boi}` → `{ma_don, trang_thai}` |
 | GET | `/internal/students/{ma_sv}/requests?trang_thai=` | Danh sách đơn `[{ma_don, loai_don, trang_thai, tao_boi, created_at}]` |
 | GET | `/internal/students/{ma_sv}/requests/{ma_don}` | Chi tiết đơn (404 nếu không thuộc sinh viên này) |

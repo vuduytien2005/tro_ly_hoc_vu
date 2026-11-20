@@ -21,10 +21,11 @@ TOOLS = {
     "cancel_course_registration", "list_my_requests", "get_request_status",
     "request_student_certificate", "submit_deferral_request", "submit_regrade_request",
     "get_tuition_status", "search_regulations", "get_article",
+    "plan_next_semester", "register_courses_bundle",
 }  # fmt: skip
 WRITE = {
     "register_course", "cancel_course_registration", "request_student_certificate",
-    "submit_deferral_request", "submit_regrade_request",
+    "submit_deferral_request", "submit_regrade_request", "register_courses_bundle",
 }  # fmt: skip
 
 
@@ -219,3 +220,14 @@ def test_pacer_spaces_calls() -> None:
     pacer.min_interval = 0.2
     assert pacer.wait() == 0.0
     assert 0.1 < pacer.wait() <= 0.2
+
+
+def test_params_match_list_ignores_order() -> None:
+    calls = [
+        {"ten_cong_cu": "register_courses_bundle", "tham_so": {"ma_lop": ["se201.01", "IT004.02"]}}
+    ]
+    want = {"register_courses_bundle": {"ma_lop": ["IT004.02", "SE201.01"]}}
+    assert metrics.params_match(calls, want, ["register_courses_bundle"])
+    assert not metrics.params_match(
+        calls, {"register_courses_bundle": {"ma_lop": ["IT004.02"]}}, ["register_courses_bundle"]
+    )

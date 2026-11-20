@@ -8,7 +8,7 @@ Khóa luận tốt nghiệp ngành Công nghệ phần mềm. Một người là
 ## Hệ thống gồm gì
 1. **qlsv_api** – Hệ thống quản lý sinh viên GIẢ LẬP (FastAPI + SQL Server `tlhv_qlsv`). Đóng vai "hệ thống thật của trường" để Agent thao tác. Chỉ nhận request nội bộ có header `X-Internal-Token`.
 2. **mcp_servers** – 4 MCP server (Python SDK `mcp` 2.x, lớp `MCPServer`, transport streamable HTTP):
-   - `dao_tao` (cổng 9101): hồ sơ, bảng điểm, lịch thi, tiến độ tốt nghiệp, đăng ký học phần.
+   - `dao_tao` (cổng 9101): hồ sơ, bảng điểm, lịch thi, tiến độ tốt nghiệp, đăng ký học phần, lập kế hoạch học kỳ tới, đăng ký cả gói (một thẻ xác nhận, nguyên khối — bổ sung 20/11/2026, nâng cấp CSDL `07`).
    - `ctsv` (9102): giấy xác nhận sinh viên, đơn bảo lưu, đơn phúc khảo, tra cứu đơn.
    - `tai_chinh` (9103): tình trạng học phí.
    - `quy_che` (9104): tra cứu quy chế bằng RAG (nhánh RAG cũng là một MCP server).

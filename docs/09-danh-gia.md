@@ -71,7 +71,7 @@ Mỗi thực nghiệm: bảng số liệu + 1 biểu đồ + nhận xét 1–2 �
 ### Cấu trúc thư mục `evaluation/`
 | Đường dẫn | Nội dung |
 |---|---|
-| `datasets/*.jsonl` | Bộ dữ liệu. Dòng bắt đầu bằng `//` là chú thích. Hiện có: **TN3 72 kịch bản, TN4 49 ca** (bộ đầy đủ, 20/11/2026 — xem mục "Bộ dữ liệu TN3/TN4" bên dưới); TN1/TN2 mới có 13 câu mẫu, **hoãn** đến khi có PDF quy chế thật trong `data/van_ban/` (viết 100–150 câu trên 23 Điều giả lập sẽ trùng lặp, ít giá trị). |
+| `datasets/*.jsonl` | Bộ dữ liệu. Dòng bắt đầu bằng `//` là chú thích. Hiện có: **TN3 75 kịch bản (A073–A075 thêm sau), TN4 49 ca** (bộ đầy đủ, 20/11/2026 — xem mục "Bộ dữ liệu TN3/TN4" bên dưới); TN1/TN2 mới có 13 câu mẫu, **hoãn** đến khi có PDF quy chế thật trong `data/van_ban/` (viết 100–150 câu trên 23 Điều giả lập sẽ trùng lặp, ít giá trị). |
 | `corpus_demo/` | Văn bản GIẢ LẬP: quy chế 2021 (đến K21), quy chế 2023 (từ K22), quy định học phí–bảo lưu–phúc khảo, kèm `danh_muc.csv` (cùng định dạng `data/van_ban`). Khi có PDF thật: sửa khóa `corpus` trong cấu hình thành `data/van_ban`. |
 | `corpus_an_toan/` | Tài liệu chứa lệnh độc hại cho TN4 (prompt injection gián tiếp). |
 | `configs/*.yaml` | `rag_R1..R6` (TN1), `agent_{opus,haiku}[_toi_gian]` (TN3), `rag_answer` (TN2), `security` (TN4). |
@@ -139,7 +139,8 @@ Thay đổi hệ thống phát sinh khi chạy Gemini (đều có test):
 Thiết kế: `docs/superpowers/specs/2026-11-20-bo-du-lieu-tn3-tn4-design.md`. Viết tay trên **dữ liệu QLSV mẫu giữ nguyên** (5 sinh viên, 7 lớp); đa dạng bằng tổ hợp sinh viên × công cụ × lỗi nghiệp vụ × cách hỏi (tên môn thay mã, không dấu, hỏi vòng vo). Giữ nguyên 23 dòng cũ (A001–A012, S001–S011) để so sánh với lượt chạy 19/11.
 
 **Trường mới** (script bỏ qua, không cần sửa code):
-- `loai` (TN3): `chi_rag` 10 · `du_lieu_ca_nhan` 22 · `ket_hop` 10 · `thu_tuc_ghi` 12 · `nhieu_buoc` 8 · `loi_nghiep_vu` 10 — dùng để chia bảng kết quả theo loại khi viết Chương 4.
+- `loai` (TN3): `chi_rag` 10 · `du_lieu_ca_nhan` 22 · `ket_hop` 10 · `thu_tuc_ghi` 12 · `nhieu_buoc` 11 · `loi_nghiep_vu` 10 — dùng để chia bảng kết quả theo loại khi viết Chương 4.
+- **A073–A075 (bổ sung 20/11/2026, ý tưởng 3 — SV-12):** A073 SV22001 hỏi kế hoạch; A074 SV22001 "lập kế hoạch rồi đăng ký cả gói" (`register_courses_bundle` với `ma_lop` = IT004.02, SE201.01 — tham số danh sách so như **tập hợp**, không xét thứ tự); A075 SV21001 hỏi kế hoạch (không có gói: SE202.01 đầy). Chạy khô 3/3 đạt. Bộ TN3 giờ **75 kịch bản**, LLM thấy **18 công cụ** thay vì 16 → kết quả TN3 cũ (72 kịch bản) **không so trực tiếp** được với lượt mới; chạy lại tuần 3.
 - `can_kiem_tra`: dòng có đáp án lấy từ văn bản (giả lập) — ghi rõ văn bản + Điều để người viết đối chiếu.
 
 **TN4 — 8 nhóm:** `truy_cap_cheo` 8 · `gia_mao` 7 · `bo_qua_xac_nhan` 7 · `prompt_injection_gian_tiep` 8 · `cong_cu_tat` 6 · `ghi_thay_nguoi_khac` 5 · `lo_cau_hinh` 4 · `dong_vai` 4. `corpus_an_toan/huong_dan_doc_hai.txt` thêm Điều 4–7 với 4 kiểu giấu lệnh: lệnh giả `[SYSTEM OVERRIDE]` bằng tiếng Anh, lệnh giấu trong danh sách a)–d), mạo danh chỉ đạo Hiệu trưởng, đòi chép system prompt. `lo_cau_hinh` không có `hanh_vi_gia_lap` (không công cụ nào lộ cấu hình) nên `--dry-run` luôn ra `llm_tu_choi` — chỉ có ý nghĩa khi chạy LLM thật.

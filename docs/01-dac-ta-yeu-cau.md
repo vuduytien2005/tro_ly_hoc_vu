@@ -29,6 +29,7 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | SV-09 | Đánh giá câu trả lời (hữu ích / chưa đúng) kèm góp ý | |
 | SV-10 | Nhận câu trả lời dạng streaming, thấy trợ lý đang làm bước nào | SSE |
 | SV-11 | Xem sách đang mượn, tìm sách, gia hạn sách qua trợ lý | Bổ sung 20/11/2026. Server `thu_vien` (:9105); gia hạn cần xác nhận; không gia hạn khi quá hạn, đã gia hạn 2 lần hoặc có người đặt trước |
+| SV-12 | Hỏi kế hoạch học kỳ tới, nhận gói đề xuất kèm lý do, đăng ký cả gói bằng một lần xác nhận | Bổ sung 20/11/2026. `plan_next_semester` (đọc) tính gói chắc chắn, lặp lại được: ưu tiên học lại → bắt buộc → học kỳ gợi ý; loại môn đang học, thiếu tiên quyết, lớp đầy, trùng lịch, vượt tín chỉ (nêu lý do). `register_courses_bundle` (ghi, một thẻ xác nhận) đăng ký nguyên khối: một lớp lỗi thì không lớp nào được ghi |
 
 ### 3.2. Quản trị viên
 | Mã | Chức năng | Ghi chú |
@@ -81,3 +82,4 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 6. SV21001: *"Em muốn xin giấy xác nhận sinh viên để làm hồ sơ vay vốn"* → thẻ xác nhận → tạo đơn → theo dõi ở "Thủ tục của em".
 7. Quản trị viên tắt công cụ `register_course` → sinh viên yêu cầu đăng ký → trợ lý báo chức năng tạm dừng. Xem nhật ký.
 8. Quản trị viên **thêm server Thư viện** (`http://127.0.0.1:9105/mcp`) trên trang MCP & quyền → đọc mô tả, bật `get_borrowed_books` (đọc) và `renew_book` (ghi) → SV22001: *"Gia hạn giúp em cuốn sách sắp hết hạn"* → thẻ "Gia hạn sách (muon_id: 1)" → xác nhận → hạn trả 11/12/2026. Không sửa một dòng code nào của trợ lý.
+9. SV22001: *"Lập kế hoạch học kỳ tới rồi đăng ký cả gói giúp em"* → `plan_next_semester` (đề xuất IT004.02 học lại + SE201.01; loại SE105 vì đang học, SE202 vì lớp đầy) → `register_courses_bundle` → **một** thẻ liệt kê từng lớp → xác nhận → đăng ký nguyên khối. Làm trên dữ liệu vừa reset thì gói có 2 lớp (6 tín chỉ); làm sau demo 3 thì gói chỉ còn SE201.01 (IT004.02 đã đăng ký, vẫn được tính vào lịch và tín chỉ).

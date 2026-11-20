@@ -120,6 +120,9 @@ def is_refusal(answer: str) -> bool:
 
 # ----- TN3 ------------------------------------------------------------------
 def _same_value(actual: Any, expected: Any) -> bool:
+    # danh sách (vd mã lớp của gói): không xét thứ tự
+    if isinstance(expected, list) and isinstance(actual, list):
+        return sorted(map(norm, actual)) == sorted(map(norm, expected))
     if isinstance(expected, str) or isinstance(actual, str):
         return norm(actual) == norm(expected)
     return actual == expected

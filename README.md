@@ -12,7 +12,7 @@ Bộ thiết kế này dùng để làm dự án bằng **VS Code + Claude Code 
 | `docs/02-kien-truc.md` | Kiến trúc, luồng xử lý, vòng lặp Agent, system prompt, sự kiện SSE |
 | `docs/03-co-so-du-lieu.md` | Hướng dẫn cài SQL Server, sơ đồ CSDL, quy tắc nghiệp vụ, tài khoản mẫu |
 | `docs/04-api.md` | Đặc tả API của qlsv_api và assistant_api |
-| `docs/05-mcp-servers.md` | 5 MCP server (4 có sẵn + `thu_vien` thêm khi demo) và 19 công cụ |
+| `docs/05-mcp-servers.md` | 5 MCP server (4 có sẵn + `thu_vien` thêm khi demo) và 21 công cụ |
 | `docs/06-rag.md` | Pipeline RAG: chia đoạn theo Điều, hybrid search, lọc phiên bản theo khóa |
 | `docs/07-ke-hoach-va-prompt.md` | **10 giai đoạn + câu lệnh dán sẵn cho Claude** |
 | `docs/08-giao-dien.md` | Thiết kế giao diện |
@@ -54,7 +54,7 @@ python scripts\demo_check.py                # (thư mục backend, venv bật) k
 ### Tài khoản demo
 | Vai trò | Email | Mật khẩu | Ghi chú |
 |---|---|---|---|
-| Sinh viên | `sv22001@truong.example` | `Sv@123456` | K22, dùng cho demo 1–5, 7 |
+| Sinh viên | `sv22001@truong.example` | `Sv@123456` | K22, dùng cho demo 1–5, 7–9 |
 | Sinh viên | `sv21001@truong.example` | `Sv@123456` | K21, demo 6 |
 | Sinh viên | `sv22002@truong.example`, `sv23001@…`, `sv22003@…` | `Sv@123456` | |
 | Quản trị | `admin@truong.example` | `Admin@123456` | trang Tài liệu, MCP & quyền, Nhật ký, Thống kê |
@@ -72,13 +72,14 @@ Trước buổi demo: `.\scripts\reset_demo.ps1` → `.\scripts\run_all.ps1` →
 | 6 | sv21001 | *"Em muốn xin giấy xác nhận sinh viên để làm hồ sơ vay vốn"* → Xác nhận | Tạo đơn; mở **Thủ tục của em** thấy đơn mới. |
 | 7 | admin → sv22001 | Admin: **MCP & quyền** → tắt `register_course`. SV: *"Đăng ký giúp em lớp IT004.02"* | Trợ lý báo chức năng **tạm dừng**; Admin → **Nhật ký** thấy lượt bị từ chối. |
 | 8 | admin → sv22001 | Admin: **MCP & quyền** → **Thêm MCP server** `thu_vien`, `http://127.0.0.1:9105/mcp` → Kiểm tra kết nối → Lưu → bật `get_borrowed_books`, `renew_book`. SV: *"Gia hạn giúp em cuốn sách sắp hết hạn"* | Thẻ **"Gia hạn sách (muon_id: 1)"** → Xác nhận → hạn trả 11/12/2026. Server Thư viện được thêm trên trang MCP & quyền khi demo, không sửa code trợ lý. |
+| 9 | sv22001 | *"Lập kế hoạch học kỳ tới rồi đăng ký cả gói giúp em"* | Chip "Đang lập kế hoạch học kỳ tới"; trợ lý nêu gói + lý do loại SE105 (đang học), SE202 (lớp đầy); **một** thẻ liệt kê từng lớp → Xác nhận → đăng ký cả gói. Sau reset: IT004.02 + SE201.01 (6 tín chỉ); sau demo 3: chỉ còn SE201.01. |
 
 **Reset giữa các lần demo** (demo 3–4 làm đổi dữ liệu, demo 7 tắt công cụ):
 ```powershell
 cd backend; .\scripts\reset_demo.ps1        # QLSV về mẫu, xóa hội thoại/nhật ký, bật lại công cụ, đặt lại mật khẩu demo
                                             # GIỮ văn bản đã lập chỉ mục. Service không cần tắt; trên web bấm F5.
 .\scripts\reset_demo.ps1 -ChiQlsv           # chỉ dữ liệu QLSV
-python scripts\demo_check.py --llm --lan 3  # chạy tự động demo 1–7 ba lần liên tiếp (TỐN TIỀN API), reset giữa các lần
+python scripts\demo_check.py --llm --lan 3  # chạy tự động demo 1–9 ba lần liên tiếp (TỐN TIỀN API), reset giữa các lần
 ```
 
 ## Xử lý sự cố

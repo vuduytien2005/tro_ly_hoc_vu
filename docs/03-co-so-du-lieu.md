@@ -100,13 +100,21 @@ erDiagram
 - **Hủy đăng ký:** chỉ trong thời gian đăng ký; lớp chưa đăng ký → `CHUA_DANG_KY_LOP`.
 - **Đơn của sinh viên khác** trả 404 (không tiết lộ đơn có tồn tại).
 
+### Kế hoạch học kỳ tới và đăng ký cả gói (bổ sung 20/11/2026)
+- **Học kỳ đích** = học kỳ đang mở đăng ký; không có → 409 `KHONG_CO_HOC_KY_MO_DANG_KY`.
+- **Ứng viên** = học phần trong chương trình chưa đạt. Học phần đã đăng ký ở học kỳ đích không đề xuất lại, nhưng lớp của nó vẫn chiếm lịch và tín chỉ.
+- **Loại theo học phần:** đang học ở học kỳ hiện tại mà chưa có điểm (`DANG_HOC`), thiếu tiên quyết (`CHUA_DAT_TIEN_QUYET`), không có lớp mở (`KHONG_CO_LOP_MO`).
+- **Ưu tiên:** học lại (từng bị F) → bắt buộc → `hoc_ky_goi_y` nhỏ hơn → mã học phần. **Tham lam:** mỗi học phần lấy lớp đầu tiên theo mã lớp còn chỗ, không trùng lịch, không vượt tín chỉ tối đa (`tin_chi_toi_da_canh_bao` nếu bị cảnh báo học vụ); không lớp nào được → `KHONG_CON_LOP_PHU_HOP` kèm lý do từng lớp (`LOP_DA_DAY` / `TRUNG_LICH` / `VUOT_TIN_CHI_TOI_DA`). Không tối ưu toàn cục — đủ cho dữ liệu, dễ giải thích.
+- **Đăng ký cả gói:** chạy đúng 9 bước kiểm tra của đăng ký một lớp cho từng lớp (theo thứ tự mã lớp — thứ tự khóa cố định), trong **một giao dịch**; lớp sau thấy lớp trước nên trùng lịch / vượt tín chỉ *trong gói* cũng bị bắt. Một lớp lỗi → rollback cả gói. Tối đa 8 lớp; mã trùng → 422 `DANH_SACH_LOP_KHONG_HOP_LE`.
+
 ### Mã lỗi bổ sung của qlsv_api
 | Mã | HTTP | Khi nào |
 |---|---|---|
 | `THIEU_TOKEN_NOI_BO`, `TOKEN_NOI_BO_KHONG_HOP_LE` | 401 | Thiếu / sai header `X-Internal-Token` |
 | `SV_KHONG_TON_TAI`, `HOC_KY_KHONG_TON_TAI`, `DON_KHONG_TON_TAI`, `HOC_PHI_KHONG_TON_TAI`, `CHUONG_TRINH_KHONG_TON_TAI` | 404 | Không tìm thấy |
 | 9 mã lỗi đăng ký ở bảng trên, `CHUA_DANG_KY_LOP`, `NO_HOC_PHI`, `KHONG_CO_DIEM_HOC_KY_GAN_NHAT`, `DON_DA_KET_THUC` (sửa đơn đã `hoan_tat`/`tu_choi`) | 409 | Vi phạm quy tắc nghiệp vụ |
-| `DU_LIEU_KHONG_HOP_LE` | 422 | Body/tham số/nội dung đơn sai định dạng |
+| `KHONG_CO_HOC_KY_MO_DANG_KY` | 409 | Lập kế hoạch khi không có học kỳ đang mở đăng ký |
+| `DU_LIEU_KHONG_HOP_LE`, `DANH_SACH_LOP_KHONG_HOP_LE` | 422 | Body/tham số/nội dung đơn sai định dạng; danh sách lớp của gói rỗng, quá 8 hoặc trùng mã |
 
 ### Chống đăng ký trùng khi nhiều yêu cầu đến cùng lúc (SQL Server)
 - Trong một transaction: khóa hàng `sinh_vien` rồi hàng `lop_hoc_phan` bằng table hint **`WITH (UPDLOCK, ROWLOCK)`**, sau đó mới đếm sĩ số / kiểm tra / ghi; commit nhả khóa. Luôn khóa theo cùng thứ tự để tránh deadlock.
