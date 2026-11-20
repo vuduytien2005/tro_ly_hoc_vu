@@ -25,6 +25,7 @@ from src.assistant_api.models import (
     DanhGiaCauTraLoi,
     HoiThoai,
     LuotGoiCongCu,
+    McpServer,
     NguoiDung,
     TinNhan,
     VanBan,
@@ -467,3 +468,136 @@ def test_stats(
 def test_settings_paths_unchanged() -> None:
     """Thư mục tải lên mặc định nằm trong data/ của dự án (không commit)."""
     assert get_settings().upload_dir.name == "van_ban"
+
+
+# ----- Thêm / sửa MCP server lúc chạy (server thư viện) --------------------------------------
+LIB = "http://127.0.0.1:9105/mcp"
+
+
+@pytest.fixture
+def adm(client: TestClient, admin: NguoiDung) -> dict[str, str]:
+    return login(client, admin.email)
+
+
+def add_library(client: TestClient, headers: dict[str, str], **body: str) -> httpx.Response:
+    payload = {"ten": "thu_vien", "mo_ta": "Thư viện", "dia_chi": LIB, **body}
+    return client.post("/api/admin/mcp-servers", json=payload, headers=headers)
+
+
+def count_servers(db: Session) -> int:
+    db.expire_all()
+    return len(db.scalars(select(McpServer)).all())
+
+
+def test_address_normalized() -> None:
+    assert admin_router.normalize_mcp_address(" http://LOCALHOST:9105/mcp ") == (
+        "http://LOCALHOST:9105/mcp"
+    )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "https://example.com/mcp",
+        "http://127.0.0.1.evil.com:9105/mcp",
+        "http://10.0.0.5:9105/mcp",
+        "http://localhost/mcp",
+        "ftp://127.0.0.1:9105/mcp",
+        "http://user@127.0.0.1:9105/mcp",
+    ],
+)
+def test_address_rejected(bad: str) -> None:
+    from src.assistant_api.errors import ApiError
+
+    with pytest.raises(ApiError) as exc:
+        admin_router.normalize_mcp_address(bad)
+    assert exc.value.code == "DIA_CHI_MCP_KHONG_HOP_LE"
+
+
+def test_check_lists_tools_without_saving(
+    client: TestClient, adm: dict[str, str], db: Session
+) -> None:
+    before = count_servers(db)
+    r = client.post("/api/admin/mcp-servers/check", json={"dia_chi": LIB}, headers=adm)
+    assert r.status_code == 200, r.text
+    tools = {t["ten"]: t for t in r.json()["cong_cu"]}
+    assert set(tools) == {"get_borrowed_books", "search_books", "renew_book"}
+    assert tools["renew_book"]["chi_doc_theo_server"] is False
+    assert tools["renew_book"]["title"] == "Gia hạn sách"
+    assert "ma_sv" not in tools["renew_book"]["tham_so"]["properties"]
+    assert tools["renew_book"]["trung_ten_voi"] is None
+    assert count_servers(db) == before
+
+
+def test_add_server_then_tools_disabled_new(
+    client: TestClient, adm: dict[str, str], db: Session
+) -> None:
+    r = add_library(client, adm)
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["ten"] == "thu_vien" and body["trang_thai"] == "ok"
+    assert {t["ten"] for t in body["cong_cu"]} == {
+        "get_borrowed_books",
+        "search_books",
+        "renew_book",
+    }
+    for t in body["cong_cu"]:
+        assert t["bat"] is False and t["duyet"] == "moi" and t["can_xac_nhan"] is True
+    assert body["cong_cu_bi_bo_qua"] == []
+    dup = add_library(client, adm)
+    assert dup.status_code == 409 and dup.json()["code"] == "TEN_MCP_DA_TON_TAI"
+    bad = add_library(client, adm, ten="Thu Vien")
+    assert bad.status_code == 422 and bad.json()["code"] == "TEN_MCP_KHONG_HOP_LE"
+
+
+def test_add_unreachable_server_rejected(
+    client: TestClient, adm: dict[str, str], db: Session
+) -> None:
+    before = count_servers(db)
+    r = add_library(client, adm, dia_chi="http://127.0.0.1:9199/mcp")
+    assert r.status_code == 422 and r.json()["code"] == "MCP_KHONG_KET_NOI_DUOC"
+    assert count_servers(db) == before
+
+
+def test_enable_tool_records_approval(client: TestClient, adm: dict[str, str], db: Session) -> None:
+    assert add_library(client, adm).status_code == 201
+    db.expire_all()
+    tool = db.scalar(select(CongCu).where(CongCu.ten == "renew_book"))
+    r = client.patch(f"/api/admin/tools/{tool.id}", json={"bat": True}, headers=adm)
+    assert r.status_code == 200, r.text
+    assert r.json()["duyet"] == "da_duyet" and r.json()["title"] == "Gia hạn sách"
+    db.expire_all()
+    assert db.get(CongCu, tool.id).ban_duyet
+    r = client.patch(f"/api/admin/tools/{tool.id}", json={"can_xac_nhan": False}, headers=adm)
+    assert r.status_code == 422 and r.json()["code"] == "KHONG_THE_BO_XAC_NHAN"
+
+
+def test_patch_server_bad_address_keeps_db(
+    client: TestClient, adm: dict[str, str], db: Session
+) -> None:
+    server_id = add_library(client, adm).json()["id"]
+    r = client.patch(
+        f"/api/admin/mcp-servers/{server_id}", json={"dia_chi": "https://x.com/mcp"}, headers=adm
+    )
+    assert r.status_code == 422 and r.json()["code"] == "DIA_CHI_MCP_KHONG_HOP_LE"
+    r = client.patch(
+        f"/api/admin/mcp-servers/{server_id}",
+        json={"dia_chi": "http://127.0.0.1:9199/mcp"},
+        headers=adm,
+    )
+    assert r.status_code == 422 and r.json()["code"] == "MCP_KHONG_KET_NOI_DUOC"
+    db.expire_all()
+    assert db.get(McpServer, server_id).dia_chi == LIB
+    r = client.patch(
+        f"/api/admin/mcp-servers/{server_id}", json={"mo_ta": "Thư viện trường"}, headers=adm
+    )
+    assert r.status_code == 200 and r.json()["mo_ta"] == "Thư viện trường"
+    r = client.patch("/api/admin/mcp-servers/999999", json={"bat": False}, headers=adm)
+    assert r.status_code == 404 and r.json()["code"] == "MCP_KHONG_TON_TAI"
+
+
+def test_student_cannot_manage_servers(client: TestClient, student: NguoiDung) -> None:
+    headers = login(client, student.email)
+    assert add_library(client, headers).status_code == 403
+    r = client.post("/api/admin/mcp-servers/check", json={"dia_chi": LIB}, headers=headers)
+    assert r.status_code == 403

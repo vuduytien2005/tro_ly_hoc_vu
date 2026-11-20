@@ -3,7 +3,10 @@
 - Tài liệu: lưu tệp vào UPLOAD_DIR + bản ghi `van_ban` (dang_xu_ly), rồi nhờ server quy_che lập chỉ
   mục nền (xem src/assistant_api/rag_admin.py). Giao diện hỏi lại danh sách để thấy trạng thái đổi.
 - MCP & quyền: bật/tắt, cần xác nhận, mức rủi ro. Chính sách được đọc lại từ CSDL ở mỗi lượt chat
-  -> đổi là có hiệu lực ngay ở câu hỏi tiếp theo.
+  -> đổi là có hiệu lực ngay ở câu hỏi tiếp theo. Thêm / sửa MCP server lúc đang chạy: địa chỉ CHỈ
+  được là http://127.0.0.1:<cổng> hoặc http://localhost:<cổng> (chống SSRF, quy tắc 4), kết nối thử
+  trước khi lưu; công cụ của server mới vào ở trạng thái tắt, quản trị viên đọc mô tả rồi bật
+  (bật = duyệt, ghi mã băm mô tả).
 - Nhật ký, thống kê: chỉ đọc.
 """
 
@@ -12,13 +15,16 @@ import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
+from src.assistant_api.agent.registry import ToolRegistry, strip_injected
 from src.assistant_api.deps import DbSession, require_admin
 from src.assistant_api.errors import ApiError, conflict, not_found
+from src.assistant_api.mcp_client.client import McpUnavailableError, ToolSpec
 from src.assistant_api.models import (
     CongCu,
     DanhGiaCauTraLoi,
@@ -43,11 +49,17 @@ from src.assistant_api.schemas_admin import (
     DislikedAnswer,
     DocumentOut,
     LoaiVanBan,
+    McpCheckIn,
+    McpCheckOut,
+    McpServerCreate,
     McpServerOut,
+    McpServerPatch,
     RagSearchIn,
+    SkippedTool,
     StatsOut,
     ToolOut,
     ToolPatch,
+    ToolPreview,
     ToolUsage,
     TrangThaiLuotGoi,
 )
@@ -61,6 +73,8 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 UNSAFE_CHARS = re.compile(r"[^\w.\- ]+")
 CONFIRM_PREFIX, CANCEL_PREFIX = "Xác nhận: ", "Hủy: "  # tin hệ thống, không tính là câu hỏi
 WRITE_RISKS = ("ghi", "nhay_cam")
+MCP_HOSTS = {"127.0.0.1", "localhost"}  # quy tắc 4: MCP server chỉ chạy trên máy này
+MCP_NAME = re.compile(r"^[a-z][a-z0-9_]{1,49}$")
 
 
 def upload_dir() -> Path:
@@ -309,33 +323,90 @@ async def rag_search(
 # =============================================================================
 # MCP & quyền
 # =============================================================================
+def normalize_mcp_address(raw: str) -> str:
+    """Địa chỉ MCP server hợp lệ: http, máy chủ 127.0.0.1 hoặc localhost, có cổng.
+    Chặn SSRF: quản trị viên (hoặc ai chiếm được tài khoản) không thể bắt assistant_api gọi ra
+    mạng ngoài / mạng nội bộ khác kèm token nội bộ."""
+    address = raw.strip()
+    invalid = ApiError(
+        "DIA_CHI_MCP_KHONG_HOP_LE",
+        "Địa chỉ MCP server phải có dạng http://127.0.0.1:<cổng>/mcp hoặc "
+        "http://localhost:<cổng>/mcp.",
+        422,
+    )
+    try:
+        parts = urlsplit(address)
+        port = parts.port
+    except ValueError as exc:
+        raise invalid from exc
+    if (
+        parts.scheme.lower() != "http"
+        or (parts.hostname or "").lower() not in MCP_HOSTS
+        or port is None
+        or parts.username is not None
+        or parts.password is not None
+    ):
+        raise invalid
+    return address
+
+
+async def _preview(registry: ToolRegistry, address: str) -> list[ToolSpec]:
+    try:
+        return await registry.client.preview(registry.resolve(address))
+    except McpUnavailableError as exc:
+        raise ApiError(
+            "MCP_KHONG_KET_NOI_DUOC",
+            "Không kết nối được MCP server ở địa chỉ này (server chưa chạy hoặc sai địa chỉ).",
+            422,
+        ) from exc
+
+
+def _tool_out(registry: ToolRegistry, tool: CongCu) -> ToolOut:
+    spec = registry.spec(tool.ten)
+    if spec is not None and spec.server != tool.mcp_server.ten:
+        spec = None  # tên đang thuộc server khác (bản của server này bị bỏ vì trùng tên)
+    return ToolOut(
+        id=tool.id,
+        ten=tool.ten,
+        mo_ta=tool.mo_ta,
+        muc_rui_ro=tool.muc_rui_ro,
+        can_xac_nhan=bool(tool.can_xac_nhan),
+        bat=bool(tool.bat),
+        co_tren_server=spec is not None,
+        title=spec.title if spec else None,
+        mo_ta_day_du=spec.description if spec else None,
+        tham_so=strip_injected(spec.input_schema) if spec else None,
+        chi_doc_theo_server=spec.read_only_hint if spec else None,
+        duyet=registry.review_state(tool),
+    )
+
+
+def _server_out(registry: ToolRegistry, s: McpServer) -> McpServerOut:
+    return McpServerOut(
+        id=s.id,
+        ten=s.ten,
+        mo_ta=s.mo_ta,
+        dia_chi=s.dia_chi,
+        bat=bool(s.bat),
+        trang_thai=registry.server_status.get(s.ten, "chưa đồng bộ"),
+        cong_cu=[_tool_out(registry, t) for t in sorted(s.cong_cu, key=lambda t: t.ten)],
+        cong_cu_bi_bo_qua=[
+            SkippedTool(ten=ten, trung_voi=owner) for ten, owner in registry.skipped.get(s.ten, [])
+        ],
+    )
+
+
 def _servers_out(request: Request, db: Session) -> list[McpServerOut]:
     registry = request.app.state.registry
-    available = registry.available_tool_names()
     servers = db.scalars(select(McpServer).order_by(McpServer.id)).all()
-    return [
-        McpServerOut(
-            id=s.id,
-            ten=s.ten,
-            mo_ta=s.mo_ta,
-            dia_chi=s.dia_chi,
-            bat=bool(s.bat),
-            trang_thai=registry.server_status.get(s.ten, "chưa đồng bộ"),
-            cong_cu=[
-                ToolOut(
-                    id=t.id,
-                    ten=t.ten,
-                    mo_ta=t.mo_ta,
-                    muc_rui_ro=t.muc_rui_ro,
-                    can_xac_nhan=bool(t.can_xac_nhan),
-                    bat=bool(t.bat),
-                    co_tren_server=t.ten in available,
-                )
-                for t in sorted(s.cong_cu, key=lambda t: t.ten)
-            ],
-        )
-        for s in servers
-    ]
+    return [_server_out(registry, s) for s in servers]
+
+
+def _get_server(db: Session, server_id: int) -> McpServer:
+    server = db.get(McpServer, server_id)
+    if server is None:
+        raise not_found("MCP_KHONG_TON_TAI", "Không tìm thấy MCP server.")
+    return server
 
 
 @router.get(
@@ -355,8 +426,90 @@ async def refresh_mcp_servers(request: Request, db: DbSession) -> list[McpServer
     return _servers_out(request, db)
 
 
+@router.post(
+    "/mcp-servers/check",
+    response_model=McpCheckOut,
+    summary="Kết nối thử một MCP server, xem trước công cụ (không lưu)",
+)
+async def check_mcp_server(request: Request, body: McpCheckIn, db: DbSession) -> McpCheckOut:
+    registry: ToolRegistry = request.app.state.registry
+    specs = await _preview(registry, normalize_mcp_address(body.dia_chi))
+    names = [s.name for s in specs] or [""]
+    owners = dict(
+        db.execute(
+            select(CongCu.ten, McpServer.ten).join(McpServer).where(CongCu.ten.in_(names))
+        ).all()
+    )
+    return McpCheckOut(
+        cong_cu=[
+            ToolPreview(
+                ten=s.name,
+                title=s.title,
+                mo_ta=s.description,
+                tham_so=strip_injected(s.input_schema),
+                chi_doc_theo_server=s.read_only_hint,
+                trung_ten_voi=owners.get(s.name),
+            )
+            for s in sorted(specs, key=lambda s: s.name)
+        ]
+    )
+
+
+@router.post(
+    "/mcp-servers",
+    response_model=McpServerOut,
+    status_code=201,
+    summary="Thêm MCP server (công cụ mới vào ở trạng thái tắt, chờ duyệt)",
+)
+async def create_mcp_server(request: Request, body: McpServerCreate, db: DbSession) -> McpServerOut:
+    registry: ToolRegistry = request.app.state.registry
+    if not MCP_NAME.match(body.ten):
+        raise ApiError(
+            "TEN_MCP_KHONG_HOP_LE",
+            "Tên server chỉ gồm chữ thường không dấu, số và dấu gạch dưới (vd thu_vien).",
+            422,
+        )
+    if db.scalar(select(McpServer.id).where(McpServer.ten == body.ten)) is not None:
+        raise conflict("TEN_MCP_DA_TON_TAI", f"Đã có MCP server tên '{body.ten}'.")
+    address = normalize_mcp_address(body.dia_chi)
+    await _preview(registry, address)
+    server = McpServer(ten=body.ten, mo_ta=body.mo_ta, dia_chi=address, bat=True)
+    db.add(server)
+    db.commit()
+    await registry.sync(db)
+    db.refresh(server)
+    return _server_out(registry, server)
+
+
+@router.patch(
+    "/mcp-servers/{server_id}",
+    response_model=McpServerOut,
+    summary="Sửa mô tả / địa chỉ / bật tắt MCP server",
+)
+async def update_mcp_server(
+    request: Request, server_id: int, body: McpServerPatch, db: DbSession
+) -> McpServerOut:
+    registry: ToolRegistry = request.app.state.registry
+    server = _get_server(db, server_id)
+    address = None
+    if body.dia_chi is not None:
+        address = normalize_mcp_address(body.dia_chi)
+        await _preview(registry, address)  # lỗi -> CSDL giữ nguyên
+    if body.mo_ta is not None:
+        server.mo_ta = body.mo_ta
+    if address is not None:
+        server.dia_chi = address
+    if body.bat is not None:
+        server.bat = body.bat
+    db.commit()
+    await registry.sync(db)
+    db.refresh(server)
+    return _server_out(registry, server)
+
+
 @router.patch("/tools/{tool_id}", response_model=ToolOut, summary="Đổi chính sách một công cụ")
 def update_tool(request: Request, tool_id: int, body: ToolPatch, db: DbSession) -> ToolOut:
+    registry: ToolRegistry = request.app.state.registry
     tool = db.get(CongCu, tool_id)
     if tool is None:
         raise not_found("CONG_CU_KHONG_TON_TAI", "Không tìm thấy công cụ.")
@@ -366,6 +519,8 @@ def update_tool(request: Request, tool_id: int, body: ToolPatch, db: DbSession) 
         tool.can_xac_nhan = body.can_xac_nhan
     if body.bat is not None:
         tool.bat = body.bat
+        if body.bat:
+            registry.approve(tool)  # bật = duyệt bản mô tả đang có trên server
     # Quy tắc bảo mật 2: công cụ thay đổi dữ liệu luôn phải chờ sinh viên xác nhận
     if tool.muc_rui_ro in WRITE_RISKS and not tool.can_xac_nhan:
         db.rollback()
@@ -375,15 +530,7 @@ def update_tool(request: Request, tool_id: int, body: ToolPatch, db: DbSession) 
             422,
         )
     db.commit()
-    return ToolOut(
-        id=tool.id,
-        ten=tool.ten,
-        mo_ta=tool.mo_ta,
-        muc_rui_ro=tool.muc_rui_ro,
-        can_xac_nhan=bool(tool.can_xac_nhan),
-        bat=bool(tool.bat),
-        co_tren_server=tool.ten in request.app.state.registry.available_tool_names(),
-    )
+    return _tool_out(registry, tool)
 
 
 # =============================================================================

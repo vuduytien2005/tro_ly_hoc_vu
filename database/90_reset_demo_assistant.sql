@@ -3,7 +3,9 @@
 -- Đưa CSDL "tlhv_assistant" về trạng thái sạch để demo lại (backend/scripts/reset_demo.ps1 gọi).
 --   XÓA : hội thoại, tin nhắn, nhật ký gọi công cụ, thẻ chờ xác nhận, đánh giá câu trả lời.
 --   ĐẶT LẠI: bật/tắt, mức rủi ro, cần xác nhận của MCP server + công cụ theo 04_assistant_seed.sql
---            (sau demo 7 công cụ register_course bị tắt -> bật lại).
+--            (sau demo 7 công cụ register_course bị tắt -> bật lại). Mã băm duyệt (ban_duyet)
+--            của công cụ seed đặt về NULL -> lần đồng bộ sau ghi lại theo mô tả hiện tại.
+--   XÓA : MCP server thêm lúc chạy (thu_vien - demo 8) cùng công cụ của nó -> demo thêm lại được.
 --   XÓA : tài khoản sinh viên mà hồ sơ không còn trong tlhv_qlsv (SV thêm trên web - AD-10 -
 --         mất khi reset QLSV ở bước trước -> tài khoản mồ côi).
 --   GIỮ : tài khoản demo (seed_users.py đặt lại mật khẩu), văn bản + đoạn đã lập chỉ mục.
@@ -31,6 +33,11 @@ WHERE vai_tro = N'sinh_vien'
   AND ma_sv IS NOT NULL
   AND ma_sv NOT IN (SELECT ma_sv FROM tlhv_qlsv.dbo.sinh_vien);
 
+-- Server thêm trên giao diện (demo 8): xóa để lần demo sau thêm lại từ đầu
+DELETE c FROM cong_cu AS c JOIN mcp_server AS s ON s.id = c.mcp_server_id
+WHERE s.ten = N'thu_vien';
+DELETE FROM mcp_server WHERE ten = N'thu_vien';
+
 UPDATE s SET s.bat = 1, s.dia_chi = v.dia_chi
 FROM mcp_server AS s
 JOIN (VALUES
@@ -40,7 +47,8 @@ JOIN (VALUES
     (N'quy_che',   N'http://127.0.0.1:9104/mcp')
 ) AS v (ten, dia_chi) ON v.ten = s.ten;
 
-UPDATE c SET c.muc_rui_ro = v.muc_rui_ro, c.can_xac_nhan = v.can_xac_nhan, c.bat = 1
+UPDATE c SET c.muc_rui_ro = v.muc_rui_ro, c.can_xac_nhan = v.can_xac_nhan, c.bat = 1,
+             c.ban_duyet = NULL
 FROM cong_cu AS c
 JOIN (VALUES
     (N'get_student_profile',         N'doc',      0),

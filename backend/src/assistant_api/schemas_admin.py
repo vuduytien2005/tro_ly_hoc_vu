@@ -10,6 +10,7 @@ from src.shared.time import from_db
 LoaiVanBan = Literal["quy_che", "so_tay", "quy_dinh", "huong_dan", "thong_bao"]
 ChienLuocChunk = Literal["theo_dieu", "co_dinh", "ngu_nghia"]
 MucRuiRo = Literal["doc", "ghi", "nhay_cam"]
+TrangThaiDuyet = Literal["da_duyet", "moi", "thay_doi"]
 TrangThaiLuotGoi = Literal["thanh_cong", "loi", "bi_tu_choi", "cho_xac_nhan", "da_huy"]
 
 
@@ -78,6 +79,17 @@ class ToolOut(BaseModel):
     can_xac_nhan: bool
     bat: bool
     co_tren_server: bool  # server hiện có cung cấp tool này không (theo lần đồng bộ gần nhất)
+    title: str | None = None  # tên hiển thị server khai báo
+    mo_ta_day_du: str | None = None  # mô tả ĐẦY ĐỦ server gửi cho LLM (để quản trị viên duyệt)
+    tham_so: dict[str, Any] | None = None  # input schema LLM thấy (đã ẩn ma_sv/ma_khoa)
+    # readOnlyHint server TỰ khai báo: chỉ là gợi ý, quản trị viên tự quyết mức rủi ro
+    chi_doc_theo_server: bool | None = None
+    duyet: TrangThaiDuyet = "da_duyet"
+
+
+class SkippedTool(BaseModel):
+    ten: str
+    trung_voi: str  # server đang giữ tên công cụ này
 
 
 class McpServerOut(BaseModel):
@@ -88,6 +100,40 @@ class McpServerOut(BaseModel):
     bat: bool
     trang_thai: str  # "ok" | "tắt" | thông báo lỗi kết nối | "chưa đồng bộ"
     cong_cu: list[ToolOut]
+    cong_cu_bi_bo_qua: list[SkippedTool] = []  # trùng tên với công cụ của server khác
+
+
+McpName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+McpAddress = Annotated[str, StringConstraints(min_length=1, max_length=255)]
+
+
+class McpCheckIn(BaseModel):
+    dia_chi: McpAddress
+
+
+class ToolPreview(BaseModel):
+    ten: str
+    title: str | None
+    mo_ta: str
+    tham_so: dict[str, Any]
+    chi_doc_theo_server: bool | None
+    trung_ten_voi: str | None  # server đã đăng ký có công cụ cùng tên (công cụ này sẽ bị bỏ)
+
+
+class McpCheckOut(BaseModel):
+    cong_cu: list[ToolPreview]
+
+
+class McpServerCreate(BaseModel):
+    ten: McpName
+    mo_ta: Annotated[str, StringConstraints(strip_whitespace=True, max_length=255)] = ""
+    dia_chi: McpAddress
+
+
+class McpServerPatch(BaseModel):
+    mo_ta: Annotated[str, StringConstraints(strip_whitespace=True, max_length=255)] | None = None
+    dia_chi: McpAddress | None = None
+    bat: bool | None = None
 
 
 class ToolPatch(BaseModel):
