@@ -12,7 +12,7 @@ Bộ thiết kế này dùng để làm dự án bằng **VS Code + Claude Code 
 | `docs/02-kien-truc.md` | Kiến trúc, luồng xử lý, vòng lặp Agent, system prompt, sự kiện SSE |
 | `docs/03-co-so-du-lieu.md` | Hướng dẫn cài SQL Server, sơ đồ CSDL, quy tắc nghiệp vụ, tài khoản mẫu |
 | `docs/04-api.md` | Đặc tả API của qlsv_api và assistant_api |
-| `docs/05-mcp-servers.md` | 4 MCP server và 16 công cụ |
+| `docs/05-mcp-servers.md` | 5 MCP server (4 có sẵn + `thu_vien` thêm khi demo) và 19 công cụ |
 | `docs/06-rag.md` | Pipeline RAG: chia đoạn theo Điều, hybrid search, lọc phiên bản theo khóa |
 | `docs/07-ke-hoach-va-prompt.md` | **10 giai đoạn + câu lệnh dán sẵn cho Claude** |
 | `docs/08-giao-dien.md` | Thiết kế giao diện |
@@ -44,7 +44,7 @@ Sau đó **tự điền khóa API** vào `.env` (`ANTHROPIC_API_KEY=...`, hoặc
 
 ## Chạy hệ thống
 ```powershell
-cd backend; .\scripts\run_all.ps1          # qlsv_api, 4 MCP server, assistant_api — tắt: .\scripts\run_all.ps1 -Stop
+cd backend; .\scripts\run_all.ps1          # qlsv_api, 5 MCP server (gồm thu_vien :9105), assistant_api — tắt: .\scripts\run_all.ps1 -Stop
 cd web; npm run dev                         # mở http://localhost:5173
 python scripts\demo_check.py                # (thư mục backend, venv bật) kiểm tra nhanh, không tốn tiền
 ```
@@ -71,6 +71,7 @@ Trước buổi demo: `.\scripts\reset_demo.ps1` → `.\scripts\run_all.ps1` →
 | 5 | sv22001 | *"Cho em xem điểm của SV22002"* | Từ chối: chỉ xem được dữ liệu của chính em (LLM không chọn được `ma_sv`). |
 | 6 | sv21001 | *"Em muốn xin giấy xác nhận sinh viên để làm hồ sơ vay vốn"* → Xác nhận | Tạo đơn; mở **Thủ tục của em** thấy đơn mới. |
 | 7 | admin → sv22001 | Admin: **MCP & quyền** → tắt `register_course`. SV: *"Đăng ký giúp em lớp IT004.02"* | Trợ lý báo chức năng **tạm dừng**; Admin → **Nhật ký** thấy lượt bị từ chối. |
+| 8 | admin → sv22001 | Admin: **MCP & quyền** → **Thêm MCP server** `thu_vien`, `http://127.0.0.1:9105/mcp` → Kiểm tra kết nối → Lưu → bật `get_borrowed_books`, `renew_book`. SV: *"Gia hạn giúp em cuốn sách sắp hết hạn"* | Thẻ **"Gia hạn sách (muon_id: 1)"** → Xác nhận → hạn trả 11/12/2026. Server Thư viện được thêm trên trang MCP & quyền khi demo, không sửa code trợ lý. |
 
 **Reset giữa các lần demo** (demo 3–4 làm đổi dữ liệu, demo 7 tắt công cụ):
 ```powershell
@@ -118,7 +119,8 @@ Web (React) ──► assistant_api :8000 ──► LLM (LiteLLM)
                      └─► MCP client ──► dao_tao :9101 ┐
                                     ├─► ctsv    :9102 ├─► qlsv_api :8001 ─► SQL Server tlhv_qlsv
                                     ├─► tai_chinh:9103┘
-                                    └─► quy_che :9104 ─► RAG ─► ChromaDB + BM25 + SQL Server tlhv_assistant
+                                    ├─► quy_che :9104 ─► RAG ─► ChromaDB + BM25 + SQL Server tlhv_assistant
+                                    └─► thu_vien :9105 ─► qlsv_api (thêm trên trang MCP & quyền khi demo)
 ```
 
 ## Mẹo dùng Claude Code hiệu quả

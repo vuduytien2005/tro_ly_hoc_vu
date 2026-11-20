@@ -20,6 +20,7 @@ flowchart TB
         CT[ctsv :9102]
         TC[tai_chinh :9103]
         QC[quy_che :9104]
+        TV[thu_vien :9105<br/>thêm lúc chạy]
     end
     QLSV[qlsv_api :8001<br/>hệ thống QLSV giả lập]
     RAG[rag library<br/>chunker / retriever]
@@ -35,8 +36,8 @@ flowchart TB
     AGENT --> LLM
     AGENT --> REG
     REG --> MCPC
-    MCPC --> DT & CT & TC & QC
-    DT & CT & TC -->|X-Internal-Token| QLSV
+    MCPC --> DT & CT & TC & QC & TV
+    DT & CT & TC & TV -->|X-Internal-Token| QLSV
     QLSV --> DBQ
     QC --> RAG
     RAG --> CHROMA
@@ -177,6 +178,27 @@ Khi assistant_api khởi động: kết nối từng MCP server đang bật → 
 - tool có trên server nhưng chưa có trong DB → thêm với `muc_rui_ro='ghi'`, `can_xac_nhan=1`, `bat=0` (an toàn mặc định, quản trị viên phải bật).
 - tool có trong DB nhưng server không còn → đánh dấu không khả dụng ở API quản trị (không xóa).
 - Lưu cache schema trong bộ nhớ; nút "Làm mới" ở trang quản trị gọi lại.
+- **Duyệt mô tả (chống tool poisoning / rug pull):** mô tả công cụ do server viết đi thẳng vào prompt LLM. Quản trị viên bật công cụ → ghi `cong_cu.ban_duyet` = SHA-256 (title + mô tả + input schema). Lần đồng bộ sau mà mã băm khác → tự tắt, trang quản trị hiện "Mô tả đã thay đổi — cần duyệt lại". Công cụ cũ đang bật chưa có mã băm → ghi mã băm hiện tại (tin ở lần đầu).
+- **Trùng tên công cụ** giữa hai server: giữ bản của server thêm trước (id nhỏ hơn), bản sau bị bỏ và báo trên trang quản trị — server mới không giả mạo được công cụ cũ.
+- **Đổi địa chỉ server** trong CSDL → lần đồng bộ sau kết nối tới địa chỉ mới.
+- **`title` của công cụ (chuẩn MCP):** công cụ mới không có nhãn viết tay → nhãn "Đang dùng: {title}" và thẻ xác nhận "{title} (tham số: giá trị)" (ẩn `ma_sv`, `ma_khoa`). System prompt KHÔNG dùng `title` (công cụ đang tắt có thể chưa duyệt).
+
+### Thêm MCP server lúc đang chạy (AD-11, demo 8)
+```mermaid
+sequenceDiagram
+    participant A as Quản trị viên (web)
+    participant API as assistant_api
+    participant S as MCP server mới (127.0.0.1)
+    A->>API: POST /api/admin/mcp-servers/check {dia_chi}
+    API->>API: chỉ nhận http://127.0.0.1|localhost:<cổng> (chống SSRF)
+    API->>S: list_tools (Bearer INTERNAL_API_TOKEN)
+    API-->>A: xem trước: title, mô tả đầy đủ, tham số, gợi ý readOnly, trùng tên
+    A->>API: POST /api/admin/mcp-servers {ten, mo_ta, dia_chi}
+    API->>API: lưu mcp_server, sync → công cụ mới bat=0, ghi, cần xác nhận
+    A->>API: PATCH /api/admin/tools/{id} {bat: true}
+    API->>API: approve → ban_duyet = SHA-256 mô tả
+    Note over API: lượt chat kế tiếp: công cụ có trong tools_for_llm
+```
 
 ## 8. Lập chỉ mục văn bản từ trang quản trị (GĐ8)
 

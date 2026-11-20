@@ -12,6 +12,7 @@ Khóa luận tốt nghiệp ngành Công nghệ phần mềm. Một người là
    - `ctsv` (9102): giấy xác nhận sinh viên, đơn bảo lưu, đơn phúc khảo, tra cứu đơn.
    - `tai_chinh` (9103): tình trạng học phí.
    - `quy_che` (9104): tra cứu quy chế bằng RAG (nhánh RAG cũng là một MCP server).
+   - `thu_vien` (9105, bổ sung 20/11/2026): sách đang mượn, tìm sách, gia hạn. KHÔNG có trong seed — quản trị viên thêm trên trang "MCP & quyền" (AD-11), công cụ mới mặc định tắt, bật = duyệt (mã băm `cong_cu.ban_duyet`).
 3. **rag** – Thư viện dùng chung: đọc PDF/DOCX → chia đoạn theo Chương/Điều/Khoản → embedding → ChromaDB + BM25 (Python, `rank-bm25`) → hybrid search (RRF) → (tuỳ chọn) rerank.
 4. **assistant_api** – Backend trợ lý (FastAPI + SQL Server `tlhv_assistant`, cổng 8000): đăng nhập JWT, hội thoại, **vòng lặp Agent** (LLM qua LiteLLM + MCP client), cơ chế **xác nhận hành động**, **nhật ký** gọi công cụ, API quản trị.
 5. **web** – React + Vite + TypeScript + TailwindCSS (cổng 5173): giao diện sinh viên (chat, "Thủ tục của em") và quản trị (tài liệu, MCP & quyền, nhật ký, thống kê).

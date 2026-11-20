@@ -74,6 +74,17 @@ async def register_course(
 - Lỗi: `MA_KHOA_KHONG_HOP_LE`, `VAN_BAN_KHONG_TON_TAI`, `DIEU_KHONG_TON_TAI`, `DIEU_KHONG_HOP_LE`.
 - `assistant_api` dùng trường `so`, `van_ban`, `dieu`, `trang` để dựng sự kiện `citations`.
 
+## 4b. Server `thu_vien` (:9105) — thêm lúc chạy (AD-11, SV-11)
+Không có trong seed `04_assistant_seed.sql`: quản trị viên thêm trên trang MCP & quyền khi demo (demo 8), trợ lý dùng được ngay mà không sửa code. Mỗi tool khai báo **`title`** (tên hiển thị) và annotation **`readOnlyHint`** theo chuẩn MCP (`@mcp.tool(title=..., annotations=ToolAnnotations(read_only_hint=...))`). assistant_api dùng `title` cho nhãn "Đang dùng: …" và thẻ xác nhận; `readOnlyHint` chỉ là **gợi ý** hiện cho quản trị viên (server tự khai báo, không tin tuyệt đối — mức rủi ro do quản trị viên quyết).
+
+| Tool | title | Tham số | Trả về | Rủi ro (gợi ý) |
+|---|---|---|---|---|
+| `get_borrowed_books` | Xem sách đang mượn | — | `{sach: [{muon_id, ten_sach, han_tra, so_lan_gia_han, qua_han, gia_han_duoc, ly_do_khong_gia_han}], thong_bao}` | đọc |
+| `search_books` | Tìm sách thư viện | `tu_khoa: str` (1–100) | `{sach: [...], thong_bao}` | đọc |
+| `renew_book` | Gia hạn sách | `muon_id: int` (≥ 1) | `{thanh_cong, muon_id, ten_sach, han_tra_moi, so_lan_gia_han, thong_bao}` | ghi (cần xác nhận) |
+
+Lỗi: `KHONG_TIM_THAY_LUOT_MUON`, `DA_TRA_SACH`, `SACH_QUA_HAN`, `HET_LUOT_GIA_HAN`, `CO_NGUOI_DAT_TRUOC` (từ qlsv_api).
+
 ## 5. Kiểm thử MCP server
 - Unit test gọi trực tiếp hàm tool (qlsv_api thay bằng `respx` mock).
 - Kiểm thử thủ công: `npx @modelcontextprotocol/inspector` → kết nối `http://127.0.0.1:9101/mcp` kèm header Authorization.
@@ -81,4 +92,5 @@ async def register_course(
 
 ## 6. Mở rộng (hướng phát triển, ghi vào khóa luận)
 - Kết nối chính các MCP server này với ứng dụng MCP khác (vd Claude Desktop) để minh chứng tính chuẩn hóa của giao thức.
-- Thêm server `thu_vien` (mượn/gia hạn sách) mà không sửa assistant_api.
+- ~~Thêm server `thu_vien` (mượn/gia hạn sách) mà không sửa assistant_api.~~ Đã làm (20/11/2026, mục 4b).
+- Mỗi MCP server một token riêng (hiện dùng chung `INTERNAL_API_TOKEN`).

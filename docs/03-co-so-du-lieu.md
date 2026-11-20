@@ -65,7 +65,11 @@ erDiagram
     sinh_vien ||--o{ hoc_phi : ""
     sinh_vien ||--o{ chung_chi : ""
     sinh_vien ||--o{ don_tu : ""
+    sinh_vien ||--o{ muon_sach : ""
+    sach ||--o{ muon_sach : ""
 ```
+
+**Thư viện (bổ sung 20/11/2026, SV-11):** `sach(ma_sach, ten_sach, tac_gia, nam_xb, tong_so_ban, so_ban_con, so_luot_dat_truoc)`, `muon_sach(id, sinh_vien_id, ma_sach, ngay_muon, han_tra, so_lan_gia_han, trang_thai: dang_muon | da_tra)`. Gia hạn: +14 ngày, tối đa 2 lần; lỗi theo thứ tự `KHONG_TIM_THAY_LUOT_MUON` (404), `DA_TRA_SACH`, `SACH_QUA_HAN` (hạn trả < hôm nay), `HET_LUOT_GIA_HAN`, `CO_NGUOI_DAT_TRUOC` (409). Khóa hàng `muon_sach` bằng `lock_for_update` khi gia hạn.
 
 ### Quy tắc nghiệp vụ cài trong qlsv_api
 - **Học phần đạt:** điểm chữ khác F. Với học phần học nhiều lần, lấy **lần có điểm hệ 4 cao nhất** để tính GPA tích lũy.
@@ -128,6 +132,7 @@ erDiagram
 
 ### Ghi chú
 - `nguoi_dung.ma_sv`, `ma_khoa` sao chép từ `tlhv_qlsv` khi tạo tài khoản (script `seed_users.py`).
+- `cong_cu.ban_duyet NVARCHAR(64) NULL` (bổ sung 20/11/2026): SHA-256 (title + mô tả + input schema) của công cụ lúc quản trị viên bật; NULL = chưa duyệt. CSDL cũ nâng cấp bằng `database/06_nang_cap_ban_duyet.sql` (setup.ps1 tự chạy). Server `thu_vien` KHÔNG có trong seed `04` — thêm trên giao diện khi demo; `90_reset_demo_assistant.sql` xóa nó và đặt `ban_duyet` của công cụ seed về NULL.
 - `luot_goi_cong_cu` là nguồn dữ liệu chính cho Chương 4 (độ chính xác chọn công cụ, độ trễ, tỉ lệ bị chặn).
 - `doan_van_ban.vector_id` = id của vector trong ChromaDB (collection `quy_che`), dạng `vb{van_ban_id}_d{thu_tu}`.
 

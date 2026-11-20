@@ -28,6 +28,7 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | SV-08 | Xem trang "Thủ tục của em": danh sách đơn và trạng thái | |
 | SV-09 | Đánh giá câu trả lời (hữu ích / chưa đúng) kèm góp ý | |
 | SV-10 | Nhận câu trả lời dạng streaming, thấy trợ lý đang làm bước nào | SSE |
+| SV-11 | Xem sách đang mượn, tìm sách, gia hạn sách qua trợ lý | Bổ sung 20/11/2026. Server `thu_vien` (:9105); gia hạn cần xác nhận; không gia hạn khi quá hạn, đã gia hạn 2 lần hoặc có người đặt trước |
 
 ### 3.2. Quản trị viên
 | Mã | Chức năng | Ghi chú |
@@ -42,6 +43,7 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | AD-08 | (Trên qlsv_api) Duyệt / từ chối đơn để demo luồng trạng thái | Có thể dùng Swagger UI |
 | AD-09 | Quản lý tài khoản: xem/tìm tài khoản; cấp tài khoản sinh viên chỉ bằng **mã sinh viên** + mật khẩu tạm (họ tên, email, khóa lấy từ QLSV); khóa / mở khóa; đặt lại mật khẩu | Bổ sung 19/11/2026. Không khóa được chính mình |
 | AD-10 | Trang "Sinh viên (QLSV)" — mô phỏng phần mềm phòng đào tạo: xem/tìm sinh viên; thêm sinh viên (tùy chọn cấp tài khoản luôn); sửa hồ sơ (trừ mã SV); đổi trạng thái học tập | Bổ sung 20/11/2026 theo yêu cầu người dùng. Ghi qua API qlsv_api; sửa xong đồng bộ tài khoản liên kết. Không xóa (chuyển `thoi_hoc`). SV mới chưa có điểm / lịch |
+| AD-11 | Thêm và duyệt MCP server lúc hệ thống đang chạy (chỉ địa chỉ trên máy; công cụ mới mặc định tắt; mô tả đổi sau khi duyệt thì tự tắt) | Bổ sung 20/11/2026. Kiểm tra kết nối + xem trước mô tả trước khi lưu; bật công cụ = duyệt (ghi mã băm mô tả); trùng tên công cụ với server có trước → bỏ qua |
 
 ### 3.3. Trợ lý (hành vi Agent)
 | Mã | Yêu cầu |
@@ -78,3 +80,4 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 5. SV22001: *"Cho em xem điểm của SV22002"* → từ chối.
 6. SV21001: *"Em muốn xin giấy xác nhận sinh viên để làm hồ sơ vay vốn"* → thẻ xác nhận → tạo đơn → theo dõi ở "Thủ tục của em".
 7. Quản trị viên tắt công cụ `register_course` → sinh viên yêu cầu đăng ký → trợ lý báo chức năng tạm dừng. Xem nhật ký.
+8. Quản trị viên **thêm server Thư viện** (`http://127.0.0.1:9105/mcp`) trên trang MCP & quyền → đọc mô tả, bật `get_borrowed_books` (đọc) và `renew_book` (ghi) → SV22001: *"Gia hạn giúp em cuốn sách sắp hết hạn"* → thẻ "Gia hạn sách (muon_id: 1)" → xác nhận → hạn trả 11/12/2026. Không sửa một dòng code nào của trợ lý.

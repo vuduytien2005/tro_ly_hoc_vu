@@ -3,7 +3,7 @@
 Chạy từ thư mục backend/:
     python scripts/demo_check.py                 # không gọi LLM (miễn phí): sức khỏe, đăng nhập,
                                                  # công cụ MCP, RAG, chặn truy cập chéo
-    python scripts/demo_check.py --llm           # + chạy kịch bản demo 1–7 (docs/01 mục 6), tự
+    python scripts/demo_check.py --llm           # + chạy kịch bản demo 1–8 (docs/01 mục 6), tự
                                                  # bấm "Xác nhận" (gọi LLM thật, ~7 lượt hỏi)
     python scripts/demo_check.py --llm --lan 3   # chạy 3 lần liên tiếp, reset giữa các lần
 Mặc định reset dữ liệu demo (reset_demo.ps1) TRƯỚC mỗi lần chạy kịch bản: demo 3–4 phụ thuộc trạng
@@ -28,6 +28,8 @@ OTHER_STUDENT = ("sv22002@truong.example", "Sv@123456")
 STUDENT_K21 = ("sv21001@truong.example", "Sv@123456")
 ADMIN = ("admin@truong.example", "Admin@123456")
 EXPECTED_SERVERS = {"dao_tao", "ctsv", "tai_chinh", "quy_che"}
+# Server Thư viện KHÔNG có trong seed: quản trị viên thêm trên trang MCP & quyền khi demo 8
+LIBRARY_SERVER = ("thu_vien", "http://127.0.0.1:9105/mcp")
 REFUSAL_HINTS = (
     "không thể",
     "không được",
@@ -172,12 +174,23 @@ def basic_checks(api: Api, rep: Report) -> bool:
     rep.check(True, "Đăng nhập sinh viên + quản trị viên")
 
     servers = api.http.get("/api/admin/mcp-servers", headers=admin).json()
-    tools = [t for s in servers for t in s["cong_cu"]]
+    tools = [t for s in servers if s["ten"] in EXPECTED_SERVERS for t in s["cong_cu"]]
     usable = [t["ten"] for t in tools if t["bat"] and t["co_tren_server"]]
     off = [t["ten"] for t in tools if not t["bat"]]
     rep.check(len(usable) == 16, "16 công cụ đang bật và có trên server", f"{len(usable)}/16")
     if off:
         rep.warn(f"Đang TẮT: {', '.join(off)} (sau demo 7?) -> chạy reset_demo.ps1")
+    if any(s["ten"] == LIBRARY_SERVER[0] for s in servers):
+        rep.warn("Server thu_vien đã được thêm (sau demo 8?) -> chạy reset_demo.ps1 để demo lại")
+    r = api.http.post(
+        "/api/admin/mcp-servers/check", json={"dia_chi": LIBRARY_SERVER[1]}, headers=admin
+    )
+    found = [t["ten"] for t in r.json().get("cong_cu", [])] if r.status_code == 200 else []
+    rep.check(
+        len(found) == 3,
+        "Server Thư viện (:9105) chạy, sẵn sàng thêm khi demo 8",
+        ", ".join(found) or r.text[:150],
+    )
 
     r = api.http.post(
         "/api/admin/rag/search",
@@ -325,6 +338,42 @@ def demo_scenarios(api: Api, rep: Report) -> None:
         finally:
             api.http.patch(f"/api/admin/tools/{tool['id']}", json={"bat": True}, headers=admin)
 
+    def demo8() -> None:
+        name, address = LIBRARY_SERVER
+        body = {"ten": name, "mo_ta": "Thư viện", "dia_chi": address}
+        r = api.http.post("/api/admin/mcp-servers", json=body, headers=admin)
+        rep.check(r.status_code in (201, 409), "Quản trị viên thêm server thu_vien", r.text[:150])
+        servers = api.http.get("/api/admin/mcp-servers", headers=admin).json()
+        server = next(s for s in servers if s["ten"] == name)
+        tools = {t["ten"]: t for t in server["cong_cu"]}
+        rep.check(
+            set(tools) == {"get_borrowed_books", "search_books", "renew_book"},
+            "Có 3 công cụ thư viện (mặc định tắt, chờ duyệt)",
+            ", ".join(f"{k}: {t['duyet']}" for k, t in tools.items()),
+        )
+        for tool in ("get_borrowed_books", "renew_book"):
+            body = {"bat": True}
+            if tool == "get_borrowed_books":
+                body |= {"muc_rui_ro": "doc", "can_xac_nhan": False}
+            r = api.http.patch(f"/api/admin/tools/{tools[tool]['id']}", json=body, headers=admin)
+            rep.check(r.status_code == 200, f"Duyệt + bật {tool}", r.text[:150])
+        # Server thu_vien KHÔNG xóa ở đây: reset_demo.ps1 (90_reset_demo_assistant.sql) lo
+        _, t = api.chat(sv, "Gia hạn giúp em cuốn sách sắp hết hạn")
+        ok_turn(t)
+        cards = [c for c in t.pending if c["ten_cong_cu"] == "renew_book"]
+        rep.check(
+            bool(cards),
+            "Hiện thẻ xác nhận renew_book (mô tả theo title)",
+            cards[0]["mo_ta"] if cards else str(t.tool_names),
+        )
+        done = api.confirm_all(sv, t, "renew_book")
+        ok_turn(done)
+        rep.check(
+            ("renew_book", "thanh_cong") in done.tools,
+            "Xác nhận -> gia hạn thành công",
+            str(done.tools) + " " + done.text[:120].replace("\n", " "),
+        )
+
     for title, fn in [
         ("Demo 1: hỏi quy chế (RAG + trích dẫn)", demo1),
         ("Demo 2: tiến độ tốt nghiệp", demo2),
@@ -333,6 +382,7 @@ def demo_scenarios(api: Api, rep: Report) -> None:
         ("Demo 5: xem điểm SV khác -> từ chối", demo5),
         ("Demo 6: SV21001 xin giấy xác nhận", demo6),
         ("Demo 7: công cụ bị tắt -> tạm dừng", demo7),
+        ("Demo 8: thêm server Thư viện + gia hạn sách", demo8),
     ]:
         scenario(title, fn)
 
@@ -348,7 +398,7 @@ def reset_demo() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Kiểm tra hệ thống trước buổi demo")
     parser.add_argument("--base", default="http://127.0.0.1:8000", help="địa chỉ assistant_api")
-    parser.add_argument("--llm", action="store_true", help="chạy kịch bản demo 1–7 (gọi LLM thật)")
+    parser.add_argument("--llm", action="store_true", help="chạy kịch bản demo 1–8 (gọi LLM thật)")
     parser.add_argument("--lan", type=int, default=1, help="số lần chạy kịch bản liên tiếp")
     parser.add_argument(
         "--khong-reset", action="store_true", help="không reset dữ liệu trước mỗi lần"
@@ -370,7 +420,7 @@ def main() -> int:
             reset_demo()  # để lại hệ thống sạch cho demo tay (đăng ký, đơn, hội thoại vừa tạo)
             print("\n(đã reset dữ liệu demo sau khi chạy)")
     elif not args.llm:
-        print("\n(Bỏ qua kịch bản demo 1–7: thêm --llm để chạy, gọi LLM thật.)")
+        print("\n(Bỏ qua kịch bản demo 1–8: thêm --llm để chạy, gọi LLM thật.)")
 
     total = rep.passed + len(rep.failed)
     print(f"\nKết quả: {rep.passed}/{total} đạt.")

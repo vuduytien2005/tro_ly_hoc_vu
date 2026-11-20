@@ -41,5 +41,8 @@ Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên /
 - **Tài liệu:** vùng kéo thả, form khai báo phiên bản + khóa áp dụng, bảng trạng thái (Đang xử lý / Đã lập chỉ mục / Lỗi), số đoạn.
 - **Thử truy xuất:** ô câu hỏi + chọn khóa + bật/tắt từng thành phần (vector, từ khóa, lọc phiên bản, rerank) → danh sách đoạn kèm điểm. Rất hữu ích để minh họa trong khóa luận.
 - **MCP & quyền:** nhóm theo server (chấm xanh/đỏ trạng thái kết nối), mỗi tool một dòng: tên, mô tả, mức rủi ro (select), cần xác nhận (switch), bật (switch).
+  - Nút **"Thêm MCP server"** (AD-11) mở hộp thoại Tên / Mô tả / Địa chỉ → **"Kiểm tra kết nối"** hiện bảng xem trước (title, tên, mô tả đầy đủ, tham số, "Server tự khai báo: chỉ đọc", cảnh báo trùng tên) → **"Lưu"** chỉ bấm được khi địa chỉ hiện tại đã kiểm tra thành công. Lỗi API hiện `detail` tiếng Việt.
+  - Nhãn duyệt cạnh tên công cụ: **"Mới — cần duyệt"** (xanh) / **"Mô tả đã thay đổi — cần duyệt lại"** (vàng). Mũi tên cạnh tên mở rộng xem mô tả đầy đủ server gửi cho LLM + tham số (JSON, đã ẩn `ma_sv`/`ma_khoa`). Bật công cụ = duyệt.
+  - Dưới server: "`x`: trùng tên với công cụ của server `y` — bị bỏ qua".
 - **Nhật ký:** bảng thời gian, người dùng, server/tool, trạng thái, thời gian xử lý; bấm dòng mở ngăn chi tiết JSON. Nếu `tham_so_llm` khác `tham_so` → tô vàng "Đã tiêm ngữ cảnh".
 - **Thống kê:** 4 thẻ số liệu, biểu đồ chủ đề/tool dùng nhiều, danh sách câu trả lời bị đánh giá "chưa đúng".
