@@ -60,8 +60,9 @@ def test_read_five_students(qlsv_db: Session) -> None:
     assert students[0].khoa_hoc.ma_khoa == "K22"
 
 
-def test_read_sixteen_tools(assistant_db: Session) -> None:
-    assert assistant_db.scalar(select(func.count()).select_from(CongCu)) == 16
+def test_read_seed_tools(assistant_db: Session) -> None:
+    # 16 công cụ ban đầu + plan_next_semester, register_courses_bundle (ý tưởng 3, nâng cấp 07)
+    assert assistant_db.scalar(select(func.count()).select_from(CongCu)) == 18
     assert assistant_db.scalar(select(func.count()).select_from(McpServer)) == 4
 
     register = assistant_db.scalar(select(CongCu).where(CongCu.ten == "register_course"))
