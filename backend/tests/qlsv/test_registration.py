@@ -1,6 +1,7 @@
 """Đăng ký học phần: mỗi mã lỗi một test, dựa trên dữ liệu mẫu (rollback sau mỗi test)."""
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -134,3 +135,73 @@ def test_cancelled_seat_is_freed(db: Session) -> None:
     registration_service.cancel(db, "SV22002", "SE202.01", DEMO_NOW)
     db.commit()
     assert register(db, "SV22001", "SE202.01").trang_thai == "da_dang_ky"
+
+
+# ---------- Đăng ký cả gói (nguyên khối) ----------
+def sv_registrations_in(db: Session, ma_sv: str, hoc_ky_id: int) -> list[str]:
+    db.expire_all()
+    sv = db.scalar(select(SinhVien).where(SinhVien.ma_sv == ma_sv))
+    rows = db.scalars(
+        select(LopHocPhan.ma_lop)
+        .join(DangKyHocPhan, DangKyHocPhan.lop_hoc_phan_id == LopHocPhan.id)
+        .where(
+            DangKyHocPhan.sinh_vien_id == sv.id,
+            DangKyHocPhan.trang_thai == "da_dang_ky",
+            LopHocPhan.hoc_ky_id == hoc_ky_id,
+        )
+        .order_by(LopHocPhan.ma_lop)
+    )
+    return list(rows)
+
+
+def test_bundle_success(db: Session) -> None:
+    out = registration_service.register_bundle(db, "SV22001", ["SE201.01", "IT004.02"], DEMO_NOW)
+    db.commit()
+    assert out.tong_tin_chi == 6 and out.trang_thai == "da_dang_ky"
+    assert [r.ma_lop for r in out.lop] == ["IT004.02", "SE201.01"]
+    assert sv_registrations_in(db, "SV22001", 8) == ["IT004.02", "SE201.01"]
+
+
+def test_bundle_conflict_inside_bundle_rolls_back(db: Session) -> None:
+    with pytest.raises(BusinessError) as e:
+        registration_service.register_bundle(db, "SV22001", ["SE105.02", "IT004.02"], DEMO_NOW)
+    db.rollback()
+    assert e.value.code == "TRUNG_LICH"
+    assert e.value.message.startswith("Lớp SE105.02")
+    assert sv_registrations_in(db, "SV22001", 8) == []
+
+
+def test_bundle_failure_on_one_class(db: Session) -> None:
+    with pytest.raises(BusinessError) as e:
+        registration_service.register_bundle(db, "SV22001", ["IT004.02", "SE202.01"], DEMO_NOW)
+    db.rollback()
+    assert e.value.code == "LOP_DA_DAY"
+    assert sv_registrations_in(db, "SV22001", 8) == []
+
+
+def test_bundle_rejects_duplicates(db: Session) -> None:
+    with pytest.raises(BusinessError) as e:
+        registration_service.register_bundle(db, "SV22001", ["IT004.02", "it004.02 "], DEMO_NOW)
+    assert (e.value.code, e.value.status) == ("DANH_SACH_LOP_KHONG_HOP_LE", 422)
+
+
+def test_bundle_dry_run_reports_conflict_inside_bundle(db: Session) -> None:
+    with pytest.raises(BusinessError) as e:
+        registration_service.register_bundle(
+            db, "SV22001", ["IT004.02", "SE105.02"], DEMO_NOW, dry_run=True
+        )
+    db.rollback()
+    assert e.value.code == "TRUNG_LICH"
+
+
+def test_bundle_routes(client: TestClient, db: Session) -> None:
+    body = {"ma_lop": ["IT004.02", "SE201.01"]}
+    url = "/internal/students/SV22001/registrations/bundle"
+    for _ in range(2):  # kiểm tra không ghi -> gọi lại vẫn hợp lệ
+        r = client.post(f"{url}/check", json=body)
+        assert r.status_code == 200, r.text
+        assert r.json()["trang_thai"] == "hop_le"
+    r = client.post(url, json=body)
+    assert r.status_code == 201, r.text
+    assert r.json()["tong_tin_chi"] == 6
+    assert client.post(url, json={"ma_lop": []}).status_code == 422

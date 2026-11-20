@@ -15,13 +15,13 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from src.qlsv_api.errors import conflict, not_found
+from src.qlsv_api.errors import BusinessError, conflict, invalid, not_found
 from src.qlsv_api.models import DangKyHocPhan, LopHocPhan, SinhVien
 from src.qlsv_api.repositories import registrations as registration_repo
 from src.qlsv_api.repositories import results as result_repo
 from src.qlsv_api.repositories import sections as section_repo
 from src.qlsv_api.repositories import students as student_repo
-from src.qlsv_api.schemas import RegistrationOut
+from src.qlsv_api.schemas import BundleOut, RegistrationOut
 from src.qlsv_api.services import academic_service, semester_service
 from src.qlsv_api.services.common import schedule_label
 from src.shared.time import to_db
@@ -185,3 +185,36 @@ def cancel(db: Session, ma_sv: str, ma_lop: str, now: datetime) -> RegistrationO
     record.thoi_gian_huy = to_db(now)
     db.flush()
     return _to_out(lop, "da_huy")
+
+
+MAX_BUNDLE = 8
+
+
+def register_bundle(
+    db: Session, ma_sv: str, ma_lops: list[str], now: datetime, dry_run: bool = False
+) -> BundleOut:
+    """Đăng ký nhiều lớp NGUYÊN KHỐI: chạy `register` lần lượt (theo mã lớp — thứ tự khóa cố
+    định, tránh deadlock) trong cùng giao dịch; lớp sau thấy lớp trước (trùng lịch / vượt tín chỉ
+    TRONG gói cũng bị bắt). Một lớp lỗi -> ném lỗi của lớp đó, tầng gọi rollback cả gói.
+
+    `dry_run=True`: vẫn ghi tạm (flush) để bắt lỗi trong gói; router `bundle/check` rollback.
+    Không commit.
+    """
+    codes = [m.strip().upper() for m in ma_lops]
+    if not codes or len(codes) > MAX_BUNDLE or len(set(codes)) != len(codes):
+        raise invalid(
+            "DANH_SACH_LOP_KHONG_HOP_LE",
+            f"Danh sách lớp phải có 1–{MAX_BUNDLE} mã lớp, không trùng nhau.",
+        )
+    done: list[RegistrationOut] = []
+    for ma_lop in sorted(codes):
+        try:
+            out = register(db, ma_sv, ma_lop, now)
+        except BusinessError as exc:
+            raise BusinessError(exc.code, f"Lớp {ma_lop}: {exc.message}", exc.status) from exc
+        done.append(out.model_copy(update={"trang_thai": "hop_le"}) if dry_run else out)
+    return BundleOut(
+        trang_thai="hop_le" if dry_run else "da_dang_ky",
+        lop=done,
+        tong_tin_chi=sum(r.tin_chi for r in done),
+    )

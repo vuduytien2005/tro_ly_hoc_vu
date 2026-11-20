@@ -1,7 +1,13 @@
 from fastapi import APIRouter, status
 
 from src.qlsv_api.routers.deps import DbSession, InternalAuth, Now, run_in_transaction
-from src.qlsv_api.schemas import RegistrationIn, RegistrationOut, SemesterPlanOut
+from src.qlsv_api.schemas import (
+    BundleIn,
+    BundleOut,
+    RegistrationIn,
+    RegistrationOut,
+    SemesterPlanOut,
+)
 from src.qlsv_api.services import planning_service, registration_service
 
 router = APIRouter(
@@ -60,3 +66,32 @@ def cancel(ma_sv: str, ma_lop: str, db: DbSession, now: Now) -> RegistrationOut:
 )
 def semester_plan(ma_sv: str, db: DbSession, now: Now) -> SemesterPlanOut:
     return planning_service.plan_next_semester(db, ma_sv, now)
+
+
+@router.post(
+    "/{ma_sv}/registrations/bundle",
+    response_model=BundleOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Đăng ký cả gói lớp học phần (nguyên khối)",
+    description=(
+        "Cùng 9 bước kiểm tra như đăng ký một lớp, cho từng lớp, trong một giao dịch: một lớp lỗi "
+        "thì không lớp nào được ghi (409 với mã lỗi của lớp đó, detail nêu mã lớp). Mã lớp trùng "
+        "-> 422 DANH_SACH_LOP_KHONG_HOP_LE."
+    ),
+)
+def register_bundle(ma_sv: str, body: BundleIn, db: DbSession, now: Now) -> BundleOut:
+    return run_in_transaction(
+        db, lambda: registration_service.register_bundle(db, ma_sv, body.ma_lop, now)
+    )
+
+
+@router.post(
+    "/{ma_sv}/registrations/bundle/check",
+    response_model=BundleOut,
+    summary="Kiểm tra có đăng ký được cả gói không (không ghi)",
+)
+def check_bundle(ma_sv: str, body: BundleIn, db: DbSession, now: Now) -> BundleOut:
+    try:
+        return registration_service.register_bundle(db, ma_sv, body.ma_lop, now, dry_run=True)
+    finally:
+        db.rollback()  # bỏ các bản ghi tạm + nhả khóa

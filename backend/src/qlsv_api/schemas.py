@@ -359,3 +359,15 @@ class SemesterPlanOut(Schema):
     de_xuat: list[PlannedSection]
     tong_tin_chi_de_xuat: int
     bi_loai: list[ExcludedCourse]
+
+
+# ----- Đăng ký cả gói ---------------------------------------------------------
+class BundleIn(Schema):
+    ma_lop: Annotated[list[NonEmptyStr], Field(min_length=1, max_length=8)]
+
+
+class BundleOut(Schema):
+    thanh_cong: bool = True
+    trang_thai: str  # da_dang_ky | hop_le (chỉ kiểm tra)
+    lop: list[RegistrationOut]
+    tong_tin_chi: int
