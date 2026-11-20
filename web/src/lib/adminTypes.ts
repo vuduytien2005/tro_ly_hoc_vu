@@ -68,6 +68,11 @@ export interface Tool {
   can_xac_nhan: boolean
   bat: boolean
   co_tren_server: boolean
+  title: string | null
+  mo_ta_day_du: string | null
+  tham_so: Record<string, unknown> | null
+  chi_doc_theo_server: boolean | null
+  duyet: 'da_duyet' | 'moi' | 'thay_doi'
 }
 
 export interface McpServerItem {
@@ -78,6 +83,20 @@ export interface McpServerItem {
   bat: boolean
   trang_thai: string
   cong_cu: Tool[]
+  cong_cu_bi_bo_qua: { ten: string; trung_voi: string }[]
+}
+
+export interface ToolPreview {
+  ten: string
+  title: string | null
+  mo_ta: string
+  tham_so: Record<string, unknown>
+  chi_doc_theo_server: boolean | null
+  trung_ten_voi: string | null
+}
+
+export interface McpCheckResult {
+  cong_cu: ToolPreview[]
 }
 
 export interface AuditLog {

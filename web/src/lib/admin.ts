@@ -58,3 +58,12 @@ export function changedFields<T extends Record<string, string>>(initial: T, curr
   }
   return out
 }
+
+/** Nhãn duyệt mô tả công cụ MCP: mới thêm (chưa duyệt) hoặc server đã đổi mô tả sau khi duyệt. */
+export function reviewBadge(
+  duyet: 'da_duyet' | 'moi' | 'thay_doi',
+): { text: string; tone: 'new' | 'changed' } | null {
+  if (duyet === 'moi') return { text: 'Mới — cần duyệt', tone: 'new' }
+  if (duyet === 'thay_doi') return { text: 'Mô tả đã thay đổi — cần duyệt lại', tone: 'changed' }
+  return null
+}

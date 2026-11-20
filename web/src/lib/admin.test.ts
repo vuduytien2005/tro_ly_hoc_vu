@@ -6,6 +6,7 @@ import {
   formatPercent,
   injectedKeys,
   passwordProblem,
+  reviewBadge,
   toQuery,
 } from './admin'
 
@@ -61,5 +62,15 @@ describe('changedFields', () => {
       lop: 'KTPM2023',
     })
     expect(changedFields(before, before)).toEqual({})
+  })
+})
+describe('reviewBadge', () => {
+  it('nhãn duyệt mô tả công cụ MCP', () => {
+    expect(reviewBadge('moi')).toEqual({ text: 'Mới — cần duyệt', tone: 'new' })
+    expect(reviewBadge('thay_doi')).toEqual({
+      text: 'Mô tả đã thay đổi — cần duyệt lại',
+      tone: 'changed',
+    })
+    expect(reviewBadge('da_duyet')).toBeNull()
   })
 })
