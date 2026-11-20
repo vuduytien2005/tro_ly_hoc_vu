@@ -177,7 +177,7 @@ def basic_checks(api: Api, rep: Report) -> bool:
     tools = [t for s in servers if s["ten"] in EXPECTED_SERVERS for t in s["cong_cu"]]
     usable = [t["ten"] for t in tools if t["bat"] and t["co_tren_server"]]
     off = [t["ten"] for t in tools if not t["bat"]]
-    rep.check(len(usable) == 16, "16 công cụ đang bật và có trên server", f"{len(usable)}/16")
+    rep.check(len(usable) == 18, "18 công cụ đang bật và có trên server", f"{len(usable)}/18")
     if off:
         rep.warn(f"Đang TẮT: {', '.join(off)} (sau demo 7?) -> chạy reset_demo.ps1")
     if any(s["ten"] == LIBRARY_SERVER[0] for s in servers):

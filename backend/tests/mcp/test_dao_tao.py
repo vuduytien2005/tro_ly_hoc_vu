@@ -10,6 +10,7 @@ from tests.mcp.conftest import call_tool, list_tools
 pytestmark = pytest.mark.anyio
 
 READ_TOOLS = {
+    "plan_next_semester",
     "get_student_profile",
     "get_transcript",
     "get_exam_schedule",
@@ -55,7 +56,7 @@ TRANSCRIPT = {
 }
 
 
-WRITE_TOOLS = {"register_course", "cancel_course_registration"}
+WRITE_TOOLS = {"register_course", "cancel_course_registration", "register_courses_bundle"}
 
 
 async def test_tools_exposed() -> None:
@@ -267,3 +268,101 @@ async def test_search_course_sections(qlsv_mock: respx.MockRouter) -> None:
     assert "ma_sv" not in params  # ma_sv không bị gửi đi khi không cần
     assert len(out["lop"]) == dao_tao.MAX_SECTIONS
     assert out["lop"][0]["con_trong"] == 2
+
+
+# ----- Kế hoạch học kỳ tới + đăng ký cả gói ------------------------------------------------
+PLAN = {
+    "hoc_ky": "2026-2027-HK2",
+    "ten_hoc_ky": "Học kỳ 2 năm học 2026-2027",
+    "tin_chi_toi_da": 25,
+    "tin_chi_da_dang_ky": 0,
+    "de_xuat": [
+        {
+            "ma_lop": "IT004.02",
+            "ma_hp": "IT004",
+            "ten_hp": "Cơ sở dữ liệu",
+            "tin_chi": 3,
+            "lich": "Thứ 2, tiết 1-3, phòng B2.101",
+            "bat_buoc": True,
+            "ly_do_chon": "Học lại (đã bị điểm F)",
+        },
+        {
+            "ma_lop": "SE201.01",
+            "ma_hp": "SE201",
+            "ten_hp": "Trí tuệ nhân tạo ứng dụng",
+            "tin_chi": 3,
+            "lich": "Thứ 3, tiết 7-9, phòng A1.305",
+            "bat_buoc": False,
+            "ly_do_chon": "Tự chọn",
+        },
+    ],
+    "tong_tin_chi_de_xuat": 6,
+    "bi_loai": [
+        {
+            "ma_hp": "SE202",
+            "ten_hp": "Điện toán đám mây",
+            "ma_loi": "KHONG_CON_LOP_PHU_HOP",
+            "ly_do": "Không còn lớp nào phù hợp (xem lý do từng lớp).",
+            "lop": [{"ma_lop": "SE202.01", "ma_loi": "LOP_DA_DAY", "ly_do": "Lớp đã đủ 2."}],
+        }
+    ],
+}
+
+
+async def test_plan_tool_message(qlsv_mock: respx.MockRouter) -> None:
+    qlsv_mock.get("/internal/students/SV22001/semester-plan").respond(200, json=PLAN)
+    out = await call_tool(dao_tao.mcp, "plan_next_semester", {"ma_sv": "SV22001"})
+    assert [s["ma_lop"] for s in out["de_xuat"]] == ["IT004.02", "SE201.01"]
+    assert "IT004.02" in out["thong_bao"] and "6 tín chỉ" in out["thong_bao"]
+    assert "SE202" in out["thong_bao"] and "LOP_DA_DAY" not in out["thong_bao"]
+
+
+async def test_plan_tool_empty_message(qlsv_mock: respx.MockRouter) -> None:
+    empty = {**PLAN, "de_xuat": [], "tong_tin_chi_de_xuat": 0}
+    qlsv_mock.get("/internal/students/SV21001/semester-plan").respond(200, json=empty)
+    out = await call_tool(dao_tao.mcp, "plan_next_semester", {"ma_sv": "SV21001"})
+    assert out["thong_bao"].startswith("Không có lớp nào phù hợp")
+
+
+async def test_bundle_tool_check_and_error(qlsv_mock: respx.MockRouter) -> None:
+    base = "/internal/students/SV22001/registrations/bundle"
+    ok = {
+        "trang_thai": "hop_le",
+        "tong_tin_chi": 3,
+        "lop": [
+            {
+                "ma_lop": "IT004.02",
+                "ma_hp": "IT004",
+                "ten_hp": "Cơ sở dữ liệu",
+                "tin_chi": 3,
+                "hoc_ky": "2026-2027-HK2",
+                "lich": "Thứ 2, tiết 1-3, phòng B2.101",
+                "trang_thai": "hop_le",
+            }
+        ],
+    }
+    check = qlsv_mock.post(f"{base}/check").respond(200, json=ok)
+    out = await call_tool(
+        dao_tao.mcp,
+        "register_courses_bundle",
+        {"ma_sv": "SV22001", "ma_lop": ["IT004.02"], "chi_kiem_tra": True},
+    )
+    assert check.called and out["thanh_cong"] is True
+    qlsv_mock.post(base).respond(
+        409, json={"detail": "Lớp SE105.02: trùng lịch", "code": "TRUNG_LICH"}
+    )
+    out = await call_tool(
+        dao_tao.mcp,
+        "register_courses_bundle",
+        {"ma_sv": "SV22001", "ma_lop": ["IT004.02", "SE105.02"]},
+    )
+    assert out["ma_loi"] == "TRUNG_LICH"
+
+
+async def test_bundle_tool_schema() -> None:
+    tools = await list_tools(dao_tao.mcp)
+    props = tools["register_courses_bundle"].input_schema["properties"]
+    assert props["ma_lop"]["type"] == "array"
+    assert (props["ma_lop"]["minItems"], props["ma_lop"]["maxItems"]) == (1, 8)
+    assert INJECTED_NOTE in props["ma_sv"]["description"]
+    assert "ma_sv" in tools["plan_next_semester"].input_schema["properties"]

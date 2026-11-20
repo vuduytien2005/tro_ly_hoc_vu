@@ -59,6 +59,8 @@ JOIN (VALUES
     (N'search_course_sections',      N'doc',      0),
     (N'register_course',             N'ghi',      1),
     (N'cancel_course_registration',  N'ghi',      1),
+    (N'plan_next_semester',          N'doc',      0),
+    (N'register_courses_bundle',     N'ghi',      1),
     (N'request_student_certificate', N'ghi',      1),
     (N'submit_deferral_request',     N'nhay_cam', 1),
     (N'submit_regrade_request',      N'ghi',      1),

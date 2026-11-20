@@ -297,6 +297,80 @@ async def cancel_course_registration(ma_sv: MaSv, ma_lop: MaLop) -> dict[str, An
     }
 
 
+@mcp.tool()
+@tool_errors
+async def plan_next_semester(ma_sv: MaSv) -> dict[str, Any]:
+    """Lập kế hoạch đăng ký cho học kỳ đang mở đăng ký: đề xuất một gói lớp (ưu tiên môn học
+    lại, môn bắt buộc, đúng học kỳ gợi ý; không trùng lịch, còn chỗ, không vượt tín chỉ tối đa)
+    và liệt kê môn KHÔNG đề xuất kèm lý do (đang học, thiếu tiên quyết, lớp đầy, trùng lịch...).
+
+    Dùng khi sinh viên hỏi "kỳ sau em nên đăng ký gì", "lập kế hoạch học kỳ tới", "đăng ký gì
+    để kịp tốt nghiệp". Chỉ đề xuất đúng các lớp trong `de_xuat`. Nếu sinh viên đồng ý đăng ký
+    cả gói, gọi register_courses_bundle với đúng các mã lớp đó.
+    """
+    plan = await qlsv.get(_student_path(ma_sv, "/semester-plan"))
+    chosen = plan["de_xuat"]
+    skipped = "; ".join(
+        f"{c['ma_hp']} – {c['ten_hp']} ({c['ly_do']}"
+        + (
+            ": " + ", ".join(f"{s['ma_lop']} {s['ly_do'].rstrip('.').lower()}" for s in c["lop"])
+            if c.get("lop")
+            else ""
+        )
+        + ")"
+        for c in plan["bi_loai"]
+    )
+    if chosen:
+        note = (
+            f"Đề xuất {len(chosen)} lớp ({plan['tong_tin_chi_de_xuat']} tín chỉ) cho "
+            f"{plan['ten_hoc_ky']}: "
+            + "; ".join(f"{s['ma_lop']} – {s['ten_hp']} ({s['lich']})" for s in chosen)
+            + "."
+        )
+    else:
+        note = f"Không có lớp nào phù hợp để đề xuất cho {plan['ten_hoc_ky']}."
+    if skipped:
+        note += f" Không đề xuất: {skipped}."
+    return {**plan, "thong_bao": note}
+
+
+@mcp.tool()
+@tool_errors
+async def register_courses_bundle(
+    ma_sv: MaSv,
+    ma_lop: Annotated[
+        list[str],
+        Field(
+            min_length=1,
+            max_length=8,
+            description='Danh sách mã lớp cần đăng ký cùng lúc, ví dụ ["IT004.02", "SE201.01"] '
+            "(lấy từ plan_next_semester hoặc do sinh viên chỉ định).",
+        ),
+    ],
+    chi_kiem_tra: ChiKiemTra = False,
+) -> dict[str, Any]:
+    """Đăng ký CÙNG LÚC nhiều lớp học phần (một gói) trong học kỳ đang mở đăng ký, nguyên khối:
+    một lớp không đăng ký được thì không lớp nào được đăng ký.
+
+    Dùng khi sinh viên đồng ý đăng ký cả gói từ plan_next_semester, hoặc nhờ đăng ký nhiều lớp
+    một lần. Thao tác này cần sinh viên xác nhận trên giao diện (một thẻ cho cả gói).
+    Lỗi có thể gặp như register_course (TRUNG_LICH, LOP_DA_DAY, VUOT_TIN_CHI_TOI_DA...), kèm
+    mã lớp gây lỗi.
+    """
+    suffix = "/registrations/bundle/check" if chi_kiem_tra else "/registrations/bundle"
+    r = await qlsv.request("POST", _student_path(ma_sv, suffix), json_body={"ma_lop": ma_lop})
+    lops = [
+        {"ma_lop": x["ma_lop"], "ten_hp": x["ten_hp"], "tin_chi": x["tin_chi"], "lich": x["lich"]}
+        for x in r["lop"]
+    ]
+    names = ", ".join(x["ma_lop"] for x in lops)
+    if chi_kiem_tra:
+        note = f"Gói {names} ({r['tong_tin_chi']} tín chỉ) đủ điều kiện đăng ký (chưa đăng ký)."
+    else:
+        note = f"Đã đăng ký {len(lops)} lớp: {names} (tổng {r['tong_tin_chi']} tín chỉ)."
+    return {"thanh_cong": True, "lop": lops, "tong_tin_chi": r["tong_tin_chi"], "thong_bao": note}
+
+
 def main() -> None:
     run(mcp, get_settings().mcp_dao_tao_port)
 

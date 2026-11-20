@@ -30,6 +30,8 @@ INSERT INTO cong_cu (mcp_server_id, ten, mo_ta, muc_rui_ro, can_xac_nhan, bat) V
 (1, N'search_course_sections',     N'Tìm lớp học phần đang mở đăng ký',                    N'doc',      0, 1),
 (1, N'register_course',            N'Đăng ký một lớp học phần',                            N'ghi',      1, 1),
 (1, N'cancel_course_registration', N'Hủy đăng ký một lớp học phần',                        N'ghi',      1, 1),
+(1, N'plan_next_semester',         N'Lập kế hoạch đăng ký học kỳ tới',                     N'doc',      0, 1),
+(1, N'register_courses_bundle',    N'Đăng ký cả gói lớp học phần',                         N'ghi',      1, 1),
 -- ctsv
 (2, N'request_student_certificate',N'Tạo yêu cầu cấp giấy xác nhận sinh viên',             N'ghi',      1, 1),
 (2, N'submit_deferral_request',    N'Nộp đơn bảo lưu kết quả học tập',                     N'nhay_cam', 1, 1),
