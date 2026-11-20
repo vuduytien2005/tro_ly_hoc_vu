@@ -260,3 +260,32 @@ class DonTu(QlsvBase):
         server_default=text("SYSDATETIME()"),
         server_onupdate=FetchedValue(),  # trigger AFTER UPDATE trong script SQL
     )
+
+
+class Sach(QlsvBase):
+    __tablename__ = "sach"
+
+    ma_sach: Mapped[str] = mapped_column(Unicode(10), primary_key=True)
+    ten_sach: Mapped[str] = mapped_column(Unicode(255))
+    tac_gia: Mapped[str] = mapped_column(Unicode(255))
+    nam_xb: Mapped[int] = mapped_column(Integer)
+    tong_so_ban: Mapped[int] = mapped_column(Integer)
+    so_ban_con: Mapped[int] = mapped_column(Integer)
+    so_luot_dat_truoc: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+
+
+class MuonSach(QlsvBase):
+    __tablename__ = "muon_sach"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sinh_vien_id: Mapped[int] = mapped_column(ForeignKey("sinh_vien.id"))
+    ma_sach: Mapped[str] = mapped_column(ForeignKey("sach.ma_sach"))
+    ngay_muon: Mapped[date] = mapped_column(Date)
+    han_tra: Mapped[date] = mapped_column(Date)
+    so_lan_gia_han: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    trang_thai: Mapped[str] = mapped_column(
+        Enum("dang_muon", "da_tra", name="trang_thai_muon_sach"),
+        server_default=text("N'dang_muon'"),
+    )
+
+    sach: Mapped[Sach] = relationship()

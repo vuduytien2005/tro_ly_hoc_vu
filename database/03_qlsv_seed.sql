@@ -162,3 +162,26 @@ INSERT INTO don_tu (ma_don, sinh_vien_id, loai_don, noi_dung, trang_thai, ghi_ch
  N'{"muc_dich": "Bổ sung hồ sơ xin việc", "so_ban": 1, "noi_nhan": "Phòng Công tác sinh viên"}',
  N'hoan_tat', N'Đã trả giấy xác nhận.', N'sinh_vien');
 GO
+
+-- Thư viện (bổ sung 20/11/2026). Ngày demo 20/11/2026. Mỗi lượt mượn minh họa một quy tắc gia hạn.
+INSERT INTO sach (ma_sach, ten_sach, tac_gia, nam_xb, tong_so_ban, so_ban_con, so_luot_dat_truoc) VALUES
+(N'TV001', N'Nhập môn công nghệ phần mềm',               N'Nguyễn Văn Hòa',  2022, 5, 2, 0),
+(N'TV002', N'Kiểm thử phần mềm thực hành',               N'Lê Thị Mai',      2023, 2, 0, 1),
+(N'TV003', N'Cơ sở dữ liệu quan hệ',                     N'Trần Quốc Bảo',   2021, 4, 3, 0),
+(N'TV004', N'Phân tích và thiết kế hệ thống',            N'Phạm Minh Tuấn',  2020, 3, 2, 0),
+(N'TV005', N'Lập trình hướng đối tượng với Java',        N'Đỗ Thanh Hà',     2022, 6, 6, 0),
+(N'TV006', N'Cấu trúc dữ liệu và giải thuật',            N'Vũ Đức Long',     2019, 8, 5, 0),
+(N'TV007', N'Mạng máy tính căn bản',                     N'Hoàng Văn Nam',   2021, 4, 4, 0),
+(N'TV008', N'Quản lý dự án phần mềm',                    N'Ngô Thị Lan',     2023, 3, 1, 0),
+(N'TV009', N'Phát triển ứng dụng web hiện đại',          N'Bùi Anh Khoa',    2024, 5, 5, 0),
+(N'TV010', N'Trí tuệ nhân tạo ứng dụng',                 N'Đặng Hải Yến',    2024, 2, 1, 0);
+
+SET IDENTITY_INSERT muon_sach ON;
+INSERT INTO muon_sach (id, sinh_vien_id, ma_sach, ngay_muon, han_tra, so_lan_gia_han, trang_thai) VALUES
+(1, 1, N'TV001', '2026-11-06', '2026-11-27', 0, N'dang_muon'),  -- SV22001: gia hạn được
+(2, 1, N'TV002', '2026-11-06', '2026-11-27', 0, N'dang_muon'),  -- SV22001: có người đặt trước
+(3, 2, N'TV003', '2026-10-15', '2026-11-05', 0, N'dang_muon'),  -- SV22002: quá hạn
+(4, 3, N'TV004', '2026-09-20', '2026-12-01', 2, N'dang_muon'),  -- SV21001: hết lượt gia hạn
+(5, 1, N'TV005', '2026-09-01', '2026-09-22', 0, N'da_tra');     -- SV22001: đã trả
+SET IDENTITY_INSERT muon_sach OFF;
+GO

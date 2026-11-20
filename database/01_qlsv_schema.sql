@@ -26,6 +26,8 @@ USE tlhv_qlsv;
 GO
 
 -- Xóa theo thứ tự con -> cha để không vướng khóa ngoại
+DROP TABLE IF EXISTS muon_sach;
+DROP TABLE IF EXISTS sach;
 DROP TABLE IF EXISTS don_tu;
 DROP TABLE IF EXISTS chung_chi;
 DROP TABLE IF EXISTS hoc_phi;
@@ -247,4 +249,33 @@ BEGIN
   UPDATE d SET updated_at = SYSDATETIME()
   FROM don_tu d JOIN inserted i ON d.id = i.id;
 END;
+GO
+
+-- ---------------------------------------------------------------------
+-- Thư viện (bổ sung 20/11/2026): dữ liệu cho MCP server thu_vien
+-- ---------------------------------------------------------------------
+CREATE TABLE sach (
+  ma_sach            NVARCHAR(10)  NOT NULL PRIMARY KEY,               -- vd: TV001
+  ten_sach           NVARCHAR(255) NOT NULL,
+  tac_gia            NVARCHAR(255) NOT NULL,
+  nam_xb             INT           NOT NULL,
+  tong_so_ban        INT           NOT NULL CONSTRAINT chk_sach_tong CHECK (tong_so_ban >= 0),
+  so_ban_con         INT           NOT NULL CONSTRAINT chk_sach_con CHECK (so_ban_con >= 0),
+  so_luot_dat_truoc  INT           NOT NULL CONSTRAINT df_sach_dat_truoc DEFAULT 0
+);
+GO
+
+CREATE TABLE muon_sach (
+  id               INT IDENTITY(1,1) PRIMARY KEY,
+  sinh_vien_id     INT           NOT NULL,
+  ma_sach          NVARCHAR(10)  NOT NULL,
+  ngay_muon        DATE          NOT NULL,
+  han_tra          DATE          NOT NULL,
+  so_lan_gia_han   INT           NOT NULL CONSTRAINT df_ms_gia_han DEFAULT 0,
+  trang_thai       NVARCHAR(20)  NOT NULL CONSTRAINT df_ms_trang_thai DEFAULT N'dang_muon'
+                   CONSTRAINT chk_ms_trang_thai CHECK (trang_thai IN (N'dang_muon', N'da_tra')),
+  CONSTRAINT fk_ms_sv   FOREIGN KEY (sinh_vien_id) REFERENCES sinh_vien(id),
+  CONSTRAINT fk_ms_sach FOREIGN KEY (ma_sach)      REFERENCES sach(ma_sach)
+);
+CREATE INDEX idx_ms_sv ON muon_sach (sinh_vien_id, trang_thai);
 GO

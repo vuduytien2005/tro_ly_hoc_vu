@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.qlsv_api.errors import BusinessError
-from src.qlsv_api.routers import catalog, registrations, requests, students
+from src.qlsv_api.routers import catalog, library, registrations, requests, students
 from src.shared.config import get_settings
 from src.shared.security import INTERNAL_TOKEN_HEADER, is_valid_internal_token
 
@@ -79,7 +79,13 @@ def create_app() -> FastAPI:
         logger.exception("Lỗi không xử lý được", exc_info=exc)
         return error_response(500, "Lỗi hệ thống QLSV, vui lòng thử lại sau.", "LOI_HE_THONG")
 
-    for router in (students.router, registrations.router, requests.router, catalog.router):
+    for router in (
+        students.router,
+        registrations.router,
+        requests.router,
+        catalog.router,
+        library.router,
+    ):
         app.include_router(router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Kiểm tra service đang chạy")

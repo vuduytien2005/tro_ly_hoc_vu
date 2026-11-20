@@ -300,3 +300,26 @@ class RequestSummaryOut(Schema):
 class RequestUpdateIn(Schema):
     trang_thai: TrangThaiDon
     ghi_chu_xu_ly: str | None = None
+
+
+# ----- Thư viện ------------------------------------------------------------------
+class BorrowOut(Schema):
+    muon_id: int
+    ma_sach: str
+    ten_sach: str
+    tac_gia: str
+    ngay_muon: date
+    han_tra: date
+    so_lan_gia_han: int
+    qua_han: bool
+    gia_han_duoc: bool
+    ly_do_khong_gia_han: str | None
+
+
+class BookOut(Schema):
+    ma_sach: str
+    ten_sach: str
+    tac_gia: str
+    nam_xb: int
+    tong_so_ban: int
+    so_ban_con: int
