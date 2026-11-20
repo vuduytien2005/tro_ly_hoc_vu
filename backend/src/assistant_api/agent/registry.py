@@ -98,6 +98,8 @@ def inject_context(spec: ToolSpec, llm_args: dict[str, Any], user: NguoiDung) ->
 
 
 ReviewState = Literal["da_duyet", "moi", "thay_doi"]
+# Bật lúc server mất kết nối (không xem được mô tả): khác mọi mã băm -> lần đồng bộ sau tự tắt
+UNREVIEWED = "chua_xem_mo_ta"
 
 
 def spec_hash(spec: ToolSpec) -> str:
@@ -135,6 +137,14 @@ class ToolRegistry:
         servers = db.scalars(select(McpServer).order_by(McpServer.id)).all()
         specs: dict[str, ToolSpec] = {}
         skipped: dict[str, list[tuple[str, str]]] = {}
+        # Chủ của mỗi tên công cụ = server id nhỏ nhất đã có dòng trong cong_cu. Giữ tên cả khi
+        # server chủ đang tắt / chưa chạy -> server thêm sau không chiếm được tên lúc đó.
+        owners: dict[str, tuple[int, str]] = {}
+        for ten, server_id, server_ten in db.execute(
+            select(CongCu.ten, McpServer.id, McpServer.ten).join(McpServer)
+        ):
+            if ten not in owners or server_id < owners[ten][0]:
+                owners[ten] = (server_id, server_ten)
         for server in servers:
             if not server.bat:
                 self.server_status[server.ten] = "tắt"
@@ -152,11 +162,15 @@ class ToolRegistry:
             rows = db.scalars(select(CongCu).where(CongCu.mcp_server_id == server.id))
             known = {c.ten: c for c in rows}
             for spec in tools:
-                if spec.name in specs:
+                owner = owners.get(spec.name)
+                holder = specs[spec.name].server if spec.name in specs else None
+                if holder is None and owner is not None and owner[0] != server.id:
+                    holder = owner[1]
+                if holder is not None:
                     logger.error(
                         "Trùng tên tool '%s' giữa các server, bỏ bản ở %s", spec.name, server.ten
                     )
-                    skipped.setdefault(server.ten, []).append((spec.name, specs[spec.name].server))
+                    skipped.setdefault(server.ten, []).append((spec.name, holder))
                     continue
                 specs[spec.name] = spec
                 if spec.name in known:
@@ -208,10 +222,17 @@ class ToolRegistry:
         spec = self._specs.get(name)
         return spec.title if spec else None
 
+    def _spec_of(self, name: str, server: str) -> ToolSpec | None:
+        """Spec chỉ gắn với dòng cong_cu của ĐÚNG server cung cấp nó (phòng trùng tên)."""
+        spec = self._specs.get(name)
+        return spec if spec is not None and spec.server == server else None
+
     def spec(self, name: str) -> ToolSpec | None:
         return self._specs.get(name)
 
     def review_state(self, tool: CongCu) -> ReviewState:
+        if tool.ban_duyet == UNREVIEWED:
+            return "thay_doi"
         spec = self._specs.get(tool.ten)
         if spec is not None and tool.ban_duyet is not None and tool.ban_duyet != spec_hash(spec):
             return "thay_doi"
@@ -224,6 +245,8 @@ class ToolRegistry:
         spec = self._specs.get(tool.ten)
         if spec is not None:
             tool.ban_duyet = spec_hash(spec)
+        elif tool.ban_duyet is None:
+            tool.ban_duyet = UNREVIEWED  # chưa ai xem mô tả -> không "tin ở lần đầu"
 
     async def ensure_fresh(self, db: Session) -> None:
         """Server lỗi lúc khởi động -> thử đồng bộ lại (tối đa 30 giây/lần)."""
@@ -269,7 +292,7 @@ class ToolRegistry:
                 muc_rui_ro=tool.muc_rui_ro,
                 can_xac_nhan=bool(tool.can_xac_nhan),
                 bat=bool(tool.bat and server.bat),
-                spec=self._specs.get(tool.ten),
+                spec=self._spec_of(tool.ten, server.ten),
             )
             for tool, server in rows
         }
