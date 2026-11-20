@@ -366,3 +366,24 @@ async def test_bundle_tool_schema() -> None:
     assert (props["ma_lop"]["minItems"], props["ma_lop"]["maxItems"]) == (1, 8)
     assert INJECTED_NOTE in props["ma_sv"]["description"]
     assert "ma_sv" in tools["plan_next_semester"].input_schema["properties"]
+
+
+async def test_plan_tool_message_keeps_codes_uppercase(qlsv_mock: respx.MockRouter) -> None:
+    clash = {
+        "ma_hp": "SE201",
+        "ten_hp": "Trí tuệ nhân tạo ứng dụng",
+        "ma_loi": "KHONG_CON_LOP_PHU_HOP",
+        "ly_do": "Không còn lớp nào phù hợp (xem lý do từng lớp).",
+        "lop": [
+            {
+                "ma_lop": "SE201.01",
+                "ma_loi": "TRUNG_LICH",
+                "ly_do": "Trùng lịch với lớp IT004.02 (Thứ 2, tiết 1-3, phòng B2.101).",
+            }
+        ],
+    }
+    qlsv_mock.get("/internal/students/SV22001/semester-plan").respond(
+        200, json={**PLAN, "bi_loai": [clash]}
+    )
+    out = await call_tool(dao_tao.mcp, "plan_next_semester", {"ma_sv": "SV22001"})
+    assert "trùng lịch với lớp IT004.02 (Thứ 2, tiết 1-3, phòng B2.101)" in out["thong_bao"]

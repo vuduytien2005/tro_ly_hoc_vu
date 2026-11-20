@@ -297,6 +297,11 @@ async def cancel_course_registration(ma_sv: MaSv, ma_lop: MaLop) -> dict[str, An
     }
 
 
+def _lower_first(text: str) -> str:
+    """Viết thường chữ đầu để ghép vào câu; giữ nguyên mã lớp, phòng ("IT004.02", "B2.101")."""
+    return text[:1].lower() + text[1:]
+
+
 @mcp.tool()
 @tool_errors
 async def plan_next_semester(ma_sv: MaSv) -> dict[str, Any]:
@@ -313,7 +318,8 @@ async def plan_next_semester(ma_sv: MaSv) -> dict[str, Any]:
     skipped = "; ".join(
         f"{c['ma_hp']} – {c['ten_hp']} ({c['ly_do']}"
         + (
-            ": " + ", ".join(f"{s['ma_lop']} {s['ly_do'].rstrip('.').lower()}" for s in c["lop"])
+            ": "
+            + ", ".join(f"{s['ma_lop']} {_lower_first(s['ly_do'].rstrip('.'))}" for s in c["lop"])
             if c.get("lop")
             else ""
         )
