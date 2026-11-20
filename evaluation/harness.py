@@ -18,7 +18,7 @@ cấu hình), thời gian phản hồi.
 
 import json
 import time
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -41,10 +41,25 @@ DRY_RUN_DEFAULTS: dict[str, Any] = {
 
 # ----- LLM có đo đếm -----------------------------------------------------------------
 class MeteredLLM:
-    """Bọc LLM thật/giả: đếm số lần gọi (bước), token; `inner` đổi được giữa các kịch bản."""
+    """Bọc LLM thật/giả: đếm số lần gọi (bước), token; `inner` đổi được giữa các kịch bản.
 
-    def __init__(self, inner: Any) -> None:
+    Đo thời gian (NF-01), tính từ `start_timer()`, đã TRỪ thời gian giãn nhịp:
+    - `first_feedback_s`: phản hồi đầu tiên sinh viên thấy — chữ đầu tiên, hoặc lúc LLM trả lời
+      gọi công cụ (chip "Đang ..." hiện ngay sau đó), tùy cái nào đến trước;
+    - `ttft_s`: chữ đầu tiên của câu trả lời (None nếu không có chữ nào khi đồng hồ còn chạy).
+    """
+
+    def __init__(
+        self, inner: Any, clock: Callable[[], float] = time.perf_counter, pacer: Any = PACER
+    ) -> None:
         self.inner = inner
+        self.clock = clock
+        self.pacer = pacer
+        self.first_feedback_s: float | None = None
+        self.ttft_s: float | None = None
+        self._timing = False
+        self._t0 = 0.0
+        self._paced0 = 0.0
         self.reset()
 
     def reset(self) -> None:
@@ -54,19 +69,35 @@ class MeteredLLM:
         self.texts: list[str] = []  # văn bản GỐC của LLM (trước hậu kiểm trích dẫn)
         self.paced = 0.0  # giây chờ do giãn nhịp (không tính vào độ trễ)
 
+    def start_timer(self) -> None:
+        self.first_feedback_s = self.ttft_s = None
+        self._t0, self._paced0, self._timing = self.clock(), self.paced, True
+
+    def stop_timer(self) -> None:
+        self._timing = False
+
+    def _elapsed(self) -> float:
+        return self.clock() - self._t0 - (self.paced - self._paced0)
+
     async def stream(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     ) -> AsyncIterator[Any]:
         from src.assistant_api.agent.llm import LlmTurn
 
         self.steps += 1
-        self.paced += await PACER.await_turn()
+        self.paced += await self.pacer.await_turn()
         async for item in self.inner.stream(messages, tools):
             if isinstance(item, LlmTurn):
                 self.tokens_in += item.input_tokens or 0
                 self.tokens_out += item.output_tokens or 0
                 if item.text:
                     self.texts.append(item.text)
+                if self._timing and item.tool_calls and self.first_feedback_s is None:
+                    self.first_feedback_s = self._elapsed()
+            elif self._timing and item and self.ttft_s is None:
+                self.ttft_s = self._elapsed()
+                if self.first_feedback_s is None:
+                    self.first_feedback_s = self.ttft_s
             yield item
 
 
@@ -129,6 +160,8 @@ class TurnResult:
     raw_answer: str = ""  # câu trả lời cuối do LLM sinh, CHƯA qua hậu kiểm trích dẫn
     error: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    first_feedback_s: float | None = None  # NF-01, xem MeteredLLM
+    ttft_s: float | None = None
 
     @property
     def llm_calls(self) -> list[dict[str, Any]]:
@@ -342,11 +375,13 @@ class AgentHarness:
             self._qlsv_session = qlsv_db
             try:
                 cid = self.client.post("/api/conversations", json={}, headers=headers).json()["id"]
+                self.llm.start_timer()  # chỉ đo lượt gửi tin đầu tiên (không tính lượt xác nhận)
                 r = self.client.post(
                     f"/api/conversations/{cid}/messages",
                     json={"noi_dung": text},
                     headers=headers,
                 )
+                self.llm.stop_timer()
                 batch = parse_sse(r.text) if r.status_code == 200 else []
                 if r.status_code != 200:
                     error = f"HTTP {r.status_code}: {r.text[:200]}"
@@ -410,6 +445,8 @@ class AgentHarness:
             seconds=seconds,
             raw_answer=self.llm.texts[-1] if self.llm.texts else "",
             error=error,
+            first_feedback_s=self.llm.first_feedback_s,
+            ttft_s=self.llm.ttft_s,
         )
 
     def cost(self, tokens_in: int, tokens_out: int) -> float | None:

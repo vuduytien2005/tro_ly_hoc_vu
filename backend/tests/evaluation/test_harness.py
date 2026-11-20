@@ -76,3 +76,11 @@ def test_minimal_tool_description_drops_guidance(harness: AgentHarness) -> None:
     props = spec.input_schema["properties"]
     assert all("description" not in p for p in props.values())
     assert "ma_lop" in props
+
+
+def test_run_records_ttft_dry_run(harness: AgentHarness) -> None:
+    """Lượt đầu: gọi công cụ (tạo thẻ) rồi LLM viết chữ -> có cả hai mốc, phản hồi đầu <= TTFT."""
+    harness.use_llm([("register_course", {"ma_lop": "IT004.02"})], "Xong rồi em.")
+    result = harness.run("SV22001", "Đăng ký lớp IT004.02", auto_confirm=True)
+    assert result.first_feedback_s is not None and result.ttft_s is not None
+    assert 0 <= result.first_feedback_s <= result.ttft_s
