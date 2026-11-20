@@ -112,8 +112,10 @@ $exists = ($probe | Select-Object -Last 1).ToString().Trim() -eq "1"
 if ($exists -and -not $TaoLaiCsdl) {
     Write-Ok "CSDL đã có -> bỏ qua (thêm -TaoLaiCsdl để xóa và tạo lại)."
     # Nâng cấp CSDL cũ (chạy lại an toàn): tool_call_id NVARCHAR(MAX) cho Gemini
-    Invoke-Sql @("-i", (Join-Path $Root "database_nang_cap_tool_call_id.sql")) | Out-Null
-    Write-Ok "05_nang_cap_tool_call_id.sql"
+    foreach ($name in "05_nang_cap_tool_call_id.sql", "06_nang_cap_ban_duyet.sql") {
+        Invoke-Sql @("-i", (Join-Path $Root "database\$name")) | Out-Null
+        Write-Ok $name
+    }
 } else {
     foreach ($name in "01_qlsv_schema.sql", "02_assistant_schema.sql", "03_qlsv_seed.sql", "04_assistant_seed.sql") {
         Invoke-Sql @("-i", (Join-Path $Root "database\$name")) | Out-Null

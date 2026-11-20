@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 McpTarget = str | MCPServer
 CONNECT_RETRIES = 1
+PREVIEW_SERVER = "_xem_truoc"  # tên tạm khi kết nối thử server chưa đăng ký
 TIMEOUT_SECONDS = 120.0  # lần đầu quy_che nạp mô hình embedding có thể mất vài chục giây
 
 
@@ -38,6 +39,9 @@ class ToolSpec:
     name: str
     description: str
     input_schema: dict[str, Any]
+    title: str | None = None  # tên hiển thị server tự khai báo (chuẩn MCP)
+    # Annotation readOnlyHint do server TỰ khai báo: chỉ là gợi ý cho quản trị viên, không tin
+    read_only_hint: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -82,6 +86,11 @@ class McpClient:
     def set_target(self, server: str, target: McpTarget) -> None:
         self._targets[server] = target
 
+    async def preview(self, target: McpTarget) -> list[ToolSpec]:
+        """Kết nối thử một server CHƯA đăng ký (cùng token), liệt kê tool; không đổi danh sách."""
+        probe = McpClient({PREVIEW_SERVER: target}, token=self._token)
+        return await probe.list_tools(PREVIEW_SERVER)
+
     def _client(self, server: str) -> Client:
         target = self._targets.get(server)
         if target is None:
@@ -100,7 +109,14 @@ class McpClient:
                 async with self._client(server) as client:
                     tools = (await client.list_tools()).tools
                 return [
-                    ToolSpec(server, t.name, t.description or "", dict(t.input_schema))
+                    ToolSpec(
+                        server,
+                        t.name,
+                        t.description or "",
+                        dict(t.input_schema),
+                        title=t.title or None,
+                        read_only_hint=t.annotations.read_only_hint if t.annotations else None,
+                    )
                     for t in tools
                 ]
             except Exception as exc:

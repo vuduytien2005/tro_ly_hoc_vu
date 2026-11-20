@@ -106,6 +106,7 @@ CREATE TABLE cong_cu (
                  CONSTRAINT chk_cc_rui_ro CHECK (muc_rui_ro IN (N'doc', N'ghi', N'nhay_cam')),
   can_xac_nhan   BIT           NOT NULL CONSTRAINT df_cc_xn DEFAULT 0,
   bat            BIT           NOT NULL CONSTRAINT df_cc_bat DEFAULT 1,
+  ban_duyet      NVARCHAR(64)  NULL,  -- SHA-256 mô tả lúc quản trị viên bật; NULL = chưa duyệt
   CONSTRAINT uq_cc UNIQUE (mcp_server_id, ten),
   CONSTRAINT fk_cc_server FOREIGN KEY (mcp_server_id) REFERENCES mcp_server(id)
 );

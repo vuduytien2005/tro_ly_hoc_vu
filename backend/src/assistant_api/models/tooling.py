@@ -45,6 +45,9 @@ class CongCu(AssistantBase):
     muc_rui_ro: Mapped[str] = mapped_column(Enum("doc", "ghi", "nhay_cam", name="muc_rui_ro"))
     can_xac_nhan: Mapped[bool] = mapped_column(Boolean, server_default=text("0"))
     bat: Mapped[bool] = mapped_column(Boolean, server_default=text("1"))
+    # SHA-256 (mô tả + title + input schema) lúc quản trị viên bật; NULL = chưa duyệt.
+    # Mô tả trên server khác bản đã duyệt -> tự tắt (chống "rug pull"), xem registry.sync.
+    ban_duyet: Mapped[str | None] = mapped_column(Unicode(64))
 
     mcp_server: Mapped[McpServer] = relationship(back_populates="cong_cu")
 

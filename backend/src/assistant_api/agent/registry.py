@@ -9,18 +9,33 @@ Quy tắc bảo mật (CLAUDE.md):
 Đồng bộ (docs/02 mục 7): tool có trên server nhưng chưa có trong bảng `cong_cu` được thêm với
 `muc_rui_ro='ghi'`, `can_xac_nhan=1`, `bat=0` — an toàn mặc định, quản trị viên phải bật.
 Chính sách (bat, can_xac_nhan) đọc lại từ CSDL mỗi lượt -> quản trị viên đổi là có hiệu lực ngay.
+
+Duyệt mô tả (chống tool poisoning / "rug pull"): mô tả công cụ của server đi thẳng vào prompt LLM.
+Quản trị viên bật công cụ -> `approve` ghi `ban_duyet` = mã băm (title + mô tả + input schema).
+Lần đồng bộ sau mà mã băm trên server khác bản đã duyệt -> tự TẮT công cụ, chờ duyệt lại.
+Công cụ cũ đang bật mà chưa có mã băm (CSDL trước bản nâng cấp) -> ghi mã băm hiện tại (tin ở
+lần đầu). Trùng tên công cụ giữa các server: giữ bản của server id nhỏ hơn (server thêm sau không
+giả mạo được công cụ cũ), bản bị bỏ ghi vào `skipped` để quản trị viên thấy.
 """
 
 import copy
+import hashlib
+import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.assistant_api.mcp_client.client import McpClient, McpUnavailableError, ToolSpec
+from src.assistant_api.mcp_client.client import (
+    McpClient,
+    McpTarget,
+    McpUnavailableError,
+    ToolSpec,
+)
 from src.assistant_api.models import CongCu, McpServer, NguoiDung
 
 logger = logging.getLogger(__name__)
@@ -82,14 +97,34 @@ def inject_context(spec: ToolSpec, llm_args: dict[str, Any], user: NguoiDung) ->
     return args
 
 
+ReviewState = Literal["da_duyet", "moi", "thay_doi"]
+
+
+def spec_hash(spec: ToolSpec) -> str:
+    """Mã băm phần server gửi cho LLM (title + mô tả + input schema)."""
+    payload = {
+        "title": spec.title,
+        "description": spec.description,
+        "input_schema": spec.input_schema,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def first_line(text: str, limit: int = 500) -> str:
     line = (text or "").strip().split("\n", 1)[0].strip()
     return line[:limit] or "(chưa có mô tả)"
 
 
 class ToolRegistry:
-    def __init__(self, client: McpClient) -> None:
+    def __init__(
+        self, client: McpClient, resolve: Callable[[str], McpTarget] = lambda url: url
+    ) -> None:
         self.client = client
+        # địa chỉ trong CSDL -> target của McpClient (test: server trong tiến trình)
+        self.resolve = resolve
+        self._addresses: dict[str, str] = {}  # server -> địa chỉ đang kết nối
+        self.skipped: dict[str, list[tuple[str, str]]] = {}  # server -> [(tool, server giữ tên)]
         self._specs: dict[str, ToolSpec] = {}  # tên tool -> spec
         self.server_status: dict[str, str] = {}  # server -> "ok" | thông báo lỗi
         self._last_sync = 0.0
@@ -99,12 +134,12 @@ class ToolRegistry:
     async def sync(self, db: Session) -> None:
         servers = db.scalars(select(McpServer).order_by(McpServer.id)).all()
         specs: dict[str, ToolSpec] = {}
+        skipped: dict[str, list[tuple[str, str]]] = {}
         for server in servers:
             if not server.bat:
                 self.server_status[server.ten] = "tắt"
                 continue
-            if server.ten not in self.client.servers:
-                self.client.set_target(server.ten, server.dia_chi)
+            self._point_to(server.ten, server.dia_chi)
             try:
                 tools = await self.client.list_tools(server.ten)
             except McpUnavailableError as exc:
@@ -112,15 +147,21 @@ class ToolRegistry:
                 logger.warning("Đồng bộ %s thất bại: %s", server.ten, exc)
                 continue
             self.server_status[server.ten] = "ok"
-            known = {c.ten for c in server.cong_cu}
+            # Truy vấn thẳng (không dùng server.cong_cu: có thể là bản cũ nếu cùng session vừa
+            # thêm công cụ ở lần đồng bộ trước -> thêm trùng, vi phạm uq_cc)
+            rows = db.scalars(select(CongCu).where(CongCu.mcp_server_id == server.id))
+            known = {c.ten: c for c in rows}
             for spec in tools:
                 if spec.name in specs:
                     logger.error(
                         "Trùng tên tool '%s' giữa các server, bỏ bản ở %s", spec.name, server.ten
                     )
+                    skipped.setdefault(server.ten, []).append((spec.name, specs[spec.name].server))
                     continue
                 specs[spec.name] = spec
-                if spec.name not in known:
+                if spec.name in known:
+                    self._check_review(known[spec.name], spec)
+                else:
                     db.add(
                         CongCu(
                             mcp_server_id=server.id,
@@ -134,7 +175,55 @@ class ToolRegistry:
                     logger.warning("Tool mới '%s' (%s): thêm với bat=0", spec.name, server.ten)
         db.commit()
         self._specs = specs
+        self.skipped = skipped
         self._last_sync = time.monotonic()
+
+    def _point_to(self, server: str, address: str) -> None:
+        """Kết nối tới địa chỉ trong CSDL: server mới hoặc địa chỉ vừa đổi -> đặt lại target.
+        Target đặt sẵn từ bên ngoài (test, thực nghiệm) mà chưa theo dõi -> giữ nguyên."""
+        current = self._addresses.get(server)
+        if server in self.client.servers and current in (None, address):
+            self._addresses[server] = address
+            return
+        self.client.set_target(server, self.resolve(address))
+        self._addresses[server] = address
+
+    @staticmethod
+    def _check_review(tool: CongCu, spec: ToolSpec) -> None:
+        digest = spec_hash(spec)
+        if tool.ban_duyet is None:
+            if tool.bat:
+                tool.ban_duyet = digest  # công cụ cũ đang bật: tin ở lần đầu
+            return
+        if tool.ban_duyet != digest and tool.bat:
+            tool.bat = False
+            logger.warning(
+                "Mô tả công cụ '%s' (%s) khác bản đã duyệt -> tự tắt, chờ duyệt lại",
+                tool.ten,
+                spec.server,
+            )
+
+    # ----- duyệt mô tả ----------------------------------------------------------
+    def title(self, name: str) -> str | None:
+        spec = self._specs.get(name)
+        return spec.title if spec else None
+
+    def spec(self, name: str) -> ToolSpec | None:
+        return self._specs.get(name)
+
+    def review_state(self, tool: CongCu) -> ReviewState:
+        spec = self._specs.get(tool.ten)
+        if spec is not None and tool.ban_duyet is not None and tool.ban_duyet != spec_hash(spec):
+            return "thay_doi"
+        if tool.ban_duyet is None and not tool.bat:
+            return "moi"
+        return "da_duyet"
+
+    def approve(self, tool: CongCu) -> None:
+        """Quản trị viên bật công cụ: ghi mã băm bản mô tả đang có trên server."""
+        spec = self._specs.get(tool.ten)
+        if spec is not None:
+            tool.ban_duyet = spec_hash(spec)
 
     async def ensure_fresh(self, db: Session) -> None:
         """Server lỗi lúc khởi động -> thử đồng bộ lại (tối đa 30 giây/lần)."""

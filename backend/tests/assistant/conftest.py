@@ -25,7 +25,7 @@ from src.assistant_api.deps import get_db
 from src.assistant_api.main import create_app
 from src.assistant_api.mcp_client.client import McpClient
 from src.assistant_api.models import NguoiDung
-from src.mcp_servers import ctsv, dao_tao, quy_che, tai_chinh
+from src.mcp_servers import ctsv, dao_tao, quy_che, tai_chinh, thu_vien
 from src.shared.config import get_settings
 from src.shared.db import get_assistant_engine
 
@@ -168,9 +168,17 @@ def mcp_client() -> McpClient:
     )
 
 
+THU_VIEN_URL = "http://127.0.0.1:9105/mcp"
+
+
+def resolve_target(url: str) -> Any:
+    """Địa chỉ server thư viện -> server trong tiến trình (test không mở cổng)."""
+    return thu_vien.mcp if url.strip().rstrip("/").endswith(":9105/mcp") else url
+
+
 @pytest.fixture
 def registry(mcp_client: McpClient) -> ToolRegistry:
-    return ToolRegistry(mcp_client)
+    return ToolRegistry(mcp_client, resolve=resolve_target)
 
 
 @pytest.fixture
