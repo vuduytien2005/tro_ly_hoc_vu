@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     mcp_ctsv_port: int = 9102
     mcp_tai_chinh_port: int = 9103
     mcp_quy_che_port: int = 9104
+    mcp_thu_vien_port: int = 9105  # server bổ sung: quản trị viên thêm trên giao diện
     cors_origins: str = "http://localhost:5173"
 
     demo_now: datetime | None = None

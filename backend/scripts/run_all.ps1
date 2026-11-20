@@ -17,6 +17,7 @@ $Services = @(
     @{ Name = "mcp ctsv";      Module = "src.mcp_servers.ctsv";      File = "src\mcp_servers\ctsv.py";      Port = 9102 },
     @{ Name = "mcp tai_chinh"; Module = "src.mcp_servers.tai_chinh"; File = "src\mcp_servers\tai_chinh.py"; Port = 9103 },
     @{ Name = "mcp quy_che";   Module = "src.mcp_servers.quy_che";   File = "src\mcp_servers\quy_che.py";   Port = 9104 },
+    @{ Name = "mcp thu_vien";  Module = "src.mcp_servers.thu_vien";  File = "src\mcp_servers\thu_vien.py";  Port = 9105 },
     @{ Name = "assistant_api"; Module = "src.assistant_api.main";    File = "src\assistant_api\main.py";    Port = 8000 }
 )
 
