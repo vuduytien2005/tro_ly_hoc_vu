@@ -52,8 +52,12 @@ TOOL_LABELS: dict[str, str] = {
 }
 
 
-def tool_label(name: str) -> str:
-    return TOOL_LABELS.get(name, f"Đang dùng công cụ {name}")
+def tool_label(name: str, title: str | None = None) -> str:
+    """Nhãn "Đang…" của công cụ. Công cụ có sẵn: nhãn viết tay; công cụ mới (server thêm lúc
+    chạy): lấy `title` server khai báo theo chuẩn MCP, không cần sửa code trợ lý."""
+    if name in TOOL_LABELS:
+        return TOOL_LABELS[name]
+    return f"Đang dùng: {title}" if title else f"Đang dùng công cụ {name}"
 
 
 PAUSED_NOTE = (
@@ -63,9 +67,12 @@ PAUSED_NOTE = (
 )
 
 
-def paused_label(name: str) -> str:
-    """'Đang đăng ký học phần' -> 'đăng ký học phần'."""
-    label = tool_label(name).removeprefix("Đang ")
+def paused_label(name: str, title: str | None = None) -> str:
+    """'Đang đăng ký học phần' -> 'đăng ký học phần'; 'Đang dùng: Gia hạn sách' -> 'gia hạn sách'.
+
+    system_prompt KHÔNG truyền `title`: công cụ đang tắt có thể chưa được duyệt, chữ tự do của
+    server chưa duyệt không được lọt vào prompt LLM (chống tool poisoning)."""
+    label = tool_label(name, title).removeprefix("Đang dùng: ").removeprefix("Đang ")
     return label[:1].lower() + label[1:]
 
 

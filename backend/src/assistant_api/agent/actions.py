@@ -87,7 +87,9 @@ async def _section(ma_sv: str, ma_lop: str, lookup: Lookup) -> dict[str, Any] | 
     )
 
 
-async def describe(tool: str, args: dict[str, Any], lookup: Lookup) -> str:
+async def describe(
+    tool: str, args: dict[str, Any], lookup: Lookup, title: str | None = None
+) -> str:
     if tool in ("register_course", "cancel_course_registration"):
         ma_lop = str(args["ma_lop"]).strip()
         verb = "Đăng ký" if tool == "register_course" else "Hủy đăng ký"
@@ -115,10 +117,13 @@ async def describe(tool: str, args: dict[str, Any], lookup: Lookup) -> str:
             f"Nộp đơn phúc khảo điểm thi học phần {_short(args['ma_hp'])} – "
             f"lý do: {_short(args['ly_do'])}"
         )
-    # Tool mới do quản trị viên bật: mô tả chung bằng tên + tham số (trừ ma_sv/ma_khoa)
-    shown = ", ".join(
-        f"{k} = {_short(v)}" for k, v in args.items() if k not in ("ma_sv", "ma_khoa")
-    )
+    # Tool mới do quản trị viên bật: title server khai báo (nếu có) + tham số, trừ tham số
+    # do hệ thống điền (ma_sv, ma_khoa, chi_kiem_tra)
+    hidden = ("ma_sv", "ma_khoa", "chi_kiem_tra")
+    if title:
+        shown = ", ".join(f"{k}: {_short(v)}" for k, v in args.items() if k not in hidden)
+        return title + (f" ({shown})" if shown else "")
+    shown = ", ".join(f"{k} = {_short(v)}" for k, v in args.items() if k not in hidden)
     return f"Thực hiện thao tác {tool}" + (f" ({shown})" if shown else "")
 
 

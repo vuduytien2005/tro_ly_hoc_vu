@@ -415,3 +415,37 @@ def test_certificate_request_flow(
     assert json.loads(post.calls.last.request.content)["tao_boi"] == "tro_ly_ai"
     (log,) = tool_logs(db, cid, "request_student_certificate")
     assert log.trang_thai == "thanh_cong" and log.ket_qua["ma_don"] == "DT-2026-0009"
+
+
+# ----- Mô tả thẻ theo title MCP (server mới) ----------------------------------------------
+async def _no_lookup(server: str, tool: str, args: dict[str, Any]) -> Any:
+    raise AssertionError("không được tra cứu cho công cụ chung")
+
+
+def test_describe_uses_title_and_hides_injected() -> None:
+    import anyio
+
+    from src.assistant_api.agent.actions import describe
+
+    args = {"muon_id": 1, "ma_sv": "SV22001", "ma_khoa": "K22", "chi_kiem_tra": True}
+    mo_ta = anyio.run(describe, "renew_book", args, _no_lookup, "Gia hạn sách")
+    assert mo_ta == "Gia hạn sách (muon_id: 1)"
+
+
+def test_describe_without_title_unchanged() -> None:
+    import anyio
+
+    from src.assistant_api.agent.actions import describe
+
+    assert (
+        anyio.run(describe, "x_tool", {"a": 1}, _no_lookup) == "Thực hiện thao tác x_tool (a = 1)"
+    )
+
+
+def test_labels_use_title() -> None:
+    from src.assistant_api.agent.prompts import paused_label, tool_label
+
+    assert tool_label("renew_book", "Gia hạn sách") == "Đang dùng: Gia hạn sách"
+    assert tool_label("renew_book") == "Đang dùng công cụ renew_book"
+    assert tool_label("register_course", "Bất kỳ") == "Đang đăng ký học phần"  # nhãn cũ giữ nguyên
+    assert "gia hạn sách" in paused_label("renew_book", "Gia hạn sách").lower()

@@ -9,6 +9,7 @@ Ba kịch bản bắt buộc (docs/07, giai đoạn 5):
 import json
 from collections.abc import Callable
 
+import anyio
 import respx
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
@@ -16,8 +17,9 @@ from sqlalchemy.orm import Session
 
 from src.assistant_api.agent.llm import FakeLLM, FakeResponse
 from src.assistant_api.agent.loop import TOO_COMPLEX, check_citations, sanitize_history
-from src.assistant_api.models import CongCu, LuotGoiCongCu, NguoiDung, TinNhan
-from tests.assistant.conftest import PROFILE, chat, login
+from src.assistant_api.agent.registry import ToolRegistry
+from src.assistant_api.models import CongCu, LuotGoiCongCu, McpServer, NguoiDung, TinNhan
+from tests.assistant.conftest import PROFILE, THU_VIEN_URL, chat, login
 
 
 def new_conversation(client: TestClient, headers: dict[str, str]) -> int:
@@ -264,3 +266,46 @@ def test_excerpt_strips_tags_and_truncates() -> None:
     long = excerpt("x " * 400)
     assert long is not None and len(long) == 300 and long.endswith("…")
     assert excerpt(None) is None
+
+
+# ----- (d) server mới (thư viện): thẻ / nhãn lấy từ title MCP, không sửa code trợ lý ----------
+def enable_library(db: Session, registry: ToolRegistry) -> None:
+    db.add(McpServer(ten="thu_vien", mo_ta="Thư viện", dia_chi=THU_VIEN_URL, bat=True))
+    db.commit()
+    anyio.run(registry.sync, db)
+    db.execute(update(CongCu).where(CongCu.ten == "renew_book").values(bat=True))
+    db.execute(
+        update(CongCu)
+        .where(CongCu.ten == "get_borrowed_books")
+        .values(bat=True, muc_rui_ro="doc", can_xac_nhan=False)
+    )
+    db.commit()
+
+
+def test_renew_book_creates_card_with_title(
+    client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    registry: ToolRegistry,
+    script: Callable[..., FakeLLM],
+    qlsv_mock: respx.MockRouter,
+) -> None:
+    enable_library(db, registry)
+    qlsv_mock.get("/internal/students/SV22001/borrows").respond(200, json=[])
+    script(
+        FakeResponse(tool_calls=[("get_borrowed_books", {})]),
+        FakeResponse(tool_calls=[("renew_book", {"muon_id": 1, "ma_sv": "SV99999"})]),
+        FakeResponse(text="Em bấm Xác nhận để gia hạn nhé."),
+    )
+    headers = login(client, student.email)
+    cid = new_conversation(client, headers)
+    events = chat(client, headers, cid, "Gia hạn giúp em cuốn sách sắp hết hạn")
+
+    starts = [d for e, d in events if e == "tool_start"]
+    assert starts[0]["nhan"] == "Đang dùng: Xem sách đang mượn"
+    (card,) = [d for e, d in events if e == "pending_action"]
+    assert card["mo_ta"] == "Gia hạn sách (muon_id: 1)"
+    assert "SV" not in card["mo_ta"]
+    renew = [g for g in logs(db, cid) if g.ten_cong_cu == "renew_book"]
+    assert renew[0].trang_thai == "cho_xac_nhan"
+    assert renew[0].tham_so["ma_sv"] == student.ma_sv

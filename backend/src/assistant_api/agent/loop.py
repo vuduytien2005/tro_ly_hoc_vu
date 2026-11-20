@@ -302,7 +302,8 @@ class AgentRunner:
             )
         else:
             name = action.ten_cong_cu
-            yield AgentEvent("tool_start", {"ten": name, "nhan": tool_label(name)})
+            nhan = tool_label(name, self.registry.title(name))
+            yield AgentEvent("tool_start", {"ten": name, "nhan": nhan})
             outcome = await invoke(self.registry.client, action.mcp_server, name, action.tham_so)
             yield AgentEvent("tool_end", {"ten": name, "trang_thai": outcome.status})
         update_log(action.luot_goi, outcome, started)
@@ -401,7 +402,8 @@ class AgentRunner:
                 direct = policy is not None and policy.available and not policy.can_xac_nhan
                 if direct:
                     yield AgentEvent(
-                        "tool_start", {"ten": call.name, "nhan": tool_label(call.name)}
+                        "tool_start",
+                        {"ten": call.name, "nhan": tool_label(call.name, policy.spec.title)},
                     )
                 outcome = await self._execute(db, user, conversation, call, policy)
                 if call.name == "search_regulations" and outcome.status == "thanh_cong":
@@ -541,7 +543,7 @@ class AgentRunner:
         assert policy.spec is not None
         try:
             validate_args(policy.spec.input_schema, args)
-            mo_ta = await describe(policy.name, args, lookup)
+            mo_ta = await describe(policy.name, args, lookup, policy.spec.title)
         except ActionRejected as exc:
             outcome = Outcome(failure(exc.code, exc.message), "loi", exc.message)
             log.save(outcome)
