@@ -86,6 +86,7 @@ Mỗi thực nghiệm: bảng số liệu + 1 biểu đồ + nhận xét 1–2 �
 pip install -e "backend[dev,eval]"
 python evaluation\run_rag_retrieval.py                 # TN1, miễn phí; R5/R6 tự bỏ qua nếu chưa có mô hình
 python evaluation\run_rag_retrieval.py --configs R5 R6 --cho-phep-tai   # tải reranker / bge-m3 (~2,2 GB mỗi mô hình)
+# Máy dev: cache mô hình ở ổ D (ổ C còn ~2 GB) — biến môi trường người dùng HF_HOME=D:\hf-cache (đặt 20/11/2026)
 python evaluation\run_agent.py --dry-run               # kiểm tra đường ống trước khi tốn tiền
 python evaluation\run_agent.py --configs agent_opus agent_haiku agent_opus_toi_gian agent_haiku_toi_gian
 python evaluation\run_security.py
@@ -133,6 +134,58 @@ Bảng tổng hợp có thêm: **Phản hồi đầu TV (s)**, **TTFT TV (s)**, 
 python evaluation\run_agent.py --configs agent_gemini agent_gemini_toi_gian   # ~450 lượt gọi Gemini; có thể chia --limit
 ```
 Ngoài `bang.md`, mỗi lượt chạy TN3 có **`bang_theo_loai.md`** / `theo_loai.csv`: mỗi (loại kịch bản × cấu hình) một dòng (đúng công cụ, đúng tham số, hoàn thành, TTFT TV) — đọc để thấy mô tả tối giản làm giảm chất lượng mạnh nhất ở loại nào (dự đoán: `thu_tuc_ghi`, `nhieu_buoc`, nơi mô tả hướng dẫn thứ tự gọi và tham số). Lượt chạy này cũng là **lượt chạy lại TN3** sau khi thêm 2 server/công cụ (ý tưởng 1, 3): không so trực tiếp với các lượt 72 kịch bản / 16 công cụ.
+
+### Kết quả lượt chạy 20/11/2026 (Gemini 3.5 Flash-Lite, gói miễn phí, 0 USD)
+**TN3 — mô tả công cụ đầy đủ / tối giản**, 75 kịch bản, 18 công cụ — `results/20261120-1616_tn3_agent`:
+
+| | Đầy đủ (`agent_gemini`) | Tối giản (`agent_gemini_toi_gian`) |
+|---|---|---|
+| Đúng công cụ | **92,0%** | 84,0% |
+| Đúng tham số | **97,3%** | 93,3% |
+| Hoàn thành | **97,3%** | 93,3% |
+| Bước TB | 2,47 | 2,51 |
+| Token TB / kịch bản | 11 629 | **5 287** |
+| Phản hồi đầu tiên, trung vị | 1,17 s | 1,18 s |
+| TTFT trung vị / P95 | 2,53 s / **4,57 s** | 2,46 s / 8,29 s |
+| TTFT < 5 s | **96,0%** | 85,3% |
+
+Theo loại (`bang_theo_loai.md`), mô tả tối giản giảm mạnh nhất ở:
+- `thu_tuc_ghi`: đúng công cụ 91,7% → **66,7%**, hoàn thành 91,7% → 83,3%. LLM gọi thừa `search_course_sections` hai lần khi không có mô tả hướng dẫn "đã biết mã lớp thì gọi đăng ký ngay".
+- `ket_hop`: 70% → 60%.
+- `loi_nghiep_vu`: hoàn thành 90% → 80%.
+- `du_lieu_ca_nhan`: 100% → 95,5%. A031: `get_current_schedule` lỗi 2 lần rồi trả lời sai "chưa ghi nhận đăng ký". Nhiều khả năng do mô tả tối giản bỏ mất ví dụ định dạng `ma_hoc_ky`.
+
+`chi_rag` như nhau (100%). Kết luận: **mô tả công cụ quyết định chất lượng ở các thao tác ghi / nhiều bước**; đổi lại, mô tả đầy đủ tốn gấp ~2,2 lần token đầu vào.
+
+**NF-01 — đạt.**
+- Mô tả đầy đủ (cấu hình thật): TTFT trung vị 2,5 s, **96% câu < 5 s**; phản hồi đầu tiên (chip công cụ) trung vị 1,2 s.
+- Các câu vượt 5 s không có lần gọi lại 429/503 nào trong log → đó là độ trễ thật của gói miễn phí lúc chạy (dao động mạng / tải máy chủ).
+- Vì vậy P95 cao hơn ở cấu hình tối giản **không** quy cho mô tả công cụ: trung vị hai cấu hình như nhau, các câu chậm dồn ở đầu lượt chạy thứ hai.
+
+**Lỗi lặp lại ở cả hai cấu hình** (giải thích trong Chương 4):
+- A041–A043 (`ket_hop`): chỉ tra quy chế, không xem dữ liệu cá nhân (học phí, tiến độ) — điểm yếu thật của mô hình nhỏ.
+- A012: câu yêu cầu có hai cách hiểu ("nộp đơn giúp em nhưng để em xem lại đã") → LLM không gọi công cụ.
+- A070: LLM thấy nợ học phí nên tự dừng, không nộp đơn để nhận lỗi `NO_HOC_PHI` (kết quả cho sinh viên giống nhau, nhưng bị chấm "chưa hoàn thành").
+
+**TN1 — R1–R6** trên bộ quy chế giả lập (11 câu có nguồn) — `results/20261120-1644_tn1_truy_xuat`. **Chỉ để kiểm tra chạy được**, chưa đưa vào khóa luận: bộ câu quá nhỏ, R4 đã 90,9%.
+
+| Cấu hình | Hit@1 | MRR | TB (ms) |
+|---|---|---|---|
+| R1 cố định 400 token | 72,7% | 0,841 | 28 |
+| R2 theo Điều | 54,5% | 0,773 | 27 |
+| R3 + hybrid BM25 | 54,5% | 0,773 | 32 |
+| R4 + lọc phiên bản | 90,9% | 0,955 | 28 |
+| R5 R4 + rerank | 100% | 1,000 | **6 915** |
+| R6 bge-m3 + rerank | 100% | 1,000 | 3 498 |
+
+Nhận xét sơ bộ (kiểm lại khi có PDF thật):
+- Reranker sửa nốt câu R4 xếp sai, nhưng mỗi truy vấn chậm thêm **~2,5 s (R5) / ~3,5 s (R6)** trên CPU.
+- So với NF-01 (< 5 s token đầu tiên), mức chậm này là đánh đổi lớn → lý do `RERANK_ENABLED=false` mặc định.
+- Cột TB của R5 (6,9 s) bị kéo lên bởi câu đầu: 50 s để nạp mô hình reranker. Các câu sau ~2,4–3,4 s. R6 (đã nạp sẵn) 2,7–4,3 s/câu.
+
+**Lưu ý vận hành:**
+- Chạy **từng thực nghiệm một**. TN1 và TN3 cùng giữ giao dịch dài trên `tlhv_assistant`: chạy song song thì TN1 (`DELETE FROM van_ban`) bị TN3 chặn và đứng im, không báo lỗi.
+- Mô hình reranker và bge-m3 đã ở `D:\hf-cache` (`HF_HOME`).
 
 ## Lượt chạy thật đầu tiên — Gemini gói miễn phí (19/11/2026, Giai đoạn 10)
 Chưa có khóa Anthropic nên chạy bằng **`gemini/gemini-3.5-flash-lite`** (Google AI Studio, gói miễn phí), cấu hình `*_gemini.yaml`, `--limit 10`, chi phí 0 USD. Các cấu hình Opus/Haiku giữ nguyên để chạy lại khi có khóa Anthropic.
