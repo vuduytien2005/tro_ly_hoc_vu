@@ -4,8 +4,10 @@
 --   XÓA : hội thoại, tin nhắn, nhật ký gọi công cụ, thẻ chờ xác nhận, đánh giá câu trả lời.
 --   ĐẶT LẠI: bật/tắt, mức rủi ro, cần xác nhận của MCP server + công cụ theo 04_assistant_seed.sql
 --            (sau demo 7 công cụ register_course bị tắt -> bật lại).
---   GIỮ : tài khoản (seed_users.py đặt lại mật khẩu), văn bản + đoạn đã lập chỉ mục (khỏi nạp lại).
--- Chạy được nhiều lần. KHÔNG đụng tlhv_qlsv (xem 01 + 03) hay CSDL QLSV cũ.
+--   XÓA : tài khoản sinh viên mà hồ sơ không còn trong tlhv_qlsv (SV thêm trên web - AD-10 -
+--         mất khi reset QLSV ở bước trước -> tài khoản mồ côi).
+--   GIỮ : tài khoản demo (seed_users.py đặt lại mật khẩu), văn bản + đoạn đã lập chỉ mục.
+-- Chạy được nhiều lần. Chỉ ĐỌC tlhv_qlsv (chạy SAU 01 + 03); không đụng CSDL QLSV cũ.
 -- =====================================================================
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
@@ -22,6 +24,12 @@ DELETE FROM hanh_dong_cho_xac_nhan;
 DELETE FROM luot_goi_cong_cu;
 DELETE FROM tin_nhan;
 DELETE FROM hoi_thoai;
+
+-- Tài khoản mồ côi (hội thoại, nhật ký... của họ đã xóa ở trên -> không vướng khóa ngoại)
+DELETE FROM nguoi_dung
+WHERE vai_tro = N'sinh_vien'
+  AND ma_sv IS NOT NULL
+  AND ma_sv NOT IN (SELECT ma_sv FROM tlhv_qlsv.dbo.sinh_vien);
 
 UPDATE s SET s.bat = 1, s.dia_chi = v.dia_chi
 FROM mcp_server AS s

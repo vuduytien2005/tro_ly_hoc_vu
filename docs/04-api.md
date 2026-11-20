@@ -22,6 +22,10 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 | GET | `/internal/students/{ma_sv}/requests/{ma_don}` | Chi tiết đơn (404 nếu không thuộc sinh viên này) |
 | PATCH | `/internal/requests/{ma_don}` | (Cán bộ) Body `{trang_thai, ghi_chu_xu_ly}` |
 | GET | `/internal/semesters/current` | Học kỳ hiện tại và học kỳ đang mở đăng ký |
+| GET | `/internal/students?q=&trang_thai=&page=&page_size=` | (Phòng đào tạo, AD-10) `{tong, trang_so, so_moi_trang, sinh_vien: [hồ sơ như trên]}`; `q` tìm trong mã SV / họ tên / email / lớp |
+| GET | `/internal/programs` | Các cặp ngành – khóa có chương trình đào tạo `[{ma_nganh, ten_nganh, ma_khoa}]` (chỉ những cặp này gán được cho SV) |
+| POST | `/internal/students` | (Phòng đào tạo) `{ma_sv, ho_ten, email, ngay_sinh, gioi_tinh (nam/nu/khac), ma_nganh, ma_khoa, lop, trang_thai?}` → 201 hồ sơ. Mã SV viết hoa, email viết thường. Lỗi: 409 `SV_DA_TON_TAI` / `EMAIL_DA_TON_TAI`; 422 `NGANH_KHONG_TON_TAI`, `KHOA_HOC_KHONG_TON_TAI`, `CHUONG_TRINH_KHONG_TON_TAI`, `NGAY_SINH_KHONG_HOP_LE` |
+| PATCH | `/internal/students/{ma_sv}` | (Phòng đào tạo) Gửi trường cần đổi (như trên, trừ `ma_sv` — không đổi được). Đổi `trang_thai` có tác dụng nghiệp vụ: khác `dang_hoc` thì không đăng ký học phần / nộp đơn được. Không có API xóa (SV đã có điểm, đơn → chuyển trạng thái `thoi_hoc`) |
 
 ## B. assistant_api (công khai, :8000, tiền tố `/api`)
 Header `Authorization: Bearer <JWT>` (trừ login). Quyền: `SV` = sinh viên, `AD` = admin.
@@ -71,4 +75,12 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | PATCH | `/api/admin/tools/{id}` | AD | `{bat?, can_xac_nhan?, muc_rui_ro?}` — có hiệu lực ngay ở lượt chat kế tiếp. Công cụ mức `ghi`/`nhay_cam` không được bỏ xác nhận → 422 `KHONG_THE_BO_XAC_NHAN` (bảo vệ quy tắc 2) |
 | GET | `/api/admin/audit-logs` | AD | Lọc: `tu`, `den` (ngày, tính trọn ngày giờ VN), `nguoi_dung_id`, `ten_cong_cu`, `trang_thai`; `page`, `page_size` (≤ 100). `{tong, trang_so, so_moi_trang, luot_goi: [{id, created_at, nguoi_dung {id, ho_ten, email}, hoi_thoai_id, mcp_server, ten_cong_cu, trang_thai, ly_do, thoi_gian_ms, tham_so, tham_so_llm, da_tiem_ngu_canh}]}` — `da_tiem_ngu_canh = tham_so_llm` khác `tham_so` |
 | GET | `/api/admin/audit-logs/{id}` | AD | Như một dòng ở trên + `ket_qua` |
+| GET | `/api/admin/users?tu_khoa=&vai_tro=&page=&page_size=` | AD | (AD-09) `tu_khoa` tìm trong email / họ tên / mã SV. `{tong, trang_so, so_moi_trang, nguoi_dung: [{id, email, ho_ten, vai_tro, ma_sv, ma_khoa, dang_hoat_dong, created_at}]}` |
+| POST | `/api/admin/users` | AD | `{ma_sv, mat_khau}` (mật khẩu tạm 8–72 ký tự, có chữ và số) → 201, một tài khoản như trên. Họ tên, email, `ma_khoa` đọc từ qlsv_api `GET /internal/students/{ma_sv}` (X-Internal-Token) — admin không tự nhập → `ma_sv` mà trợ lý tiêm luôn ứng với sinh viên có thật. Lỗi: 404 `SV_KHONG_TON_TAI`, 409 `TAI_KHOAN_DA_TON_TAI` (mã SV đã có tài khoản) / `EMAIL_DA_TON_TAI`, 422 `MAT_KHAU_YEU`, 503 `QLSV_KHONG_KET_NOI` |
+| PATCH | `/api/admin/users/{id}` | AD | `{dang_hoat_dong}` khóa / mở khóa — có hiệu lực ngay ở request kế tiếp (JWT cũ bị từ chối 403 `TAI_KHOAN_BI_KHOA`). Tự khóa mình → 422 `KHONG_THE_KHOA_CHINH_MINH`; 404 `TAI_KHOAN_KHONG_TON_TAI` |
+| POST | `/api/admin/users/{id}/reset-password` | AD | `{mat_khau}` (quy tắc như trên) → 204 |
+| GET | `/api/admin/students?q=&trang_thai=&page=&page_size=` | AD | (AD-10) Chuyển tiếp `GET /internal/students`, mỗi sinh viên thêm `tai_khoan: {id, dang_hoat_dong} \| null` |
+| GET | `/api/admin/students/programs` | AD | Chuyển tiếp `GET /internal/programs` (cho ô chọn ngành / khóa) |
+| POST | `/api/admin/students` | AD | Body như `POST /internal/students` + `cap_tai_khoan?`, `mat_khau?` → 201 `{sinh_vien, tai_khoan \| null, canh_bao}`. Khi cấp tài khoản: kiểm tra mật khẩu, mã SV / email chưa có tài khoản TRƯỚC khi ghi QLSV. Lỗi nghiệp vụ của qlsv_api chuyển nguyên văn |
+| PATCH | `/api/admin/students/{ma_sv}` | AD | Chuyển tiếp `PATCH /internal/students/{ma_sv}`, rồi ĐỒNG BỘ tài khoản liên kết (`ho_ten`, `email`, `ma_khoa`) — nếu không, trợ lý lọc quy chế theo khóa cũ. Email trùng tài khoản khác → 409 `EMAIL_DA_TON_TAI` (chặn trước khi ghi QLSV) |
 | GET | `/api/admin/stats?tu=&den=` | AD | Mặc định 30 ngày gần nhất. `{tu, den, so_hoi_thoai, so_cau_hoi (không tính tin "Xác nhận:/Hủy:" do hệ thống lưu), so_danh_gia, so_huu_ich, ti_le_huu_ich, thoi_gian_phan_hoi_tb_ms, so_luot_goi_cong_cu, top_cong_cu: [{ten_cong_cu, so_lan, so_loi}], theo_ngay: [{ngay, so_cau_hoi}], cau_bi_che: [{tin_nhan_id, hoi_thoai_id, nguoi_dung, cau_hoi, cau_tra_loi, gop_y, created_at}]}` |

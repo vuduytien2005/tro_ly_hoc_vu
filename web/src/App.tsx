@@ -13,6 +13,8 @@ const RetrievalPage = lazy(() => import('./pages/admin/RetrievalPage'))
 const McpPage = lazy(() => import('./pages/admin/McpPage'))
 const AuditPage = lazy(() => import('./pages/admin/AuditPage'))
 const StatsPage = lazy(() => import('./pages/admin/StatsPage'))
+const AccountsPage = lazy(() => import('./pages/admin/AccountsPage'))
+const StudentsPage = lazy(() => import('./pages/admin/StudentsPage'))
 
 function Home() {
   const { user, loading } = useAuth()
@@ -57,6 +59,8 @@ export default function App() {
         <Route path="mcp" element={<McpPage />} />
         <Route path="nhat-ky" element={<AuditPage />} />
         <Route path="thong-ke" element={<StatsPage />} />
+        <Route path="tai-khoan" element={<AccountsPage />} />
+        <Route path="sinh-vien" element={<StudentsPage />} />
         <Route path="*" element={<Navigate to="/admin/tai-lieu" replace />} />
       </Route>
       <Route path="*" element={<Home />} />

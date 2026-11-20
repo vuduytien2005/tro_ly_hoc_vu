@@ -42,6 +42,7 @@ flowchart TB
     RAG --> CHROMA
     RAG --> DBA
     ADMIN --> RAG
+    ADMIN -.->|cấp tài khoản, hồ sơ SV<br/>X-Internal-Token| QLSV
     Assistant --> DBA
 ```
 
@@ -52,6 +53,12 @@ flowchart TB
 | MCP servers | "Bộ chuyển đổi" giữa ngôn ngữ công cụ và API của hệ thống nghiệp vụ; định dạng kết quả cho LLM | Không tự xác thực người dùng cuối |
 | qlsv_api | Nghiệp vụ QLSV + kiểm tra ràng buộc (sĩ số, trùng lịch, tiên quyết...) | Không biết gì về AI |
 | rag | Đọc, chia đoạn, nhúng, lập chỉ mục, truy xuất | |
+
+**Cấp tài khoản và hồ sơ sinh viên (AD-09, AD-10, bổ sung 19–20/11/2026):** đường nét đứt Admin API → qlsv_api là ngoại lệ duy nhất assistant_api gọi thẳng QLSV:
+- AD-09 — ĐỌC hồ sơ một sinh viên khi cấp tài khoản (như hệ thống thật đồng bộ danh tính từ phòng đào tạo).
+- AD-10 — trang "Sinh viên (QLSV)" MÔ PHỎNG phần mềm của phòng đào tạo để demo: thêm, sửa hồ sơ, đổi trạng thái. Ghi qua API của qlsv_api (qlsv_api kiểm tra mọi ràng buộc, vẫn là nguồn sự thật); sửa xong thì đồng bộ bản sao họ tên / email / khóa trong `nguoi_dung`.
+
+Không đi qua MCP vì đây là thao tác của quản trị viên, không phải hành động của Agent (Agent KHÔNG có công cụ nào sửa hồ sơ); không đọc/ghi thẳng CSDL `tlhv_qlsv` để giữ ranh giới hai hệ thống. `reset_demo.ps1` đưa QLSV về dữ liệu mẫu và xóa tài khoản của sinh viên không còn hồ sơ.
 
 **Vì sao tách như vậy (để viết khóa luận):** hệ thống nghiệp vụ không bị sửa khi thêm AI; MCP là lớp tích hợp chuẩn hóa, có thể thay LLM/Agent mà không đụng nghiệp vụ; mọi quyết định an ninh tập trung ở assistant_api.
 

@@ -39,3 +39,22 @@ export function formatMs(ms: number | null): string {
   if (ms == null) return '—'
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} giây`
 }
+
+/** Cùng quy tắc với backend (MAT_KHAU_YEU): 8–72 byte UTF-8, có chữ cái và chữ số. null = hợp lệ. */
+export function passwordProblem(password: string): string | null {
+  if (password.length < 8) return 'Mật khẩu cần ít nhất 8 ký tự.'
+  if (new TextEncoder().encode(password).length > 72) return 'Mật khẩu quá dài (tối đa 72 byte).'
+  if (!/\p{L}/u.test(password)) return 'Mật khẩu cần ít nhất một chữ cái.'
+  if (!/\d/.test(password)) return 'Mật khẩu cần ít nhất một chữ số.'
+  return null
+}
+
+/** Chỉ giữ các trường đã đổi so với ban đầu (so sau khi bỏ khoảng trắng hai đầu). */
+export function changedFields<T extends Record<string, string>>(initial: T, current: T): Partial<T> {
+  const out: Partial<T> = {}
+  for (const key of Object.keys(current) as (keyof T)[]) {
+    const value = current[key].trim()
+    if (value !== initial[key].trim()) out[key] = value as T[keyof T]
+  }
+  return out
+}

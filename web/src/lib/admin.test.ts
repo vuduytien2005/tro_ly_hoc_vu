@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { cohortRange, formatMs, formatPercent, injectedKeys, toQuery } from './admin'
+import {
+  changedFields,
+  cohortRange,
+  formatMs,
+  formatPercent,
+  injectedKeys,
+  passwordProblem,
+  toQuery,
+} from './admin'
 
 describe('cohortRange', () => {
   it('mô tả phạm vi khóa áp dụng', () => {
@@ -33,5 +41,25 @@ describe('định dạng', () => {
     expect(formatPercent(null)).toBe('—')
     expect(formatMs(850)).toBe('850 ms')
     expect(formatMs(2345)).toBe('2.3 giây')
+  })
+})
+
+describe('passwordProblem', () => {
+  it('khớp quy tắc mật khẩu của backend', () => {
+    expect(passwordProblem('TamThoi123')).toBeNull()
+    expect(passwordProblem('Mậtkhẩu1')).toBeNull()
+    expect(passwordProblem('Ab1')).toMatch(/8 ký tự/)
+    expect(passwordProblem('12345678')).toMatch(/chữ cái/)
+    expect(passwordProblem('chikhongcoso')).toMatch(/chữ số/)
+    expect(passwordProblem('a1' + 'ệ'.repeat(30))).toMatch(/quá dài/)
+  })
+})
+describe('changedFields', () => {
+  it('chỉ trả trường đã sửa, bỏ khoảng trắng', () => {
+    const before = { ho_ten: 'An', lop: 'KTPM2022', ma_khoa: 'K22' }
+    expect(changedFields(before, { ho_ten: ' An ', lop: 'KTPM2023', ma_khoa: 'K22' })).toEqual({
+      lop: 'KTPM2023',
+    })
+    expect(changedFields(before, before)).toEqual({})
   })
 })

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query
 
 from src.qlsv_api.routers.deps import DbSession, InternalAuth, Now
-from src.qlsv_api.schemas import CurrentSemestersOut, SectionOut
-from src.qlsv_api.services import schedule_service, semester_service
+from src.qlsv_api.schemas import CurrentSemestersOut, ProgramOut, SectionOut
+from src.qlsv_api.services import schedule_service, semester_service, student_admin_service
 
 router = APIRouter(prefix="/internal", tags=["Danh mục"], dependencies=[InternalAuth])
 
@@ -29,3 +29,12 @@ def search_course_sections(
 )
 def get_current_semesters(db: DbSession, now: Now) -> CurrentSemestersOut:
     return semester_service.get_current_semesters(db, now)
+
+
+@router.get(
+    "/programs",
+    response_model=list[ProgramOut],
+    summary="Các cặp ngành – khóa có chương trình đào tạo (để gán cho sinh viên)",
+)
+def list_programs(db: DbSession) -> list[ProgramOut]:
+    return student_admin_service.list_programs(db)

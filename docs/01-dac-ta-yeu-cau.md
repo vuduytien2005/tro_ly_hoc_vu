@@ -18,7 +18,7 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 ### 3.1. Sinh viên
 | Mã | Chức năng | Ghi chú |
 |---|---|---|
-| SV-01 | Đăng nhập / đăng xuất | JWT, tài khoản do quản trị tạo sẵn |
+| SV-01 | Đăng nhập / đăng xuất | JWT, tài khoản do quản trị cấp (AD-09), không có tự đăng ký |
 | SV-02 | Tạo, xem, đổi tên, xóa cuộc trò chuyện | |
 | SV-03 | Hỏi đáp quy chế, nhận câu trả lời có trích dẫn [1], [2] | Trích dẫn bấm được, hiện văn bản / Điều / trang |
 | SV-04 | Hỏi thông tin cá nhân: hồ sơ, điểm, lịch thi, thời khóa biểu, học phí, tiến độ tốt nghiệp | Chỉ dữ liệu của chính mình |
@@ -40,6 +40,8 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | AD-06 | Xem nhật ký gọi công cụ: lọc theo thời gian, người dùng, công cụ, trạng thái | |
 | AD-07 | Xem thống kê: số câu hỏi, tỉ lệ hữu ích, thời gian phản hồi, công cụ dùng nhiều, câu trả lời bị đánh giá "chưa đúng" | |
 | AD-08 | (Trên qlsv_api) Duyệt / từ chối đơn để demo luồng trạng thái | Có thể dùng Swagger UI |
+| AD-09 | Quản lý tài khoản: xem/tìm tài khoản; cấp tài khoản sinh viên chỉ bằng **mã sinh viên** + mật khẩu tạm (họ tên, email, khóa lấy từ QLSV); khóa / mở khóa; đặt lại mật khẩu | Bổ sung 19/11/2026. Không khóa được chính mình |
+| AD-10 | Trang "Sinh viên (QLSV)" — mô phỏng phần mềm phòng đào tạo: xem/tìm sinh viên; thêm sinh viên (tùy chọn cấp tài khoản luôn); sửa hồ sơ (trừ mã SV); đổi trạng thái học tập | Bổ sung 20/11/2026 theo yêu cầu người dùng. Ghi qua API qlsv_api; sửa xong đồng bộ tài khoản liên kết. Không xóa (chuyển `thoi_hoc`). SV mới chưa có điểm / lịch |
 
 ### 3.3. Trợ lý (hành vi Agent)
 | Mã | Yêu cầu |

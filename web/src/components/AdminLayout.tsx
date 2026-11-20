@@ -1,11 +1,13 @@
 import {
   BarChart3,
+  GraduationCap,
   FileText,
   LogOut,
   Menu,
   ScrollText,
   Search,
   ShieldCheck,
+  Users,
   Wrench,
   X,
 } from 'lucide-react'
@@ -19,6 +21,8 @@ const LINKS = [
   { to: '/admin/mcp', label: 'MCP & quyền', icon: Wrench },
   { to: '/admin/nhat-ky', label: 'Nhật ký', icon: ScrollText },
   { to: '/admin/thong-ke', label: 'Thống kê', icon: BarChart3 },
+  { to: '/admin/tai-khoan', label: 'Tài khoản', icon: Users },
+  { to: '/admin/sinh-vien', label: 'Sinh viên (QLSV)', icon: GraduationCap },
 ]
 
 export default function AdminLayout() {

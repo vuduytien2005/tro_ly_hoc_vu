@@ -49,6 +49,69 @@ class StudentProfileOut(Schema):
     trang_thai: str
 
 
+# ---------- Quản lý hồ sơ sinh viên (phòng đào tạo, AD-10) ----------
+GioiTinh = Literal["nam", "nu", "khac"]
+TrangThaiSv = Literal["dang_hoc", "bao_luu", "thoi_hoc", "tot_nghiep"]
+MaSv = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, to_upper=True, pattern=r"^[A-Za-z0-9]{3,20}$", max_length=20
+    ),
+]
+Email = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, to_lower=True, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=255
+    ),
+]
+HoTen = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
+Lop = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
+MaNganh = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
+MaKhoa = Annotated[
+    str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=1, max_length=10)
+]
+
+
+class StudentCreateIn(Schema):
+    ma_sv: MaSv
+    ho_ten: HoTen
+    email: Email
+    ngay_sinh: date
+    gioi_tinh: GioiTinh
+    ma_nganh: MaNganh
+    ma_khoa: MaKhoa
+    lop: Lop
+    trang_thai: TrangThaiSv = "dang_hoc"
+
+
+class StudentUpdateIn(Schema):
+    """Chỉ gửi trường cần đổi. Không đổi được ma_sv (khóa định danh, tài khoản trợ lý gắn vào)."""
+
+    ho_ten: HoTen | None = None
+    email: Email | None = None
+    ngay_sinh: date | None = None
+    gioi_tinh: GioiTinh | None = None
+    ma_nganh: MaNganh | None = None
+    ma_khoa: MaKhoa | None = None
+    lop: Lop | None = None
+    trang_thai: TrangThaiSv | None = None
+
+
+class StudentListOut(Schema):
+    tong: int
+    trang_so: int
+    so_moi_trang: int
+    sinh_vien: list[StudentProfileOut]
+
+
+class ProgramOut(Schema):
+    """Một cặp ngành – khóa có chương trình đào tạo (chỉ những cặp này mới gán được cho SV)."""
+
+    ma_nganh: str
+    ten_nganh: str
+    ma_khoa: str
+
+
 class TranscriptRow(Schema):
     ma_hp: str
     ten_hp: str

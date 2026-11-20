@@ -21,8 +21,17 @@ from src.assistant_api.agent.loop import AgentRunner
 from src.assistant_api.agent.registry import ToolRegistry
 from src.assistant_api.errors import ApiError
 from src.assistant_api.mcp_client.client import McpClient
+from src.assistant_api.qlsv_directory import QlsvDirectory
 from src.assistant_api.rag_admin import RagAdminClient
-from src.assistant_api.routers import actions, admin, auth, conversations, my_requests
+from src.assistant_api.routers import (
+    actions,
+    admin,
+    admin_students,
+    admin_users,
+    auth,
+    conversations,
+    my_requests,
+)
 from src.shared.config import get_settings
 from src.shared.db import assistant_session_factory
 
@@ -38,6 +47,7 @@ def create_app(
     llm: LLM | None = None,
     session_factory: Callable[[], Session] | None = None,
     rag_admin: RagAdminClient | None = None,
+    qlsv_directory: QlsvDirectory | None = None,
 ) -> FastAPI:
     """Test truyền registry (MCP server chạy trong tiến trình), FakeLLM, session_factory riêng
     và rag_admin (gọi app quy_che trong tiến trình)."""
@@ -48,6 +58,7 @@ def create_app(
         app.state.registry = registry or ToolRegistry(McpClient({}))
         app.state.runner = AgentRunner(app.state.registry, llm or LiteLlm())
         app.state.rag_admin = rag_admin or RagAdminClient()
+        app.state.qlsv_directory = qlsv_directory or QlsvDirectory()
         if registry is None:
             with app.state.session_factory() as db:
                 await app.state.registry.sync(db)
@@ -98,6 +109,8 @@ def create_app(
     app.include_router(actions.router)
     app.include_router(my_requests.router)
     app.include_router(admin.router)
+    app.include_router(admin_users.router)
+    app.include_router(admin_students.router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
     async def health(request: Request) -> dict[str, object]:

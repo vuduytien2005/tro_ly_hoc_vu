@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { passwordProblem } from '../../lib/admin'
 
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -123,3 +124,35 @@ export const primaryButton =
   'inline-flex h-10 items-center justify-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50'
 export const secondaryButton =
   'inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border border-line bg-white px-4 text-sm font-medium hover:bg-page disabled:opacity-50'
+
+export function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+/** Ô mật khẩu tạm: hiện rõ chữ (quản trị viên cần đọc lại để giao cho sinh viên). */
+export function PasswordInput({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const problem = value ? passwordProblem(value) : null
+  return (
+    <Field label="Mật khẩu tạm">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="new-password"
+        className={`${inputClass} w-full font-mono`}
+        placeholder="Ít nhất 8 ký tự, có chữ và số"
+      />
+      {problem && <span className="mt-1 block text-xs text-err">{problem}</span>}
+    </Field>
+  )
+}

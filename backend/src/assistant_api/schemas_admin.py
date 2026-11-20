@@ -169,3 +169,113 @@ class StatsOut(BaseModel):
     top_cong_cu: list[ToolUsage]
     theo_ngay: list[DailyCount]
     cau_bi_che: list[DislikedAnswer]
+
+
+# ----- Tài khoản (AD-09) ---------------------------------------------------------
+VaiTro = Literal["sinh_vien", "admin"]
+
+
+class AccountOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    ho_ten: str
+    vai_tro: str
+    ma_sv: str | None
+    ma_khoa: str | None
+    dang_hoat_dong: bool
+    created_at: datetime
+
+    _tz = field_validator("created_at", mode="after")(_aware)
+
+
+class AccountPage(BaseModel):
+    tong: int
+    trang_so: int
+    so_moi_trang: int
+    nguoi_dung: list[AccountOut]
+
+
+class AccountCreateIn(BaseModel):
+    ma_sv: Annotated[
+        str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=1, max_length=20)
+    ]
+    mat_khau: str = Field(max_length=200)  # quy tắc độ mạnh kiểm tra ở router (lỗi MAT_KHAU_YEU)
+
+
+class AccountPatch(BaseModel):
+    dang_hoat_dong: bool
+
+
+class PasswordResetIn(BaseModel):
+    mat_khau: str = Field(max_length=200)
+
+
+# ----- Hồ sơ sinh viên trên QLSV (AD-10) — qlsv_api kiểm tra chi tiết, ở đây chỉ chặn thô ---------
+GioiTinh = Literal["nam", "nu", "khac"]
+TrangThaiSv = Literal["dang_hoc", "bao_luu", "thoi_hoc", "tot_nghiep"]
+
+
+class LinkedAccount(BaseModel):
+    id: int
+    dang_hoat_dong: bool
+
+
+class StudentAdminOut(BaseModel):
+    ma_sv: str
+    ho_ten: str
+    email: str
+    ngay_sinh: date
+    gioi_tinh: str
+    lop: str
+    ma_nganh: str
+    nganh: str
+    khoa: str
+    trang_thai: str
+    tai_khoan: LinkedAccount | None = None
+
+
+class StudentAdminPage(BaseModel):
+    tong: int
+    trang_so: int
+    so_moi_trang: int
+    sinh_vien: list[StudentAdminOut]
+
+
+class ProgramOut(BaseModel):
+    ma_nganh: str
+    ten_nganh: str
+    ma_khoa: str
+
+
+class StudentFields(BaseModel):
+    ho_ten: str | None = Field(default=None, max_length=100)
+    email: str | None = Field(default=None, max_length=255)
+    ngay_sinh: date | None = None
+    gioi_tinh: GioiTinh | None = None
+    ma_nganh: str | None = Field(default=None, max_length=20)
+    ma_khoa: str | None = Field(default=None, max_length=10)
+    lop: str | None = Field(default=None, max_length=20)
+    trang_thai: TrangThaiSv | None = None
+
+
+class StudentCreateAdminIn(StudentFields):
+    ma_sv: str = Field(max_length=20)
+    ho_ten: str = Field(max_length=100)
+    email: str = Field(max_length=255)
+    ngay_sinh: date
+    gioi_tinh: GioiTinh
+    ma_nganh: str = Field(max_length=20)
+    ma_khoa: str = Field(max_length=10)
+    lop: str = Field(max_length=20)
+    trang_thai: TrangThaiSv = "dang_hoc"
+    # Cấp tài khoản trợ lý ngay sau khi thêm hồ sơ
+    cap_tai_khoan: bool = False
+    mat_khau: str | None = Field(default=None, max_length=200)
+
+
+class StudentCreateAdminOut(BaseModel):
+    sinh_vien: StudentAdminOut
+    tai_khoan: AccountOut | None
+    canh_bao: str | None = None  # hồ sơ đã thêm nhưng chưa cấp được tài khoản

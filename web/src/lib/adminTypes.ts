@@ -156,3 +156,82 @@ export const CALL_STATUS: Record<string, { label: string; className: string }> =
   cho_xac_nhan: { label: 'Chờ xác nhận', className: 'bg-primary/10 text-primary' },
   da_huy: { label: 'Đã hủy', className: 'bg-slate-100 text-slate-600' },
 }
+
+// ----- Tài khoản (AD-09) -----
+export interface Account {
+  id: number
+  email: string
+  ho_ten: string
+  vai_tro: 'sinh_vien' | 'admin'
+  ma_sv: string | null
+  ma_khoa: string | null
+  dang_hoat_dong: boolean
+  created_at: string
+}
+
+export interface AccountPage {
+  tong: number
+  trang_so: number
+  so_moi_trang: number
+  nguoi_dung: Account[]
+}
+
+export const ROLE_LABELS: Record<string, string> = {
+  sinh_vien: 'Sinh viên',
+  admin: 'Quản trị',
+}
+
+// ----- Hồ sơ sinh viên trên QLSV (AD-10) -----
+// type (không phải interface) để gán được cho Record<string, string> (changedFields)
+export type StudentFields = {
+  ho_ten: string
+  email: string
+  ngay_sinh: string
+  gioi_tinh: string
+  ma_nganh: string
+  ma_khoa: string
+  lop: string
+  trang_thai: string
+}
+
+export interface StudentRecord {
+  ma_sv: string
+  ho_ten: string
+  email: string
+  ngay_sinh: string
+  gioi_tinh: string
+  lop: string
+  ma_nganh: string
+  nganh: string
+  khoa: string
+  trang_thai: string
+  tai_khoan: { id: number; dang_hoat_dong: boolean } | null
+}
+
+export interface StudentPage {
+  tong: number
+  trang_so: number
+  so_moi_trang: number
+  sinh_vien: StudentRecord[]
+}
+
+export interface Program {
+  ma_nganh: string
+  ten_nganh: string
+  ma_khoa: string
+}
+
+export interface StudentCreateResult {
+  sinh_vien: StudentRecord
+  tai_khoan: Account | null
+  canh_bao: string | null
+}
+
+export const GENDER_LABELS: Record<string, string> = { nam: 'Nam', nu: 'Nữ', khac: 'Khác' }
+
+export const STUDENT_STATUS: Record<string, { label: string; className: string }> = {
+  dang_hoc: { label: 'Đang học', className: 'bg-ok-bg text-ok' },
+  bao_luu: { label: 'Bảo lưu', className: 'bg-warn-bg text-warn' },
+  thoi_hoc: { label: 'Thôi học', className: 'bg-err-bg text-err' },
+  tot_nghiep: { label: 'Tốt nghiệp', className: 'bg-primary/10 text-primary' },
+}
