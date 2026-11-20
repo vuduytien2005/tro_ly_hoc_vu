@@ -8,3 +8,4 @@ embedding: intfloat/multilingual-e5-base
 # Ghi đè giá (USD / 1 triệu token) nếu bảng giá của LiteLLM chưa đúng; để trống = dùng LiteLLM
 gia_vao_usd_trieu_token: 0   # gói miễn phí Google AI Studio
 gia_ra_usd_trieu_token: 0
+cho_giua_luot_goi_giay: 4.5  # gói miễn phí 15 lượt/phút -> >= 4 giây/lượt (trợ lý + LLM chấm dùng chung)

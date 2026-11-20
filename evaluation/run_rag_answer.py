@@ -22,6 +22,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evaluation.common import (  # noqa: E402
+    PACER,
     bootstrap,
     dataset_path,
     load_config,
@@ -75,6 +76,7 @@ def _completion_with_wait(max_wait: float = 180.0, **params: Any) -> Any:
     waited = 0.0
     while True:
         try:
+            PACER.wait()
             return litellm.completion(**params)
         except (litellm.RateLimitError, litellm.ServiceUnavailableError) as exc:
             delay = retry_delay_seconds(exc)

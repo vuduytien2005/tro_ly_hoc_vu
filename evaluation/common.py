@@ -206,5 +206,39 @@ def reset_qlsv() -> float:
     return time.perf_counter() - started
 
 
+class Pacer:
+    """Giãn nhịp gọi LLM cho gói miễn phí (vd Gemini 15 lượt/phút): hai lần gọi liên tiếp (trợ lý
+    lẫn LLM chấm) cách nhau tối thiểu `min_interval` giây. Trả về số giây đã chờ để trừ khỏi độ
+    trễ đo được (thời gian chờ này do thực nghiệm tự thêm, người dùng thật không phải chịu)."""
+
+    def __init__(self) -> None:
+        self.min_interval = 0.0
+        self._last = 0.0
+
+    def _delay(self) -> float:
+        if self.min_interval <= 0:
+            return 0.0
+        delay = max(0.0, self._last + self.min_interval - time.monotonic())
+        self._last = time.monotonic() + delay
+        return delay
+
+    def wait(self) -> float:
+        delay = self._delay()
+        if delay:
+            time.sleep(delay)
+        return delay
+
+    async def await_turn(self) -> float:
+        import asyncio
+
+        delay = self._delay()
+        if delay:
+            await asyncio.sleep(delay)
+        return delay
+
+
+PACER = Pacer()  # dùng chung cho mọi lần gọi LLM trong một tiến trình thực nghiệm
+
+
 def progress(i: int, n: int, label: str) -> None:
     print(f"  [{i}/{n}] {label}", flush=True)

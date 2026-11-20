@@ -208,3 +208,14 @@ def test_agent_and_security_datasets_use_real_tools() -> None:
     for r in security:
         assert {s["ten"] for s in r["hanh_vi_gia_lap"]} <= TOOLS, r["id"]
         assert set(r.get("tat_cong_cu") or []) <= TOOLS, r["id"]
+
+
+def test_pacer_spaces_calls() -> None:
+    """Giãn nhịp gọi LLM: lần đầu không chờ, lần sau chờ đủ khoảng tối thiểu; 0 = tắt."""
+    from evaluation.common import Pacer
+
+    pacer = Pacer()
+    assert pacer.wait() == 0.0 and pacer.wait() == 0.0  # tắt mặc định
+    pacer.min_interval = 0.2
+    assert pacer.wait() == 0.0
+    assert 0.1 < pacer.wait() <= 0.2

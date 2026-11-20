@@ -23,7 +23,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from evaluation.common import mean, quiet_logs
+from evaluation.common import PACER, mean, quiet_logs
 
 MINIMAL_PARAM_KEYS = ("type", "items", "enum", "anyOf", "default", "minimum", "maximum")
 
@@ -52,6 +52,7 @@ class MeteredLLM:
         self.tokens_in = 0
         self.tokens_out = 0
         self.texts: list[str] = []  # văn bản GỐC của LLM (trước hậu kiểm trích dẫn)
+        self.paced = 0.0  # giây chờ do giãn nhịp (không tính vào độ trễ)
 
     async def stream(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
@@ -59,6 +60,7 @@ class MeteredLLM:
         from src.assistant_api.agent.llm import LlmTurn
 
         self.steps += 1
+        self.paced += await PACER.await_turn()
         async for item in self.inner.stream(messages, tools):
             if isinstance(item, LlmTurn):
                 self.tokens_in += item.input_tokens or 0
@@ -151,6 +153,8 @@ class AgentHarness:
         self.embedder_kind = "hashing" if dry_run else embedder_kind
         self.model = config.get("llm_model") or ""
         self.llm = MeteredLLM(None)
+        # cho_giua_luot_goi_giay (cấu hình): khoảng cách tối thiểu giữa hai lần gọi LLM thật
+        PACER.min_interval = 0.0 if dry_run else float(config.get("cho_giua_luot_goi_giay") or 0)
         self._stack = ExitStack()
 
     # -- dựng môi trường --
@@ -364,7 +368,7 @@ class AgentHarness:
                             error = error or f"Xác nhận lỗi HTTP {rc.status_code}: {rc.text[:200]}"
             finally:
                 self._qlsv_session = None
-        seconds = time.perf_counter() - started
+        seconds = time.perf_counter() - started - self.llm.paced
 
         with self.iso.factory() as db:
             logs = db.scalars(
