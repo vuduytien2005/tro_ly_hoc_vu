@@ -1,8 +1,8 @@
 from fastapi import APIRouter, status
 
 from src.qlsv_api.routers.deps import DbSession, InternalAuth, Now, run_in_transaction
-from src.qlsv_api.schemas import RegistrationIn, RegistrationOut
-from src.qlsv_api.services import registration_service
+from src.qlsv_api.schemas import RegistrationIn, RegistrationOut, SemesterPlanOut
+from src.qlsv_api.services import planning_service, registration_service
 
 router = APIRouter(
     prefix="/internal/students", tags=["Đăng ký học phần"], dependencies=[InternalAuth]
@@ -46,3 +46,17 @@ def check(ma_sv: str, body: RegistrationIn, db: DbSession, now: Now) -> Registra
 )
 def cancel(ma_sv: str, ma_lop: str, db: DbSession, now: Now) -> RegistrationOut:
     return run_in_transaction(db, lambda: registration_service.cancel(db, ma_sv, ma_lop, now))
+
+
+@router.get(
+    "/{ma_sv}/semester-plan",
+    response_model=SemesterPlanOut,
+    summary="Lập kế hoạch đăng ký học kỳ đang mở (chỉ đọc)",
+    description=(
+        "Gói lớp đề xuất kèm lý do chọn, và các học phần bị loại kèm lý do (DANG_HOC, "
+        "CHUA_DAT_TIEN_QUYET, KHONG_CO_LOP_MO, KHONG_CON_LOP_PHU_HOP). Không có học kỳ mở đăng "
+        "ký -> 409 KHONG_CO_HOC_KY_MO_DANG_KY."
+    ),
+)
+def semester_plan(ma_sv: str, db: DbSession, now: Now) -> SemesterPlanOut:
+    return planning_service.plan_next_semester(db, ma_sv, now)

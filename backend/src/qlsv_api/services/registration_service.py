@@ -49,10 +49,14 @@ def _ensure_registration_open(lop: LopHocPhan, now: datetime) -> None:
         )
 
 
-def _overlaps(a: LopHocPhan, b: LopHocPhan) -> bool:
+def overlaps(a: LopHocPhan, b: LopHocPhan) -> bool:
+    """Hai lớp trùng lịch: cùng thứ và khoảng tiết giao nhau."""
     return (
         a.thu == b.thu and a.tiet_bat_dau <= b.tiet_ket_thuc and b.tiet_bat_dau <= a.tiet_ket_thuc
     )
+
+
+_overlaps = overlaps
 
 
 def _to_out(lop: LopHocPhan, trang_thai: str) -> RegistrationOut:

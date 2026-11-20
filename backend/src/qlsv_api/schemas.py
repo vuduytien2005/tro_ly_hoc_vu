@@ -323,3 +323,39 @@ class BookOut(Schema):
     nam_xb: int
     tong_so_ban: int
     so_ban_con: int
+
+
+# ----- Kế hoạch học kỳ tới ----------------------------------------------------
+class PlannedSection(Schema):
+    ma_lop: str
+    ma_hp: str
+    ten_hp: str
+    tin_chi: int
+    lich: str
+    bat_buoc: bool
+    ly_do_chon: str
+
+
+class ExcludedSection(Schema):
+    ma_lop: str
+    ma_loi: str  # LOP_DA_DAY | TRUNG_LICH | VUOT_TIN_CHI_TOI_DA
+    ly_do: str
+
+
+class ExcludedCourse(Schema):
+    ma_hp: str
+    ten_hp: str
+    # DANG_HOC | CHUA_DAT_TIEN_QUYET | KHONG_CO_LOP_MO | KHONG_CON_LOP_PHU_HOP
+    ma_loi: str
+    ly_do: str
+    lop: list[ExcludedSection] = []
+
+
+class SemesterPlanOut(Schema):
+    hoc_ky: str
+    ten_hoc_ky: str
+    tin_chi_toi_da: int
+    tin_chi_da_dang_ky: int
+    de_xuat: list[PlannedSection]
+    tong_tin_chi_de_xuat: int
+    bi_loai: list[ExcludedCourse]

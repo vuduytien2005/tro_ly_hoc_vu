@@ -76,3 +76,18 @@ def list_prerequisites(db: Session, hoc_phan_id: int) -> list[HocPhan]:
             .order_by(HocPhan.ma_hp)
         )
     )
+
+
+def list_in_semester(db: Session, hoc_ky_id: int, hoc_phan_ids: Iterable[int]) -> list[LopHocPhan]:
+    """Các lớp của những học phần cho trước trong một học kỳ, sắp theo mã lớp."""
+    ids = list(hoc_phan_ids)
+    if not ids:
+        return []
+    return list(
+        db.scalars(
+            select(LopHocPhan)
+            .options(joinedload(LopHocPhan.hoc_phan), joinedload(LopHocPhan.hoc_ky))
+            .where(LopHocPhan.hoc_ky_id == hoc_ky_id, LopHocPhan.hoc_phan_id.in_(ids))
+            .order_by(LopHocPhan.ma_lop)
+        )
+    )
