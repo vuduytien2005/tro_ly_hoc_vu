@@ -154,6 +154,10 @@ def evaluate(q: dict[str, Any], harness: AgentHarness, use_judge: bool) -> dict[
         "tu_choi_nham": metrics.is_refusal(result.last_answer) if not out_of_scope else None,
         "so_buoc": result.steps,
         "thoi_gian_s": round(result.seconds, 2),
+        "phan_hoi_dau_s": None
+        if result.first_feedback_s is None
+        else round(result.first_feedback_s, 2),
+        "ttft_s": None if result.ttft_s is None else round(result.ttft_s, 2),
         "token_vao": result.tokens_in,
         "token_ra": result.tokens_out,
         "faithfulness": None,
@@ -191,6 +195,7 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for name, items in groups:
         if not items:
             continue
+        ttft = metrics.latency_summary([r.get("ttft_s") for r in items])
         out.append(
             {
                 "nhom": name,
@@ -203,6 +208,8 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tu_choi_nham": mean(r["tu_choi_nham"] for r in items),
                 "bi_hau_kiem_xoa": sum(r["bi_hau_kiem_xoa"] for r in items),
                 "thoi_gian_tb_s": mean(r["thoi_gian_s"] for r in items),
+                "ttft_trung_vi_s": ttft["trung_vi"],
+                "ttft_duoi_5s": ttft["ty_le_duoi_nguong"],
             }
         )
     return out
@@ -219,6 +226,8 @@ COLUMNS = [
     ("tu_choi_nham", "Từ chối nhầm"),
     ("bi_hau_kiem_xoa", "[n] bị xóa"),
     ("thoi_gian_tb_s", "TB (s)"),
+    ("ttft_trung_vi_s", "TTFT TV (s)"),
+    ("ttft_duoi_5s", "TTFT < 5 s"),
 ]
 PERCENT = {
     "faithfulness",
@@ -227,6 +236,7 @@ PERCENT = {
     "trich_dung_nguon",
     "tu_choi_dung",
     "tu_choi_nham",
+    "ttft_duoi_5s",
 }
 
 

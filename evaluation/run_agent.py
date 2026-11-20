@@ -71,6 +71,7 @@ def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
     return {
         "cau_hinh": harness.config["ma"],
         "id": case["id"],
+        "loai": case.get("loai") or "khac",
         "dang_nhap": case["dang_nhap"],
         "yeu_cau": case["yeu_cau"],
         "dung_cong_cu": selection["dung_tap_cong_cu"],
@@ -82,6 +83,10 @@ def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
         "co_the_xac_nhan": bool(result.pending),
         "so_buoc": result.steps,
         "thoi_gian_s": round(result.seconds, 2),
+        "phan_hoi_dau_s": None
+        if result.first_feedback_s is None
+        else round(result.first_feedback_s, 2),
+        "ttft_s": None if result.ttft_s is None else round(result.ttft_s, 2),
         "token_vao": result.tokens_in,
         "token_ra": result.tokens_out,
         "chi_phi_usd": harness.cost(result.tokens_in, result.tokens_out),
@@ -93,6 +98,8 @@ def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
 
 def summarize(config: dict[str, Any], rows: list[dict[str, Any]], usage: dict[str, Any]) -> dict:
     seconds = [r["thoi_gian_s"] for r in rows]
+    ttft = metrics.latency_summary([r.get("ttft_s") for r in rows])
+    feedback = metrics.latency_summary([r.get("phan_hoi_dau_s") for r in rows])
     return {
         "cau_hinh": config["ma"],
         "mo_ta": config.get("ten", ""),
@@ -104,6 +111,10 @@ def summarize(config: dict[str, Any], rows: list[dict[str, Any]], usage: dict[st
         "so_buoc_tb": mean(r["so_buoc"] for r in rows),
         "do_tre_trung_vi_s": metrics.percentile(seconds, 50),
         "do_tre_p95_s": metrics.percentile(seconds, 95),
+        "phan_hoi_dau_trung_vi_s": feedback["trung_vi"],
+        "ttft_trung_vi_s": ttft["trung_vi"],
+        "ttft_p95_s": ttft["p95"],
+        "ttft_duoi_5s": ttft["ty_le_duoi_nguong"],
         "token_tb": mean(r["token_vao"] + r["token_ra"] for r in rows),
         "chi_phi_usd": usage["chi_phi_usd"],
         "chi_phi_tb_usd": (usage["chi_phi_usd"] / len(rows))
@@ -121,9 +132,45 @@ COLUMNS = [
     ("so_buoc_tb", "Bước TB"),
     ("do_tre_trung_vi_s", "Trễ trung vị (s)"),
     ("do_tre_p95_s", "Trễ P95 (s)"),
+    ("phan_hoi_dau_trung_vi_s", "Phản hồi đầu TV (s)"),
+    ("ttft_trung_vi_s", "TTFT TV (s)"),
+    ("ttft_p95_s", "TTFT P95 (s)"),
+    ("ttft_duoi_5s", "TTFT < 5 s"),
     ("token_tb", "Token TB"),
     ("chi_phi_tb_usd", "Chi phí TB (USD)"),
     ("chi_phi_usd", "Tổng (USD)"),
+]
+
+
+def summarize_by_type(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Mỗi (loại kịch bản, cấu hình) một dòng — để thấy mô tả tối giản ảnh hưởng ở loại nào."""
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for r in rows:
+        groups.setdefault((r.get("loai") or "khac", r["cau_hinh"]), []).append(r)
+    return [
+        {
+            "loai": loai,
+            "cau_hinh": config,
+            "n": len(items),
+            "dung_cong_cu": mean(r["dung_cong_cu"] for r in items),
+            "dung_tham_so": mean(r["dung_tham_so"] for r in items),
+            "hoan_thanh": mean(r["hoan_thanh"] for r in items),
+            "ttft_trung_vi_s": metrics.latency_summary([r.get("ttft_s") for r in items])[
+                "trung_vi"
+            ],
+        }
+        for (loai, config), items in sorted(groups.items())
+    ]
+
+
+TYPE_COLUMNS = [
+    ("loai", "Loại"),
+    ("cau_hinh", "Cấu hình"),
+    ("n", "Số KB"),
+    ("dung_cong_cu", "Đúng công cụ"),
+    ("dung_tham_so", "Đúng tham số"),
+    ("hoan_thanh", "Hoàn thành"),
+    ("ttft_trung_vi_s", "TTFT TV (s)"),
 ]
 
 
@@ -171,7 +218,7 @@ def main() -> int:
 
     write_csv(run_dir / "chi_tiet.csv", all_rows)
     write_csv(run_dir / "tong_hop.csv", summary)
-    pct = {"dung_cong_cu", "dung_tham_so", "hoan_thanh"}
+    pct = {"dung_cong_cu", "dung_tham_so", "hoan_thanh", "ttft_duoi_5s"}
     md = ["# TN3 — Năng lực Agent", ""]
     if args.dry_run:
         md += [
@@ -186,6 +233,15 @@ def main() -> int:
         "",
     ]
     (run_dir / "bang.md").write_text("\n".join(md), encoding="utf-8")
+    by_type = summarize_by_type(all_rows)
+    write_csv(run_dir / "theo_loai.csv", by_type)
+    md_type = ["# TN3 — Theo loại kịch bản", ""]
+    if args.dry_run:
+        md_type += ["> CHẠY THỬ (--dry-run) — số liệu KHÔNG dùng cho khóa luận.", ""]
+    md_type += [
+        markdown_table(by_type, TYPE_COLUMNS, {"dung_cong_cu", "dung_tham_so", "hoan_thanh"})
+    ]
+    (run_dir / "bang_theo_loai.md").write_text("\n".join(md_type) + "\n", encoding="utf-8")
     save_configs(run_dir, configs, {"tn": "TN3", "dry_run": args.dry_run, "limit": args.limit})
     print("\n" + markdown_table(summary, COLUMNS, pct))
     print(f"\nKết quả: {run_dir}")

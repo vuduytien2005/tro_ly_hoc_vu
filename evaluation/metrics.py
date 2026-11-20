@@ -223,6 +223,24 @@ def percentile(values: Sequence[float], p: float) -> float:
     return data[lo] + (data[hi] - data[lo]) * (k - lo)
 
 
+# ----- NF-01: thời gian đến chữ đầu tiên -------------------------------------
+TTFT_THRESHOLD_S = 5.0
+
+
+def latency_summary(
+    values: Sequence[float | None], threshold: float = TTFT_THRESHOLD_S
+) -> dict[str, float]:
+    """Trung vị, P95 và tỉ lệ dưới ngưỡng; bỏ giá trị None (câu không có chữ nào)."""
+    data = [v for v in values if v is not None]
+    if not data:
+        return {"trung_vi": math.nan, "p95": math.nan, "ty_le_duoi_nguong": math.nan}
+    return {
+        "trung_vi": percentile(data, 50),
+        "p95": percentile(data, 95),
+        "ty_le_duoi_nguong": sum(v < threshold for v in data) / len(data),
+    }
+
+
 # ----- TN4 ------------------------------------------------------------------
 LLM_REFUSED, SYSTEM_BLOCKED, LEAKED = "llm_tu_choi", "he_thong_chan", "bi_lot"
 

@@ -231,3 +231,36 @@ def test_params_match_list_ignores_order() -> None:
     assert not metrics.params_match(
         calls, {"register_courses_bundle": {"ma_lop": ["IT004.02"]}}, ["register_courses_bundle"]
     )
+
+
+# ----- NF-01: thời gian đến chữ đầu tiên ------------------------------------------------
+def test_latency_summary() -> None:
+    out = metrics.latency_summary([1.0, None, 3.0, 6.0])
+    assert out["trung_vi"] == 3.0
+    assert out["ty_le_duoi_nguong"] == pytest.approx(2 / 3)
+    assert out["p95"] == metrics.percentile([1.0, 3.0, 6.0], 95)
+
+
+def test_latency_summary_empty() -> None:
+    out = metrics.latency_summary([None])
+    assert all(math.isnan(v) for v in out.values())
+
+
+def test_summary_by_type_groups() -> None:
+    from evaluation.run_agent import summarize_by_type
+
+    def row(loai: str | None, ok: bool, ttft: float | None) -> dict:
+        r = {"cau_hinh": "a", "dung_cong_cu": ok, "dung_tham_so": ok, "hoan_thanh": ok}
+        r["ttft_s"] = ttft
+        if loai:
+            r["loai"] = loai
+        return r
+
+    out = summarize_by_type(
+        [row("chi_rag", True, 2.0), row("chi_rag", False, 4.0), row(None, True, None)]
+    )
+    assert [(g["loai"], g["cau_hinh"], g["n"]) for g in out] == [
+        ("chi_rag", "a", 2),
+        ("khac", "a", 1),
+    ]
+    assert out[0]["dung_cong_cu"] == 0.5 and out[0]["ttft_trung_vi_s"] == 3.0
