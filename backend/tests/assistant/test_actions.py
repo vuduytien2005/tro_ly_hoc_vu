@@ -9,6 +9,7 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
 
+import pytest
 import respx
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
@@ -449,3 +450,68 @@ def test_labels_use_title() -> None:
     assert tool_label("renew_book") == "Đang dùng công cụ renew_book"
     assert tool_label("register_course", "Bất kỳ") == "Đang đăng ký học phần"  # nhãn cũ giữ nguyên
     assert "gia hạn sách" in paused_label("renew_book", "Gia hạn sách").lower()
+
+
+# ----- Thẻ cả gói (register_courses_bundle) -----------------------------------------------
+SECTIONS = {
+    "IT004.02": {
+        "ma_lop": "IT004.02",
+        "ten_hp": "Cơ sở dữ liệu",
+        "tin_chi": 3,
+        "lich": "Thứ 2, tiết 1-3, phòng B2.101",
+    },
+    "SE201.01": {
+        "ma_lop": "SE201.01",
+        "ten_hp": "Trí tuệ nhân tạo ứng dụng",
+        "tin_chi": 3,
+        "lich": "Thứ 3, tiết 7-9, phòng A1.305",
+    },
+}
+
+
+def bundle_lookup(check_error: str | None = None) -> Any:
+    from src.assistant_api.agent.executor import Outcome
+
+    async def lookup(server: str, tool: str, args: dict[str, Any]) -> Outcome:
+        if tool == "register_courses_bundle":
+            assert args["chi_kiem_tra"] is True
+            if check_error:
+                return Outcome(
+                    {"thanh_cong": False, "ma_loi": check_error, "thong_bao": "Lớp X: trùng lịch"},
+                    "loi",
+                )
+            return Outcome({"thanh_cong": True, "tong_tin_chi": 6}, "thanh_cong")
+        assert tool == "search_course_sections"
+        return Outcome({"lop": [SECTIONS[args["tu_khoa"]]]}, "thanh_cong")
+
+    return lookup
+
+
+def test_describe_bundle_lists_each_class() -> None:
+    import anyio
+
+    from src.assistant_api.agent.actions import describe
+
+    args = {"ma_sv": "SV22001", "ma_lop": ["IT004.02", "SE201.01"]}
+    lines = anyio.run(describe, "register_courses_bundle", args, bundle_lookup()).splitlines()
+    assert lines[0] == "Đăng ký 2 lớp (6 tín chỉ) học kỳ tới:"
+    assert lines[1].startswith("• IT004.02 – Cơ sở dữ liệu (3 tín chỉ)")
+    assert lines[2].startswith("• SE201.01 – Trí tuệ nhân tạo ứng dụng (3 tín chỉ)")
+
+
+def test_describe_bundle_precheck_rejects() -> None:
+    import anyio
+
+    from src.assistant_api.agent.actions import ActionRejected, describe
+
+    args = {"ma_sv": "SV22001", "ma_lop": ["IT004.02", "SE105.02"]}
+    with pytest.raises(ActionRejected) as exc:
+        anyio.run(describe, "register_courses_bundle", args, bundle_lookup("TRUNG_LICH"))
+    assert exc.value.code == "TRUNG_LICH"
+
+
+def test_bundle_labels() -> None:
+    from src.assistant_api.agent.prompts import tool_label
+
+    assert tool_label("plan_next_semester") == "Đang lập kế hoạch học kỳ tới"
+    assert tool_label("register_courses_bundle") == "Đang đăng ký cả gói học phần"

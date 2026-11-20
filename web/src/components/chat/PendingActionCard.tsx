@@ -47,7 +47,7 @@ export function PendingActionCard({
           </span>
         )}
       </div>
-      <p className="mb-3 text-sm leading-relaxed text-slate-700">{action.mo_ta}</p>
+      <p className="mb-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{action.mo_ta}</p>
 
       {error && <p className="mb-3 rounded-lg bg-err-bg px-3 py-2 text-sm text-err">{error}</p>}
 

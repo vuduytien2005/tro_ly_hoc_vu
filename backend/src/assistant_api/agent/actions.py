@@ -71,6 +71,37 @@ async def _precheck_registration(ma_sv: str, ma_lop: str, lookup: Lookup) -> Non
         raise ActionRejected(code, str(result.get("thong_bao") or "Không đăng ký được lớp này."))
 
 
+async def _precheck_bundle(ma_sv: str, ma_lops: list[str], lookup: Lookup) -> None:
+    """Kiểm tra trước cả gói (trùng lịch trong gói, lớp đầy, vượt tín chỉ...) -> báo ngay."""
+    outcome = await lookup(
+        "dao_tao",
+        "register_courses_bundle",
+        {"ma_sv": ma_sv, "ma_lop": ma_lops, "chi_kiem_tra": True},
+    )
+    result = outcome.result if isinstance(outcome.result, dict) else {}
+    code = str(result.get("ma_loi") or "")
+    if outcome.status == "loi" and code and code not in _INFRA_ERRORS:
+        raise ActionRejected(code, str(result.get("thong_bao") or "Không đăng ký được gói này."))
+
+
+async def _describe_bundle(ma_sv: str, ma_lops: list[str], lookup: Lookup) -> str:
+    await _precheck_bundle(ma_sv, ma_lops, lookup)
+    lines: list[str] = []
+    credits = 0
+    for ma_lop in ma_lops:
+        section = await _section(ma_sv, ma_lop, lookup)
+        if section is None:
+            lines.append(f"• {ma_lop}")
+            continue
+        credits += int(section["tin_chi"])
+        lines.append(
+            f"• {section['ma_lop']} – {section['ten_hp']} ({section['tin_chi']} tín chỉ), "
+            f"{section['lich']}"
+        )
+    total = f" ({credits} tín chỉ)" if credits else ""
+    return "\n".join([f"Đăng ký {len(ma_lops)} lớp{total} học kỳ tới:", *lines])
+
+
 # ----- mô tả thẻ xác nhận (template) ---------------------------------------------
 async def _section(ma_sv: str, ma_lop: str, lookup: Lookup) -> dict[str, Any] | None:
     """Tra lớp qua search_course_sections. None = không tra được (dịch vụ lỗi)."""
@@ -102,6 +133,9 @@ async def describe(
             f"{verb} lớp {section['ma_lop']} – {section['ten_hp']} "
             f"({section['tin_chi']} tín chỉ), {section['lich']}"
         )
+    if tool == "register_courses_bundle":
+        ma_lops = [str(m).strip() for m in args["ma_lop"]]
+        return await _describe_bundle(str(args["ma_sv"]), ma_lops, lookup)
     if tool == "request_student_certificate":
         return (
             "Tạo yêu cầu cấp giấy xác nhận sinh viên – mục đích: "

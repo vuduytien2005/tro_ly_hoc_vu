@@ -309,3 +309,44 @@ def test_renew_book_creates_card_with_title(
     renew = [g for g in logs(db, cid) if g.ten_cong_cu == "renew_book"]
     assert renew[0].trang_thai == "cho_xac_nhan"
     assert renew[0].tham_so["ma_sv"] == student.ma_sv
+
+
+# ----- (e) kế hoạch học kỳ tới -> một thẻ cho cả gói --------------------------------------
+def test_plan_then_bundle_one_card(
+    client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    qlsv_mock: respx.MockRouter,
+) -> None:
+    from tests.mcp.test_dao_tao import PLAN
+
+    qlsv_mock.get("/internal/students/SV22001/semester-plan").respond(200, json=PLAN)
+    base = "/internal/students/SV22001/registrations/bundle"
+    qlsv_mock.post(f"{base}/check").respond(
+        200, json={"trang_thai": "hop_le", "tong_tin_chi": 6, "lop": []}
+    )
+    real = qlsv_mock.post(base).respond(201, json={})
+    sections = [
+        {**s, "ma_hp": s["ma_hp"], "giang_vien": "GV", "con_trong": 10} for s in PLAN["de_xuat"]
+    ]
+    qlsv_mock.get("/internal/course-sections").respond(200, json=sections)
+    script(
+        FakeResponse(tool_calls=[("plan_next_semester", {})]),
+        FakeResponse(
+            tool_calls=[("register_courses_bundle", {"ma_lop": ["IT004.02", "SE201.01"]})]
+        ),
+        FakeResponse(text="Em bấm Xác nhận trên thẻ để đăng ký cả gói nhé."),
+    )
+    headers = login(client, student.email)
+    cid = new_conversation(client, headers)
+    events = chat(client, headers, cid, "Lập kế hoạch học kỳ tới rồi đăng ký cả gói giúp em")
+
+    cards = [d for e, d in events if e == "pending_action"]
+    assert len(cards) == 1 and cards[0]["ten_cong_cu"] == "register_courses_bundle"
+    assert "IT004.02" in cards[0]["mo_ta"] and "SE201.01" in cards[0]["mo_ta"]
+    assert cards[0]["mo_ta"].startswith("Đăng ký 2 lớp (6 tín chỉ) học kỳ tới:")
+    pending = [g for g in logs(db, cid) if g.ten_cong_cu == "register_courses_bundle"]
+    assert pending[-1].trang_thai == "cho_xac_nhan"
+    assert pending[-1].tham_so["ma_sv"] == student.ma_sv
+    assert real.called is False  # chưa xác nhận -> chưa đăng ký thật
