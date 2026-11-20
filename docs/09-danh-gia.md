@@ -112,6 +112,28 @@ Không cần bật các service: harness tự dựng mọi thứ trong tiến tr
 7. **Lượt gọi do hệ thống tự thực hiện** (vd tra lớp để dựng thẻ xác nhận, `tham_so_llm` = NULL) không tính vào "đúng công cụ".
 8. TN3 so sánh Opus 5.5 và Haiku 5.5; chưa cấu hình mô hình mã nguồn mở chạy local (ổ C còn ít chỗ trống). Muốn thêm thì tạo `configs/agent_<tên>.yaml` với `llm_model` theo cú pháp LiteLLM.
 
+## Đo thời gian phản hồi (NF-01) và so sánh mô tả công cụ (20/11/2026, ý tưởng 5)
+Thiết kế: `docs/superpowers/specs/2026-11-20-thuc-nghiem-so-sanh-ttft-design.md`.
+
+**Hai mốc thời gian** (cột `phan_hoi_dau_s`, `ttft_s` trong `chi_tiet.csv` của TN2/TN3), đo trong lớp bọc LLM của harness (`MeteredLLM`):
+- `phan_hoi_dau_s` — **phản hồi đầu tiên** sinh viên thấy: chữ đầu tiên, hoặc lúc LLM quyết định gọi công cụ (chip "Đang …" hiện ngay sau đó), tùy cái nào đến trước.
+- `ttft_s` — **chữ đầu tiên** của câu trả lời. **NF-01 chấm theo mốc này**, ngưỡng 5 giây.
+
+Quy tắc đo:
+- Tính từ lúc gửi tin nhắn đầu tiên của kịch bản; **chỉ lượt đầu**, lượt "Xác nhận" tự động không tính.
+- **Trừ thời gian giãn nhịp** (Pacer) đã chờ trước mốc đó — như cột `thoi_gian_s`.
+- Không có chữ nào trong lượt đầu (vd lỗi hạn mức) → ô trống, không tính vào trung vị / P95 / tỉ lệ.
+- Đo trong một tiến trình (gọi ASGI trực tiếp) nên **không tính** đường mạng localhost → trình duyệt; trên máy cá nhân phần này không đáng kể (ghi rõ khi viết Chương 4).
+- Câu cần công cụ có `ttft_s` dài hơn hẳn câu không cần: chữ đầu tiên chỉ đến sau khi công cụ chạy xong và LLM được gọi lần hai. Vì vậy báo cả `phan_hoi_dau_s` — sinh viên đã thấy hệ thống "đang làm việc" từ mốc này.
+
+Bảng tổng hợp có thêm: **Phản hồi đầu TV (s)**, **TTFT TV (s)**, **TTFT P95 (s)**, **TTFT < 5 s** (tỉ lệ câu đạt). TN2 có TTFT TV và tỉ lệ < 5 s theo nhóm. Test: `backend/tests/evaluation/test_timing.py` (đồng hồ giả: trừ giãn nhịp, bỏ lượt xác nhận, chữ trước khi gọi công cụ).
+
+**So sánh mô tả công cụ đầy đủ / tối giản (TN3):**
+```powershell
+python evaluation\run_agent.py --configs agent_gemini agent_gemini_toi_gian   # ~450 lượt gọi Gemini; có thể chia --limit
+```
+Ngoài `bang.md`, mỗi lượt chạy TN3 có **`bang_theo_loai.md`** / `theo_loai.csv`: mỗi (loại kịch bản × cấu hình) một dòng (đúng công cụ, đúng tham số, hoàn thành, TTFT TV) — đọc để thấy mô tả tối giản làm giảm chất lượng mạnh nhất ở loại nào (dự đoán: `thu_tuc_ghi`, `nhieu_buoc`, nơi mô tả hướng dẫn thứ tự gọi và tham số). Lượt chạy này cũng là **lượt chạy lại TN3** sau khi thêm 2 server/công cụ (ý tưởng 1, 3): không so trực tiếp với các lượt 72 kịch bản / 16 công cụ.
+
 ## Lượt chạy thật đầu tiên — Gemini gói miễn phí (19/11/2026, Giai đoạn 10)
 Chưa có khóa Anthropic nên chạy bằng **`gemini/gemini-3.5-flash-lite`** (Google AI Studio, gói miễn phí), cấu hình `*_gemini.yaml`, `--limit 10`, chi phí 0 USD. Các cấu hình Opus/Haiku giữ nguyên để chạy lại khi có khóa Anthropic.
 
