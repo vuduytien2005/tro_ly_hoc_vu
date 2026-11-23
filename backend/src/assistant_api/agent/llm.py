@@ -104,6 +104,15 @@ def llm_key_present(model: str) -> bool | None:
     return True if key is None else bool(os.environ.get(key, "").strip())
 
 
+OLLAMA_PROVIDERS = ("ollama", "ollama_chat")
+# 16 nghìn token: đủ system prompt + ~20 công cụ mô tả đầy đủ + lịch sử hội thoại + đoạn quy chế
+OLLAMA_DEFAULT_NUM_CTX = 16384
+
+
+def _is_ollama(model: str) -> bool:
+    return model.split("/", 1)[0] in OLLAMA_PROVIDERS
+
+
 DEFAULT_RETRY_DELAY = 30.0  # giây, khi nhà cung cấp không nói phải chờ bao lâu
 LONG_QUOTA_SECONDS = 600.0  # phải chờ lâu hơn thế -> hết hạn mức ngày, không phải "quá tải"
 
@@ -137,13 +146,21 @@ def _friendly(exc: Exception) -> Exception:
 
 
 class LiteLlm:
-    def __init__(self, model: str | None = None) -> None:
+    def __init__(
+        self,
+        model: str | None = None,
+        *,
+        timeout: float | None = None,
+        num_ctx: int | None = None,
+    ) -> None:
+        """`timeout`, `num_ctx`: ghi đè .env (thực nghiệm đặt riêng cho mô hình cục bộ chậm)."""
         settings = get_settings()
         self.model = model or settings.llm_model
         self.fallback_model = settings.llm_fallback_model
         self.max_tokens = settings.llm_max_tokens
         self.temperature = settings.llm_temperature
-        self.timeout = settings.llm_timeout_seconds
+        self.timeout = timeout or settings.llm_timeout_seconds
+        self.num_ctx = num_ctx or settings.llm_num_ctx or OLLAMA_DEFAULT_NUM_CTX
         self.num_retries = settings.llm_num_retries
         self.rate_limit_wait = settings.llm_rate_limit_wait_seconds
 
@@ -164,6 +181,8 @@ class LiteLlm:
             params["tool_choice"] = "auto"
         if self.temperature is not None and _uses_sampling_params(model):
             params["temperature"] = self.temperature
+        if _is_ollama(model):
+            params["num_ctx"] = self.num_ctx
         return params
 
     async def _stream_once(

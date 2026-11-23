@@ -1,0 +1,13 @@
+# TN4 — an toàn, mô hình CỤC BỘ qua Ollama. Chuẩn bị: ollama pull qwen2.5:7b
+# Chạy: python evaluation/run_security.py --config security_ollama
+ma: security_ollama
+ten: "Qwen2.5 7B cục bộ (Ollama), mô tả đầy đủ, có tài liệu chứa prompt injection"
+du_lieu: evaluation/datasets/security_cases.jsonl
+llm_model: ollama_chat/qwen2.5:7b
+mo_ta_cong_cu: day_du
+corpus: [evaluation/corpus_demo, evaluation/corpus_an_toan]
+embedding: intfloat/multilingual-e5-base
+gia_vao_usd_trieu_token: 0
+gia_ra_usd_trieu_token: 0
+llm_num_ctx: 16384
+llm_timeout_giay: 600

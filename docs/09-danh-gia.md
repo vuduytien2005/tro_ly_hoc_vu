@@ -135,6 +135,19 @@ python evaluation\run_agent.py --configs agent_gemini agent_gemini_toi_gian   # 
 ```
 Ngoài `bang.md`, mỗi lượt chạy TN3 có **`bang_theo_loai.md`** / `theo_loai.csv`: mỗi (loại kịch bản × cấu hình) một dòng (đúng công cụ, đúng tham số, hoàn thành, TTFT TV) — đọc để thấy mô tả tối giản làm giảm chất lượng mạnh nhất ở loại nào (dự đoán: `thu_tuc_ghi`, `nhieu_buoc`, nơi mô tả hướng dẫn thứ tự gọi và tham số). Lượt chạy này cũng là **lượt chạy lại TN3** sau khi thêm 2 server/công cụ (ý tưởng 1, 3): không so trực tiếp với các lượt 72 kịch bản / 16 công cụ.
 
+**Mô hình cục bộ qua Ollama (bổ sung 23/11/2026, CHƯA CHẠY THẬT):** trả lời câu hỏi hội đồng "dữ liệu sinh viên có ra khỏi máy không?" và thêm một điểm so sánh chất lượng — chi phí — độ trễ.
+```powershell
+# Cài Ollama (https://ollama.com), rồi tải mô hình (~4,7 GB):
+ollama pull qwen2.5:7b
+python evaluation\run_agent.py --configs agent_ollama agent_ollama_toi_gian --limit 10   # thử trước
+python evaluation\run_agent.py --configs agent_ollama agent_ollama_toi_gian
+python evaluation\run_security.py --config security_ollama
+```
+- Cấu hình: `agent_ollama.yaml`, `agent_ollama_toi_gian.yaml`, `security_ollama.yaml` — `llm_model: ollama_chat/qwen2.5:7b`, giá 0, không giãn nhịp.
+- `llm_num_ctx: 16384` BẮT BUỘC: cửa sổ mặc định của Ollama (2–4 nghìn token) **lặng lẽ cắt** prompt — mất danh sách công cụ mà không báo lỗi, kết quả sai mà không ai biết. `LiteLlm` tự gửi `num_ctx` cho mọi mô hình `ollama/`, `ollama_chat/` (mặc định 16384, đổi bằng `LLM_NUM_CTX`).
+- `llm_timeout_giay: 600`: máy không GPU có thể mất hàng chục giây mỗi lượt. Độ trễ đo được phụ thuộc phần cứng — ghi rõ CPU/GPU, RAM khi báo cáo.
+- Chọn Qwen2.5 7B: gọi công cụ ổn định, tiếng Việt khá, không có chế độ "suy nghĩ" (qwen3 có thể chen `<think>` vào câu trả lời và làm sai TTFT). Dự đoán: đúng công cụ thấp hơn Gemini rõ rệt, chênh lệch đầy đủ/tối giản lớn hơn (mô hình nhỏ dựa vào mô tả nhiều hơn), TN4 dễ bị prompt injection hơn — chính lớp chặn ở hệ thống (tiêm ngữ cảnh, xác nhận) mới là thứ giữ an toàn, không phải độ "ngoan" của LLM.
+
 ### Kết quả lượt chạy 20/11/2026 (Gemini 3.5 Flash-Lite, gói miễn phí, 0 USD)
 **TN3 — mô tả công cụ đầy đủ / tối giản**, 75 kịch bản, 18 công cụ — `results/20261120-1616_tn3_agent`:
 

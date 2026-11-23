@@ -457,7 +457,12 @@ class AgentHarness:
         if self.dry_run:
             self.llm.inner = oracle_llm(dry_steps, dry_text)
         elif not isinstance(self.llm.inner, LiteLlm):
-            self.llm.inner = LiteLlm(self.model)
+            # llm_timeout_giay / llm_num_ctx (cấu hình): cho mô hình cục bộ (Ollama) chậm hơn API
+            self.llm.inner = LiteLlm(
+                self.model,
+                timeout=self.config.get("llm_timeout_giay"),
+                num_ctx=self.config.get("llm_num_ctx"),
+            )
         self.llm.reset()
 
     def fill_required(self, tool: str, args: dict[str, Any], question: str) -> dict[str, Any]:

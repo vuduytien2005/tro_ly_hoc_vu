@@ -10,7 +10,8 @@ import anyio
 import litellm
 import pytest
 
-from src.assistant_api.agent.llm import LiteLlm, LlmError
+from src.assistant_api.agent.llm import OLLAMA_DEFAULT_NUM_CTX, LiteLlm, LlmError
+from src.shared.config import get_settings
 
 ARGS = {"model": "gemini/gemini-x", "llm_provider": "gemini"}
 
@@ -138,3 +139,26 @@ def test_daily_quota_has_its_own_message(monkeypatch: pytest.MonkeyPatch) -> Non
     llm.rate_limit_wait = 90
     with pytest.raises(LlmError, match="hạn mức"):
         _run_stream(llm)
+
+
+# ----- Ollama (mô hình cục bộ, bổ sung 23/11/2026) -------------------------------------------
+@pytest.mark.parametrize("model", ["ollama_chat/qwen3:8b", "ollama/llama3.1:8b"])
+def test_ollama_gets_wide_context_window(model: str) -> None:
+    # Ollama mặc định chỉ 2–4 nghìn token và LẶNG LẼ cắt prompt -> danh sách công cụ bị mất
+    params = LiteLlm(model)._params(model, [], [])
+    assert params["num_ctx"] == OLLAMA_DEFAULT_NUM_CTX
+
+
+def test_num_ctx_override_and_cloud_models_untouched() -> None:
+    assert (
+        LiteLlm("ollama_chat/qwen3:8b", num_ctx=8192)._params("ollama_chat/qwen3:8b", [], [])[
+            "num_ctx"
+        ]
+        == 8192
+    )
+    assert "num_ctx" not in LiteLlm("gemini/gemini-x")._params("gemini/gemini-x", [], [])
+
+
+def test_timeout_override() -> None:
+    assert LiteLlm("ollama_chat/qwen3:8b", timeout=600)._params("x", [], [])["timeout"] == 600
+    assert LiteLlm("gemini/gemini-x", timeout=None).timeout == get_settings().llm_timeout_seconds

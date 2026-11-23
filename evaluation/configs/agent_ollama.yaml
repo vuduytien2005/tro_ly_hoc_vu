@@ -1,0 +1,13 @@
+# TN3 (agent) / TN4 (an toàn) — mô hình CỤC BỘ qua Ollama (dữ liệu sinh viên không rời máy).
+# Chuẩn bị: cài Ollama (https://ollama.com), rồi: ollama pull qwen2.5:7b
+# Chạy: python evaluation/run_agent.py --configs agent_ollama
+ma: agent_ollama
+ten: "Qwen2.5 7B cục bộ (Ollama), mô tả công cụ đầy đủ"
+llm_model: ollama_chat/qwen2.5:7b
+mo_ta_cong_cu: day_du      # day_du = docstring thật | toi_gian = chỉ tên công cụ + mô tả tham số tối thiểu
+corpus: evaluation/corpus_demo
+embedding: intfloat/multilingual-e5-base
+gia_vao_usd_trieu_token: 0   # chạy trên máy, không tốn phí API (chỉ điện + phần cứng)
+gia_ra_usd_trieu_token: 0
+llm_num_ctx: 16384           # mặc định của Ollama (2–4 nghìn token) lặng lẽ cắt mất danh sách công cụ
+llm_timeout_giay: 600        # CPU/GPU phổ thông chậm hơn API nhiều -> nới thời gian chờ

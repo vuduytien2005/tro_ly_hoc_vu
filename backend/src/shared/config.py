@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # Mô hình thử lại khi mô hình chính từ chối trả lời (stop_reason "refusal"); trống = không
     llm_fallback_model: str = ""
     llm_timeout_seconds: float = 120.0
+    # Cửa sổ ngữ cảnh khi chạy mô hình cục bộ qua Ollama (ollama/..., ollama_chat/...).
+    # Trống = OLLAMA_DEFAULT_NUM_CTX. Mặc định của chính Ollama (2–4 nghìn token) LẶNG LẼ cắt
+    # mất danh sách công cụ.
+    llm_num_ctx: int | None = None
     # Số lần LiteLLM tự thử lại (có giãn cách) khi lỗi 429 / quá tải — cần cho gói miễn phí
     # (vd Gemini giới hạn số lượt mỗi phút)
     llm_num_retries: int = 2
@@ -89,7 +93,7 @@ class Settings(BaseSettings):
     agent_history_messages: int = 20
     action_expire_minutes: int = 10
 
-    @field_validator("demo_now", "llm_temperature", mode="before")
+    @field_validator("demo_now", "llm_temperature", "llm_num_ctx", mode="before")
     @classmethod
     def _empty_demo_now(cls, v: object) -> object:
         # "DEMO_NOW=" (bỏ trống) nghĩa là dùng giờ hệ thống
