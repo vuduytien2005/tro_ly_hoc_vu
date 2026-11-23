@@ -50,7 +50,7 @@ async def register_course(
 | Tool | Tham số | Trả về | Rủi ro / xác nhận |
 |---|---|---|---|
 | `request_student_certificate` | `muc_dich: str`, `so_ban: int = 1` (1–5) | {ma_don, trang_thai, du_kien} | **ghi, xác nhận** |
-| `submit_deferral_request` | `ly_do: str`, `so_hoc_ky: int = 1` (1–2), `tu_hoc_ky: str` | {ma_don} hoặc lỗi (NO_HOC_PHI...) | **nhạy cảm, xác nhận** |
+| `submit_deferral_request` | `ly_do: str`, `so_hoc_ky: int = 1` (1–2), `tu_hoc_ky: str`; `lien_he` do resolver điền qua **MCP elicitation** (không có trong schema) | {ma_don} hoặc lỗi (NO_HOC_PHI...) | **nhạy cảm, xác nhận** |
 | `submit_regrade_request` | `ma_hp: str`, `ly_do: str` | {ma_don} hoặc lỗi | **ghi, xác nhận** |
 | `list_my_requests` | `trang_thai: str \| None` | [{ma_don, loai_don, trang_thai, created_at}] | đọc |
 | `get_request_status` | `ma_don: str` | chi tiết đơn | đọc |
@@ -105,3 +105,17 @@ Lỗi: `KHONG_TIM_THAY_LUOT_MUON`, `DA_TRA_SACH`, `SACH_QUA_HAN`, `HET_LUOT_GIA_
 - Kết nối chính các MCP server này với ứng dụng MCP khác (vd Claude Desktop) để minh chứng tính chuẩn hóa của giao thức.
 - ~~Thêm server `thu_vien` (mượn/gia hạn sách) mà không sửa assistant_api.~~ Đã làm (20/11/2026, mục 4b).
 - Mỗi MCP server một token riêng (hiện dùng chung `INTERNAL_API_TOKEN`).
+
+## 7. MCP elicitation — server hỏi thẳng người dùng (bổ sung 23/11/2026)
+- `submit_deferral_request` có tham số `lien_he: Annotated[LienHeBaoLuu | None, Resolve(ask_contact)]`.
+  Tham số do resolver điền KHÔNG có trong input schema -> LLM không thấy, không điền được; mã băm
+  duyệt (`cong_cu.ban_duyet`) không đổi.
+- `ask_contact`: client không khai báo năng lực `elicitation` -> trả `None` (không hỏi). assistant_api
+  chỉ khai báo năng lực này ở luồng **thẻ xác nhận** (có người + giao diện) -> vòng Agent thường và
+  TN1–TN4 không bị ảnh hưởng.
+- Có năng lực -> server trả `InputRequiredResult` (MCP 2026-07-28, phi trạng thái: `input_requests` +
+  `request_state` do server ký). Thân công cụ (ghi qlsv_api) CHƯA chạy. Client gọi lại kèm
+  `input_responses` -> SDK kiểm dữ liệu theo schema rồi mới chạy thân công cụ.
+- Kết quả công cụ và `get_request_status` KHÔNG trả lại SĐT/email (thay bằng "Đã cung cấp qua biểu
+  mẫu (ẩn với trợ lý AI)") vì kết quả đi vào prompt LLM.
+- Luồng ở assistant_api, CSDL, giao diện: `docs/superpowers/specs/2026-11-23-mcp-elicitation-resources-design.md`.

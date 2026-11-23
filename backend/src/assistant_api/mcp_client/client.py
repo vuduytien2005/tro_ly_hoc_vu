@@ -24,6 +24,7 @@ from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.server.mcpserver import MCPServer
 from mcp.shared.exceptions import MCPError
+from mcp_types import ElicitResult, InputRequiredResult
 
 from src.shared.config import get_settings
 from src.shared.oauth import SCOPE_RESOURCES, issue_mcp_token
@@ -56,6 +57,24 @@ class ToolCallResult:
     ok: bool  # False = lỗi giao thức/thực thi (is_error), KHÔNG phải lỗi nghiệp vụ
     data: dict[str, Any] | list[Any]
     error: str | None = None
+    # MCP 2026-07-28: server cần người dùng bổ sung trước khi chạy {input_requests, request_state}
+    input_required: dict[str, Any] | None = None
+
+
+async def _cancel_inline_elicitation(_context: Any, _params: Any) -> ElicitResult:
+    """Server kiểu cũ (≤ 2025-11-25) hỏi GIỮA lúc gọi: không giữ kết nối chờ người -> hủy.
+    Server mới trả InputRequiredResult và không gọi tới hàm này."""
+    return ElicitResult(action="cancel")
+
+
+def _input_required_json(result: InputRequiredResult) -> dict[str, Any]:
+    return {
+        "input_requests": {
+            key: req.model_dump(mode="json", by_alias=True, exclude_none=True)
+            for key, req in (result.input_requests or {}).items()
+        },
+        "request_state": result.request_state,
+    }
 
 
 def _is_connect_error(exc: BaseException) -> bool:
@@ -121,17 +140,23 @@ class McpClient:
         tool: str | None = None,
         args: dict[str, Any] | None = None,
         scope: str | None = None,
+        interactive: bool = False,
     ) -> Client:
+        # interactive: chỉ luồng thẻ xác nhận (có người, có giao diện) mới khai báo năng lực
+        # elicitation -> vòng Agent thường / thực nghiệm không bao giờ bị server hỏi lại
+        extra: dict[str, Any] = (
+            {"elicitation_callback": _cancel_inline_elicitation} if interactive else {}
+        )
         target = self._targets.get(server)
         if target is None:
             raise McpUnavailableError(f"Chưa cấu hình MCP server '{server}'.")
         if isinstance(target, MCPServer):
-            return Client(target)
+            return Client(target, **extra)
         token = self._bearer(target, tool, args, scope)
         http = httpx2.AsyncClient(
             headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT_SECONDS
         )
-        return Client(streamable_http_client(target, http_client=http))
+        return Client(streamable_http_client(target, http_client=http), **extra)
 
     async def list_tools(self, server: str) -> list[ToolSpec]:
         for attempt in range(CONNECT_RETRIES + 1):
@@ -155,11 +180,37 @@ class McpClient:
                 raise McpUnavailableError(f"Không kết nối được MCP server '{server}'.") from exc
         raise AssertionError("unreachable")
 
-    async def call_tool(self, server: str, name: str, args: dict[str, Any]) -> ToolCallResult:
+    async def call_tool(
+        self,
+        server: str,
+        name: str,
+        args: dict[str, Any],
+        *,
+        interactive: bool = False,
+        input_responses: dict[str, dict[str, Any]] | None = None,
+        request_state: str | None = None,
+    ) -> ToolCallResult:
+        """Gọi công cụ. `interactive=True` (luồng thẻ xác nhận): server có thể trả
+        `InputRequiredResult` -> `ToolCallResult.input_required`; gọi lại kèm `input_responses`
+        ({khóa: {"action", "content"}}) và `request_state` để tiếp tục."""
+        responses = (
+            {k: ElicitResult.model_validate(v) for k, v in input_responses.items()}
+            if input_responses
+            else None
+        )
         for attempt in range(CONNECT_RETRIES + 1):
             try:
-                async with self._client(server, name, args) as client:
-                    result = await client.call_tool(name, args)
+                async with self._client(server, name, args, interactive=interactive) as client:
+                    if interactive:
+                        result = await client.session.call_tool(
+                            name,
+                            args,
+                            input_responses=responses,  # type: ignore[arg-type]
+                            request_state=request_state,
+                            allow_input_required=True,
+                        )
+                    else:
+                        result = await client.call_tool(name, args)
             except Exception as exc:
                 if _is_connect_error(exc):
                     if attempt < CONNECT_RETRIES:
@@ -167,6 +218,8 @@ class McpClient:
                         continue
                     raise McpUnavailableError(f"Không kết nối được MCP server '{server}'.") from exc
                 raise
+            if isinstance(result, InputRequiredResult):
+                return ToolCallResult(True, {}, input_required=_input_required_json(result))
             if result.is_error:
                 texts = [getattr(c, "text", "") for c in result.content or []]
                 message = " ".join(t for t in texts if t) or "Công cụ báo lỗi."

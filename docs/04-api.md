@@ -61,7 +61,8 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | POST | `/api/actions/{ma}/confirm` | SV (chủ sở hữu) | Thực thi → **SSE** (`tool_start`, `tool_end`, `token`, `done`). Lỗi trước khi mở luồng (JSON): 404 `KHONG_TIM_THAY_HANH_DONG`, 403 `KHONG_DU_QUYEN`, 409 `HANH_DONG_DA_XU_LY`, 409 `HANH_DONG_HET_HAN` |
-| POST | `/api/actions/{ma}/cancel` | SV (chủ sở hữu) | Hủy, log `da_huy` → JSON `{ma, trang_thai, tin_nhan}` (câu trả lời cố định "Đã hủy...", không gọi LLM). Lỗi như confirm |
+| POST | `/api/actions/{ma}/input` | SV (chủ sở hữu) | MCP elicitation (23/11/2026): thẻ ở `cho_bo_sung` (server cần thêm thông tin sau Xác nhận; `pending_action` SSE / danh sách thẻ có `bo_sung: {thong_diep, schema}`). Body `{du_lieu: {trường: giá trị}}`, ô trống bị bỏ. Sai schema → 422 `DU_LIEU_BO_SUNG_KHONG_HOP_LE` (thẻ vẫn chờ); đúng → khóa, `da_xac_nhan`, gọi lại công cụ → **SSE** như confirm. Thẻ chưa xác nhận / đã xử lý → 409. Giá trị điền KHÔNG lưu vào tin nhắn / nhật ký (chỉ tên trường) |
+| POST | `/api/actions/{ma}/cancel` | SV (chủ sở hữu) | Hủy (thẻ `cho` hoặc `cho_bo_sung`), log `da_huy` → JSON `{ma, trang_thai, tin_nhan}` (câu trả lời cố định "Đã hủy...", không gọi LLM). Lỗi như confirm |
 
 ### Thủ tục của em
 | Method | Đường dẫn | Quyền | Mô tả |

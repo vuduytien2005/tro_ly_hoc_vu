@@ -28,7 +28,13 @@ from src.shared.time import to_db, wall_clock
 
 Lookup = Callable[[str, str, dict[str, Any]], Awaitable[Outcome]]
 TEXT_LIMIT = 200
-STATUS_LABELS = {"da_xac_nhan": "đã xác nhận", "da_huy": "đã hủy", "het_han": "đã hết hạn"}
+STATUS_LABELS = {
+    "da_xac_nhan": "đã xác nhận",
+    "da_huy": "đã hủy",
+    "het_han": "đã hết hạn",
+    "cho_bo_sung": "đang chờ bổ sung thông tin",
+    "cho": "chưa được xác nhận",
+}
 
 
 class ActionRejected(Exception):
@@ -190,8 +196,11 @@ def create_pending(
     return action
 
 
-def lock_pending(db: Session, user: NguoiDung, ma: str) -> HanhDongChoXacNhan:
-    """Khóa hàng và kiểm tra: tồn tại, đúng chủ, còn 'cho', còn hạn. Lỗi -> ApiError (JSON)."""
+def lock_pending(
+    db: Session, user: NguoiDung, ma: str, allowed: tuple[str, ...] = ("cho",)
+) -> HanhDongChoXacNhan:
+    """Khóa hàng và kiểm tra: tồn tại, đúng chủ, trạng thái thuộc `allowed`, còn hạn.
+    Lỗi -> ApiError (JSON)."""
     action = db.scalar(
         lock_for_update(
             select(HanhDongChoXacNhan).where(HanhDongChoXacNhan.ma == ma), HanhDongChoXacNhan
@@ -201,7 +210,7 @@ def lock_pending(db: Session, user: NguoiDung, ma: str) -> HanhDongChoXacNhan:
         raise not_found("KHONG_TIM_THAY_HANH_DONG", "Không tìm thấy thao tác cần xác nhận.")
     if action.nguoi_dung_id != user.id:
         raise forbidden("KHONG_DU_QUYEN", "Bạn không có quyền xử lý thao tác này.")
-    if action.trang_thai != "cho":
+    if action.trang_thai not in allowed:
         label = STATUS_LABELS.get(action.trang_thai, action.trang_thai)
         raise ApiError("HANH_DONG_DA_XU_LY", f"Thao tác này {label} trước đó.", 409)
     now = to_db(wall_clock())

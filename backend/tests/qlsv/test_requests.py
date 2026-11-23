@@ -129,3 +129,18 @@ def test_staff_list_all_requests(db: Session) -> None:
     assert request_service.list_all_requests(db, None, "bao_luu", 1, 20).tong == 0
     second = request_service.list_all_requests(db, None, None, 2, 1)
     assert second.tong == 2 and second.don[0].ma_don == page.don[1].ma_don
+
+
+def test_deferral_contact_is_validated() -> None:
+    """Liên hệ khi bảo lưu (điền qua MCP elicitation) được qlsv_api kiểm lại định dạng."""
+    import pytest
+    from pydantic import ValidationError
+
+    from src.qlsv_api.schemas import DeferralContent
+
+    base = {"ly_do": "Đi làm", "tu_hoc_ky": "2026-2027-HK2"}
+    ok = DeferralContent.model_validate({**base, "lien_he": {"so_dien_thoai": "0912345678"}})
+    assert ok.model_dump(exclude_none=True)["lien_he"] == {"so_dien_thoai": "0912345678"}
+    assert "lien_he" not in DeferralContent.model_validate(base).model_dump(exclude_none=True)
+    with pytest.raises(ValidationError):
+        DeferralContent.model_validate({**base, "lien_he": {"so_dien_thoai": "12"}})

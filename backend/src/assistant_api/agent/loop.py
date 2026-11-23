@@ -25,13 +25,19 @@ import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from src.assistant_api.agent.actions import ActionRejected, create_pending, describe, validate_args
+from src.assistant_api.agent.elicitation import (
+    UnsupportedInputRequest,
+    form_request,
+    input_responses,
+    public_form,
+)
 from src.assistant_api.agent.executor import (
     Outcome,
     ToolLog,
@@ -51,7 +57,7 @@ from src.assistant_api.agent.registry import (
 )
 from src.assistant_api.models import HanhDongChoXacNhan, HoiThoai, NguoiDung, TinNhan
 from src.shared.config import get_settings
-from src.shared.time import from_db
+from src.shared.time import from_db, to_db, wall_clock
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +115,9 @@ def pending_event(action: HanhDongChoXacNhan) -> AgentEvent:
             "ten_cong_cu": action.ten_cong_cu,
             "mo_ta": action.mo_ta,
             "het_han_luc": expires.isoformat() if expires else None,
+            "bo_sung": public_form(action.yeu_cau_bo_sung)
+            if action.trang_thai == "cho_bo_sung"
+            else None,
         },
     )
 
@@ -266,6 +275,26 @@ class AgentRunner:
         ):
             yield event
 
+    async def resume(
+        self,
+        db: Session,
+        user: NguoiDung,
+        action_id: int,
+        now: datetime,
+        answers: dict[str, Any],
+    ) -> AsyncIterator[AgentEvent]:
+        """Sinh viên đã điền biểu mẫu bổ sung (MCP elicitation): gọi lại công cụ kèm câu trả lời.
+        Không lưu tin nhắn chứa giá trị đã điền (không vào lịch sử, không tới LLM)."""
+        action = db.get(HanhDongChoXacNhan, action_id)
+        assert action is not None and action.trang_thai == "da_xac_nhan"
+        assert action.yeu_cau_bo_sung is not None
+        conversation = db.get(HoiThoai, action.hoi_thoai_id)
+        assert conversation is not None
+        async for event in self._guarded(
+            db, self._confirm_steps(db, user, conversation, action, now, answers)
+        ):
+            yield event
+
     # ----- nội bộ ----------------------------------------------------------------
     @staticmethod
     async def _guarded(db: Session, events: AsyncIterator[AgentEvent]) -> AsyncIterator[AgentEvent]:
@@ -290,6 +319,7 @@ class AgentRunner:
         conversation: HoiThoai,
         action: HanhDongChoXacNhan,
         now: datetime,
+        answers: dict[str, Any] | None = None,
     ) -> AsyncIterator[AgentEvent]:
         policy = self.registry.policies(db).get(action.ten_cong_cu)
         started = time.perf_counter()
@@ -304,8 +334,36 @@ class AgentRunner:
             name = action.ten_cong_cu
             nhan = tool_label(name, self.registry.title(name))
             yield AgentEvent("tool_start", {"ten": name, "nhan": nhan})
-            outcome = await invoke(self.registry.client, action.mcp_server, name, action.tham_so)
+            resume = input_responses(action.yeu_cau_bo_sung, answers) if answers is not None else {}
+            outcome = await invoke(
+                self.registry.client,
+                action.mcp_server,
+                name,
+                action.tham_so,
+                interactive=True,  # có người + giao diện -> server được phép hỏi thêm
+                **resume,
+            )
             yield AgentEvent("tool_end", {"ten": name, "trang_thai": outcome.status})
+            if outcome.status == "cho_bo_sung":
+                rounds = (action.yeu_cau_bo_sung or {}).get("vong", 0)
+                try:
+                    request = form_request(outcome.extra["input_required"], rounds)
+                except UnsupportedInputRequest as exc:
+                    outcome = Outcome(
+                        failure(
+                            "KHONG_HO_TRO_YEU_CAU_BO_SUNG",
+                            "Hệ thống chưa hỗ trợ thông tin bổ sung mà chức năng này yêu cầu.",
+                        ),
+                        "loi",
+                        f"Yêu cầu bổ sung không được hỗ trợ: {exc}",
+                    )
+                else:
+                    async for event in self._await_input(db, action, request, started):
+                        yield event
+                    return
+            if answers is not None and outcome.status == "thanh_cong":
+                fields = ", ".join(sorted(answers)) or "(trống)"
+                outcome.reason = f"Sinh viên đã bổ sung qua biểu mẫu: {fields}"  # chỉ TÊN trường
         update_log(action.luot_goi, outcome, started)
 
         # Lịch sử: assistant(tool_call tổng hợp, chỉ tham số LLM thấy) + tool(kết quả thật)
@@ -341,6 +399,27 @@ class AgentRunner:
         db.commit()
         async for event in self._loop(db, user, conversation, now):
             yield event
+
+    async def _await_input(
+        self,
+        db: Session,
+        action: HanhDongChoXacNhan,
+        request: dict[str, Any],
+        started: float,
+    ) -> AsyncIterator[AgentEvent]:
+        """Server cần bổ sung: thẻ chuyển 'cho_bo_sung' (gia hạn), phát lại thẻ kèm biểu mẫu.
+        Dòng nhật ký vẫn 'cho_xac_nhan' (chưa thực thi gì) với lý do chờ bổ sung."""
+        action.trang_thai = "cho_bo_sung"
+        action.yeu_cau_bo_sung = request
+        action.xu_ly_luc = None
+        action.het_han_luc = to_db(wall_clock() + timedelta(minutes=self.expire_minutes))
+        log = action.luot_goi
+        log.trang_thai = "cho_xac_nhan"
+        log.ly_do = f"Chờ sinh viên bổ sung thông tin qua biểu mẫu (lần {request['vong']})"
+        log.thoi_gian_ms = int((time.perf_counter() - started) * 1000)
+        db.commit()
+        yield pending_event(action)
+        yield AgentEvent("done", {"tin_nhan_id": None})
 
     async def _loop(
         self, db: Session, user: NguoiDung, conversation: HoiThoai, now: datetime

@@ -83,8 +83,16 @@ class PendingActionOut(BaseModel):
     ten_cong_cu: str
     mo_ta: str
     het_han_luc: datetime
+    # MCP elicitation: biểu mẫu server cần sinh viên điền {thong_diep, schema}; None = thẻ thường
+    bo_sung: dict[str, Any] | None = None
 
     _tz = field_validator("het_han_luc", mode="after")(_aware)
+
+
+class ActionInputIn(BaseModel):
+    """Dữ liệu sinh viên điền vào biểu mẫu bổ sung (khóa = tên trường trong schema của server)."""
+
+    du_lieu: dict[str, str | int | float | bool | None]
 
 
 class MessagesOut(BaseModel):

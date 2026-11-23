@@ -178,6 +178,11 @@ export default function ChatPage() {
         break
       case 'pending_action':
         setLiveCards((cards) => [...cards.filter((c) => c.ma !== event.data.ma), event.data])
+        // Thẻ vừa xác nhận quay lại kèm biểu mẫu bổ sung (MCP elicitation) -> hiện lại thẻ
+        setOverrides((o) => {
+          const { [event.data.ma]: _hidden, ...rest } = o
+          return rest
+        })
         refreshTrace()
         break
       case 'error':
@@ -259,6 +264,35 @@ export default function ChatPage() {
         [action.ma]: {
           state: expired ? 'het_han' : 'loi',
           error: err instanceof ApiError ? err.message : 'Không thực hiện được, vui lòng thử lại.',
+        },
+      }))
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+      refreshTrace()
+    }
+  }
+
+  async function submitInput(
+    action: PendingAction,
+    data: Record<string, string | number | boolean>,
+  ) {
+    if (conversationId == null) return
+    setOverrides((o) => ({ ...o, [action.ma]: { state: 'an' } }))
+    try {
+      // Không hiện giá trị vừa điền trong khung chat (dữ liệu cá nhân, không qua trợ lý AI)
+      await runStream(
+        conversationId,
+        `/api/actions/${action.ma}/input`,
+        { du_lieu: data },
+        'Đã gửi thông tin bổ sung qua biểu mẫu',
+      )
+    } catch (err) {
+      // 422: dữ liệu chưa hợp lệ -> thẻ vẫn chờ bổ sung, hiện lỗi trên thẻ
+      const invalid = err instanceof ApiError && err.code === 'DU_LIEU_BO_SUNG_KHONG_HOP_LE'
+      setOverrides((o) => ({
+        ...o,
+        [action.ma]: {
+          state: invalid ? 'cho' : 'loi',
+          error: err instanceof ApiError ? err.message : 'Không gửi được, vui lòng thử lại.',
         },
       }))
       queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
@@ -365,6 +399,7 @@ export default function ChatPage() {
               error={overrides[action.ma]?.error}
               onConfirm={() => confirm(action)}
               onCancel={() => cancel(action)}
+              onSubmitInput={(data) => submitInput(action, data)}
             />
           ))}
 

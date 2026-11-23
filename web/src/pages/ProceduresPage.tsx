@@ -141,6 +141,8 @@ const FIELD_LABELS: Record<string, string> = {
   ma_hoc_ky: 'Học kỳ',
   hoc_ky: 'Học kỳ',
   diem_hien_tai: 'Điểm hiện tại',
+  tu_hoc_ky: 'Từ học kỳ',
+  lien_he: 'Liên hệ',
 }
 
 function fieldLabel(key: string): string {

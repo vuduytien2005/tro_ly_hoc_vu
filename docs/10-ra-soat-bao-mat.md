@@ -45,6 +45,18 @@ Trước đây mọi MCP server nhận chung `Bearer INTERNAL_API_TOKEN`: server
 MCP server công bố `/.well-known/oauth-protected-resource/mcp` (RFC 9728) và trả `WWW-Authenticate: Bearer ... resource_metadata=...` khi 401; assistant_api công bố `/.well-known/jwks.json` và `/.well-known/oauth-authorization-server` (RFC 8414). Khóa riêng ở `data/keys/` (không commit). `/internal/*` của quy_che (quản trị RAG) vẫn dùng `INTERNAL_API_TOKEN`; MCP server ↔ qlsv_api vẫn `X-Internal-Token`.
 Test: `tests/test_oauth.py`, `tests/mcp/test_common.py` (phần HTTP), `tests/assistant/test_mcp_client_oauth.py` (đầu-cuối qua uvicorn).
 
+## Bổ sung 23/11/2026 — MCP elicitation và resources
+- **Dữ liệu cá nhân không qua LLM:** SĐT/email liên hệ khi bảo lưu được MCP server `ctsv` hỏi bằng
+  biểu mẫu (elicitation) SAU khi sinh viên bấm Xác nhận; giá trị đi web -> assistant_api -> MCP server,
+  không vào prompt, không lưu tin nhắn, nhật ký chỉ ghi tên trường; kết quả công cụ không lặp lại.
+- **Không vượt bước Xác nhận:** `/input` chỉ nhận thẻ `cho_bo_sung` (đã xác nhận); thân công cụ chỉ
+  chạy khi đủ thông tin; năng lực elicitation chỉ khai báo ở luồng thẻ -> LLM không kích hoạt được.
+- **Dữ liệu sai:** assistant_api kiểm theo schema của server (không nhận trường lạ), SDK server kiểm lại.
+  Server đòi thứ khác (sampling, URL, nhiều biểu mẫu, quá 3 vòng) -> từ chối, nhật ký `loi`.
+- **Resources:** đọc nguyên văn Điều cần scope `mcp:resources.read` (token gọi công cụ bị từ chối).
+Test: `tests/assistant/test_elicitation.py`, `tests/assistant/test_mcp_client_oauth.py`,
+`tests/assistant/test_documents.py`, `tests/rag/test_quy_che_server.py`. Thiết kế: `docs/superpowers/specs/2026-11-23-mcp-elicitation-resources-design.md`.
+
 ## Hạn chế đã biết (chấp nhận trong phạm vi khóa luận)
 - Chỉ dùng phần cấp/kiểm token của OAuth 2.1: assistant_api vừa là client vừa là authorization server, không có luồng ủy quyền người dùng (authorization code + PKCE) vì người dùng đã đăng nhập vào assistant_api. MCP server được thêm vẫn nhận được `X-Internal-Token` nếu quản trị viên tự cấu hình cho nó; token qlsv_api là bí mật riêng của các server do trường triển khai.
 - `readOnlyHint` do server tự khai báo, chỉ là gợi ý; mức rủi ro thật do quản trị viên đặt.

@@ -164,6 +164,27 @@ def ma_khoa_of(ma_sv: str) -> str:
 
 
 # ----- Kết quả một kịch bản -----------------------------------------------------------
+# Giá trị mẫu khi đóng vai sinh viên điền biểu mẫu MCP elicitation (chỉ trường bắt buộc)
+SAMPLE_INPUT: dict[str, str] = {"so_dien_thoai": "0912345678"}
+
+
+def sample_form(schema: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for name in schema.get("required") or []:
+        prop = (schema.get("properties") or {}).get(name) or {}
+        if name in SAMPLE_INPUT:
+            out[name] = SAMPLE_INPUT[name]
+        elif prop.get("enum"):
+            out[name] = prop["enum"][0]
+        elif prop.get("type") in ("number", "integer"):
+            out[name] = prop.get("minimum", 1)
+        elif prop.get("type") == "boolean":
+            out[name] = True
+        else:
+            out[name] = "Thực nghiệm"
+    return out
+
+
 @dataclass
 class TurnResult:
     hoi_thoai_id: int
@@ -513,7 +534,17 @@ class AgentHarness:
                     batch = []
                     if auto_confirm and cards:
                         card = cards[0]
-                        rc = self.client.post(f"/api/actions/{card['ma']}/confirm", headers=headers)
+                        if card.get("bo_sung"):
+                            # MCP elicitation (23/11/2026): đóng vai sinh viên điền biểu mẫu
+                            rc = self.client.post(
+                                f"/api/actions/{card['ma']}/input",
+                                json={"du_lieu": sample_form(card["bo_sung"]["schema"])},
+                                headers=headers,
+                            )
+                        else:
+                            rc = self.client.post(
+                                f"/api/actions/{card['ma']}/confirm", headers=headers
+                            )
                         if rc.status_code == 200:
                             confirmed += 1
                             batch = parse_sse(rc.text)

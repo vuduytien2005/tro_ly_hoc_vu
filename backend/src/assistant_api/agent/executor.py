@@ -33,10 +33,15 @@ class Outcome:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
-async def invoke(client: McpClient, server: str, name: str, args: dict[str, Any]) -> Outcome:
-    """Gọi MCP; kết quả `thanh_cong: false` (lỗi nghiệp vụ) -> trạng thái 'loi'."""
+async def invoke(
+    client: McpClient, server: str, name: str, args: dict[str, Any], **interaction: Any
+) -> Outcome:
+    """Gọi MCP; kết quả `thanh_cong: false` (lỗi nghiệp vụ) -> trạng thái 'loi'.
+
+    `interaction` (luồng thẻ xác nhận): `interactive`, `input_responses`, `request_state`; server
+    cần bổ sung -> trạng thái 'cho_bo_sung', yêu cầu nằm ở `extra["input_required"]`."""
     try:
-        outcome = await client.call_tool(server, name, args)
+        outcome = await client.call_tool(server, name, args, **interaction)
     except McpUnavailableError as exc:
         return Outcome(
             failure(
@@ -49,6 +54,13 @@ async def invoke(client: McpClient, server: str, name: str, args: dict[str, Any]
     except Exception as exc:
         logger.exception("Gọi tool %s lỗi", name)
         return Outcome(failure("LOI_HE_THONG", "Lỗi khi gọi công cụ."), "loi", repr(exc))
+    if outcome.input_required is not None:
+        return Outcome(
+            {},
+            "cho_bo_sung",
+            "Chờ sinh viên bổ sung thông tin qua biểu mẫu (MCP elicitation)",
+            {"input_required": outcome.input_required},
+        )
     if not outcome.ok:
         return Outcome(
             failure("LOI_CONG_CU", "Công cụ báo lỗi khi xử lý yêu cầu."), "loi", outcome.error

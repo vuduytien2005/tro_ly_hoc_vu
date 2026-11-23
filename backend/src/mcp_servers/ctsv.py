@@ -8,8 +8,9 @@ Chạy: python -m src.mcp_servers.ctsv
 
 from typing import Annotated, Any, Literal
 
-from mcp.server.mcpserver import MCPServer
-from pydantic import Field
+from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.mcpserver.resolve import Elicit, Resolve
+from pydantic import BaseModel, Field
 
 from src.mcp_servers.common import MaSv, path_segment, qlsv, run, tool_errors
 from src.shared.config import get_settings
@@ -92,7 +93,7 @@ async def get_request_status(
     return {
         "ma_don": d["ma_don"],
         "loai_don": loai,
-        "noi_dung": d["noi_dung"],
+        "noi_dung": _hide_contact(d["noi_dung"]),
         "trang_thai": trang_thai,
         "ma_trang_thai": d["trang_thai"],
         "tao_boi": TAO_BOI.get(d.get("tao_boi", ""), d.get("tao_boi")),
@@ -101,6 +102,44 @@ async def get_request_status(
         "cap_nhat_luc": d["updated_at"],
         "thong_bao": note,
     }
+
+
+class LienHeBaoLuu(BaseModel):
+    """Biểu mẫu MCP elicitation: liên hệ trong thời gian bảo lưu. Sinh viên điền thẳng trên thẻ
+    xác nhận -> dữ liệu cá nhân này KHÔNG đi qua LLM."""
+
+    so_dien_thoai: str = Field(
+        title="Số điện thoại liên hệ",
+        description="10 chữ số, bắt đầu bằng 0 (vd 0912345678).",
+        pattern=r"^0\d{9}$",
+    )
+    email_ca_nhan: str | None = Field(
+        default=None,
+        title="Email cá nhân (không bắt buộc)",
+        description="Email ngoài email trường, để phòng CTSV liên lạc khi em nghỉ học.",
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    )
+
+
+ASK_CONTACT = (
+    "Phòng Công tác sinh viên cần thông tin liên hệ của em trong thời gian bảo lưu. "
+    "Thông tin này gửi thẳng tới hệ thống của trường, trợ lý AI không đọc được."
+)
+HIDDEN_CONTACT = "Đã cung cấp qua biểu mẫu (ẩn với trợ lý AI)."
+
+
+def ask_contact(ctx: Context) -> Elicit[LienHeBaoLuu] | None:
+    """Resolver: chỉ hỏi khi client khai báo năng lực elicitation (luồng thẻ xác nhận có giao
+    diện). Client khác (vòng Agent thường, thực nghiệm) -> không hỏi, đơn không có liên hệ."""
+    caps = ctx.client_capabilities
+    if caps is None or caps.elicitation is None:
+        return None
+    return Elicit(ASK_CONTACT, LienHeBaoLuu)
+
+
+def _hide_contact(noi_dung: dict[str, Any]) -> dict[str, Any]:
+    """Kết quả công cụ đi vào prompt LLM -> không trả SĐT/email đã điền qua biểu mẫu."""
+    return {**noi_dung, "lien_he": HIDDEN_CONTACT} if noi_dung.get("lien_he") else noi_dung
 
 
 async def _create_request(ma_sv: str, loai_don: str, noi_dung: dict[str, Any]) -> dict[str, Any]:
@@ -156,6 +195,9 @@ async def submit_deferral_request(
         Field(description='Học kỳ bắt đầu bảo lưu, mã dạng "2025-2026-HK2".'),
     ],
     so_hoc_ky: Annotated[int, Field(ge=1, le=2, description="Số học kỳ xin bảo lưu (1–2).")] = 1,
+    # Do resolver điền (MCP elicitation) -> KHÔNG có trong input schema, LLM không thấy / không
+    # điền được; mã băm duyệt của công cụ không đổi.
+    lien_he: Annotated[LienHeBaoLuu | None, Resolve(ask_contact)] = None,
 ) -> dict[str, Any]:
     """Nộp đơn xin bảo lưu kết quả học tập (tạm dừng học).
 
@@ -163,9 +205,10 @@ async def submit_deferral_request(
     học kỳ bắt đầu. Nên tra cứu quy chế về bảo lưu trước để nhắc sinh viên điều kiện.
     Lỗi thường gặp: NO_HOC_PHI (còn nợ học phí), SV_KHONG_DANG_HOC. Cần sinh viên xác nhận.
     """
-    return await _create_request(
-        ma_sv, "bao_luu", {"ly_do": ly_do, "so_hoc_ky": so_hoc_ky, "tu_hoc_ky": tu_hoc_ky}
-    )
+    noi_dung: dict[str, Any] = {"ly_do": ly_do, "so_hoc_ky": so_hoc_ky, "tu_hoc_ky": tu_hoc_ky}
+    if lien_he is not None:
+        noi_dung["lien_he"] = lien_he.model_dump(exclude_none=True)
+    return await _create_request(ma_sv, "bao_luu", noi_dung)
 
 
 @mcp.tool()

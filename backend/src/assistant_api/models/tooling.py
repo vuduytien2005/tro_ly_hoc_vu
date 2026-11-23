@@ -96,9 +96,11 @@ class HanhDongChoXacNhan(AssistantBase):
     tham_so: Mapped[dict[str, Any]] = mapped_column(JSON(none_as_null=True))
     mo_ta: Mapped[str] = mapped_column(UnicodeText)
     trang_thai: Mapped[str] = mapped_column(
-        Enum("cho", "da_xac_nhan", "da_huy", "het_han", name="trang_thai_hd"),
+        Enum("cho", "cho_bo_sung", "da_xac_nhan", "da_huy", "het_han", name="trang_thai_hd"),
         server_default=text("N'cho'"),
     )
+    # MCP elicitation: yêu cầu bổ sung của server {khoa, thong_diep, schema, request_state, vong}
+    yeu_cau_bo_sung: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
     het_han_luc: Mapped[datetime] = mapped_column(DATETIME2)
     xu_ly_luc: Mapped[datetime | None] = mapped_column(DATETIME2)
     created_at: Mapped[datetime] = mapped_column(DATETIME2, server_default=text("SYSDATETIME()"))

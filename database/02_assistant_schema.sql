@@ -147,7 +147,10 @@ CREATE TABLE hanh_dong_cho_xac_nhan (
   mo_ta          NVARCHAR(MAX) NOT NULL,          -- mô tả dễ hiểu hiển thị trên thẻ xác nhận
   trang_thai     NVARCHAR(20)  NOT NULL CONSTRAINT df_hd_trang_thai DEFAULT N'cho'
                  CONSTRAINT chk_hd_trang_thai
-                 CHECK (trang_thai IN (N'cho', N'da_xac_nhan', N'da_huy', N'het_han')),
+                 CHECK (trang_thai IN (N'cho', N'cho_bo_sung', N'da_xac_nhan', N'da_huy', N'het_han')),
+  -- MCP elicitation (08): yêu cầu bổ sung của server {thong_diep, schema, khoa, request_state}
+  yeu_cau_bo_sung NVARCHAR(MAX) NULL
+                 CONSTRAINT chk_hd_yeu_cau_bo_sung CHECK (ISJSON(yeu_cau_bo_sung) = 1),
   het_han_luc    DATETIME2(0)  NOT NULL,
   xu_ly_luc      DATETIME2(0)  NULL,
   created_at     DATETIME2(0)  NOT NULL CONSTRAINT df_hd_created DEFAULT SYSDATETIME(),

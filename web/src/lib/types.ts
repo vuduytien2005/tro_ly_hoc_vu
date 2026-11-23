@@ -1,3 +1,5 @@
+import type { FormSchema } from './elicitation'
+
 // Kiểu dữ liệu khớp docs/04-api.md (assistant_api).
 
 export type Role = 'sinh_vien' | 'admin'
@@ -52,6 +54,8 @@ export interface PendingAction {
   ten_cong_cu: string
   mo_ta: string
   het_han_luc: string
+  /** MCP elicitation: server cần sinh viên điền thêm biểu mẫu sau khi bấm Xác nhận. */
+  bo_sung?: { thong_diep: string; schema: FormSchema } | null
 }
 
 export interface MessagesResponse {

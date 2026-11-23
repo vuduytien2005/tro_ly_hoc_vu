@@ -250,12 +250,20 @@ class CertificateContent(Schema):
     so_ban: int = Field(default=1, ge=1, le=5)
 
 
+class DeferralContact(Schema):
+    """Liên hệ trong thời gian bảo lưu — sinh viên điền qua biểu mẫu MCP elicitation."""
+
+    so_dien_thoai: Annotated[str, StringConstraints(pattern=r"^0\d{9}$")]
+    email_ca_nhan: Email | None = None
+
+
 class DeferralContent(Schema):
     """bao_luu"""
 
     ly_do: NonEmptyStr
     so_hoc_ky: int = Field(default=1, ge=1, le=2)
     tu_hoc_ky: NonEmptyStr
+    lien_he: DeferralContact | None = None
 
 
 class RegradeContent(Schema):

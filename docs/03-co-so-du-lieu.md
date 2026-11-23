@@ -153,3 +153,10 @@ erDiagram
 | sv23001@truong.example | `Sv@123456` | sinh_vien | SV23001 | K23 |
 | sv22003@truong.example | `Sv@123456` | sinh_vien | SV22003 | K22 |
 | admin@truong.example   | `Admin@123456` | admin | – | – |
+
+## Nâng cấp 08 — MCP elicitation (23/11/2026)
+`database/08_nang_cap_elicitation.sql` (chạy lại nhiều lần vẫn an toàn; máy cài mới chạy 02 là có):
+- `hanh_dong_cho_xac_nhan.trang_thai` thêm `cho_bo_sung`: đã bấm Xác nhận nhưng MCP server cần sinh
+  viên điền thêm biểu mẫu.
+- `hanh_dong_cho_xac_nhan.yeu_cau_bo_sung NVARCHAR(MAX) NULL CHECK ISJSON`: `{khoa, thong_diep, schema,
+  request_state, vong}` — yêu cầu của server, để gọi lại công cụ khi sinh viên gửi biểu mẫu.

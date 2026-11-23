@@ -39,6 +39,9 @@ const CONTENT_LABELS: Record<string, string> = {
   ten_hp: 'Tên học phần',
   ma_hoc_ky: 'Học kỳ',
   diem_thi: 'Điểm thi',
+  lien_he: 'Liên hệ khi bảo lưu',
+  so_dien_thoai: 'Số điện thoại',
+  email_ca_nhan: 'Email cá nhân',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -245,7 +248,7 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
         <dd>{formatDateTime(current.created_at)}</dd>
         {Object.entries(current.noi_dung).map(([k, v]) =>
           v == null || v === '' ? null : (
-            <Row key={k} label={CONTENT_LABELS[k] ?? k} value={String(v)} />
+            <Row key={k} label={CONTENT_LABELS[k] ?? k} value={contentText(v)} />
           ),
         )}
         {current.ghi_chu_xu_ly && <Row label="Ghi chú xử lý" value={current.ghi_chu_xu_ly} />}
@@ -306,4 +309,15 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="whitespace-pre-wrap">{value}</dd>
     </>
   )
+}
+
+/** Giá trị trong noi_dung có thể lồng (vd lien_he: {so_dien_thoai, email_ca_nhan}). */
+function contentText(v: unknown): string {
+  if (v != null && typeof v === 'object') {
+    return Object.entries(v as Record<string, unknown>)
+      .filter(([, x]) => x != null && x !== '')
+      .map(([k, x]) => `${CONTENT_LABELS[k] ?? k}: ${String(x)}`)
+      .join(' · ')
+  }
+  return String(v)
 }

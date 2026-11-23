@@ -55,7 +55,8 @@ def _to_out(don: DonTu) -> RequestOut:
 def _validate_content(loai_don: str, noi_dung: dict[str, Any]) -> dict[str, Any]:
     schema = REQUEST_CONTENT_SCHEMAS[loai_don]
     try:
-        return schema.model_validate(noi_dung).model_dump()
+        # exclude_none: trường tùy chọn không có (vd lien_he) thì không lưu khóa rỗng
+        return schema.model_validate(noi_dung).model_dump(exclude_none=True)
     except ValidationError as exc:
         fields = ", ".join(str(e["loc"][0]) for e in exc.errors() if e["loc"])
         raise invalid(

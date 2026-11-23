@@ -94,3 +94,68 @@ def test_end_to_end_over_http(live_dao_tao: str) -> None:
     )
     result = anyio.run(client.call_tool, "dao_tao", "get_student_profile", {"ma_sv": "SV21001"})
     assert result.data["ma_loi"] == "KHONG_DU_QUYEN"
+
+
+@pytest.fixture
+def live_ctsv() -> Iterator[str]:
+    from src.mcp_servers import ctsv
+
+    get_key_store().ensure()
+    port = _free_port()
+    server = uvicorn.Server(
+        uvicorn.Config(build_app(ctsv.mcp, port), host="127.0.0.1", port=port, log_level="warning")
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 10
+    while not server.started and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert server.started
+    try:
+        yield f"http://127.0.0.1:{port}/mcp"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_elicitation_round_trip_over_stateless_http(live_ctsv: str, qlsv_mock: Any) -> None:
+    """MCP 2026-07-28 qua HTTP phi trạng thái + OAuth: vòng 1 nhận InputRequiredResult, vòng 2
+    (token mới, request_state do server ký) tạo đơn kèm liên hệ."""
+    from src.assistant_api.agent.elicitation import form_request
+
+    created = {
+        "ma_don": "DT-2026-0050",
+        "loai_don": "bao_luu",
+        "trang_thai": "moi_tao",
+        "noi_dung": {},
+        "created_at": "2026-11-23T09:00:00+07:00",
+    }
+    post = qlsv_mock.post("/internal/students/SV22001/requests").respond(201, json=created)
+    # respx chặn MỌI request httpx trong tiến trình -> cho MCP server lấy JWKS như thật
+    issuer = get_settings().oauth_issuer_url
+    qlsv_mock.get(f"{issuer}/.well-known/jwks.json").respond(200, json=get_key_store().jwks())
+    client = McpClient({"ctsv": live_ctsv})
+    args = {"ma_sv": "SV22001", "ly_do": "Đi làm", "tu_hoc_ky": "2026-2027-HK2"}
+
+    async def run() -> Any:
+        first = await client.call_tool("ctsv", "submit_deferral_request", args, interactive=True)
+        stored = form_request(first.input_required)
+        return await client.call_tool(
+            "ctsv",
+            "submit_deferral_request",
+            args,
+            interactive=True,
+            input_responses={
+                stored["khoa"]: {"action": "accept", "content": {"so_dien_thoai": "0987654321"}}
+            },
+            request_state=stored["request_state"],
+        )
+
+    result = anyio.run(run)
+    assert result.data["ma_don"] == "DT-2026-0050"
+    assert post.call_count == 1
+    import json
+
+    assert json.loads(post.calls.last.request.content)["noi_dung"]["lien_he"] == {
+        "so_dien_thoai": "0987654321"
+    }

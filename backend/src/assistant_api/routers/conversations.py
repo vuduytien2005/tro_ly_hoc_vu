@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.assistant_api.agent.elicitation import public_form
 from src.assistant_api.agent.loop import DEFAULT_TITLE, AgentEvent, AgentRunner
 from src.assistant_api.agent.prompts import tool_label
 from src.assistant_api.agent.registry import HIDDEN_PARAMS, ToolRegistry
@@ -131,7 +132,7 @@ def list_messages(conversation_id: int, user: Student, db: DbSession) -> Message
         .where(
             HanhDongChoXacNhan.hoi_thoai_id == conversation.id,
             HanhDongChoXacNhan.nguoi_dung_id == user.id,
-            HanhDongChoXacNhan.trang_thai == "cho",
+            HanhDongChoXacNhan.trang_thai.in_(("cho", "cho_bo_sung")),
             HanhDongChoXacNhan.het_han_luc > to_db(wall_clock()),  # hạn tính theo giờ thật
         )
         .order_by(HanhDongChoXacNhan.id)
@@ -149,7 +150,16 @@ def list_messages(conversation_id: int, user: Student, db: DbSession) -> Message
             for r in rows
             if r.noi_dung and r.noi_dung.strip()  # bỏ bước trung gian chỉ có tool_call
         ],
-        hanh_dong_cho_xac_nhan=[PendingActionOut.model_validate(p) for p in pending],
+        hanh_dong_cho_xac_nhan=[
+            PendingActionOut(
+                ma=p.ma,
+                ten_cong_cu=p.ten_cong_cu,
+                mo_ta=p.mo_ta,
+                het_han_luc=p.het_han_luc,
+                bo_sung=public_form(p.yeu_cau_bo_sung) if p.trang_thai == "cho_bo_sung" else None,
+            )
+            for p in pending
+        ],
     )
 
 
