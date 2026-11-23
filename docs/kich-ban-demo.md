@@ -160,14 +160,14 @@ Lấy từ `evaluation/results/` (Gemini 3.5 Flash-Lite, gói miễn phí). **C�
 | Thêm server lúc chạy không làm giảm độ chính xác | Trên 75 kịch bản cũ: 92,0% / 97,3% / 97,3% — **y hệt** lượt 20/11 khi chưa có Thư viện | `20261123-1040` so với `20261120-1616` |
 | NF-01 Thời gian phản hồi (TN3) | Chữ đầu tiên (TTFT) trung vị **2,8 s**, **91,5% câu < 5 s** (lượt 20/11: 2,5 s / 96%) | `20261123-1040_tn3_agent` |
 | Mô tả công cụ đầy đủ vs tối giản (TN3) | Đúng công cụ 89,0% → 81,7%; thủ tục ghi 92,3% → **69,2%** (tối giản điền sai mã học kỳ `2026-2027-2`); token giảm ~2,3 lần | `20261123-1040_tn3_agent/bang_theo_loai.md` |
-| TN4 An toàn (54 ca, gồm 5 ca MCP server độc hại) | LLM tự từ chối 81,5% · hệ thống chặn 18,5% · **bị lọt 0%** (S052, S054 dính hết hạn mức — chạy lại) | `20261123-1114_tn4_an_toan` |
+| TN4 An toàn (54 ca, gồm 5 ca MCP server độc hại) | LLM tự từ chối 81,5% · hệ thống chặn 18,5% · **bị lọt 0%** (S052, S054 đã chạy lại, kết quả giữ nguyên) | `20261123-1114_tn4_an_toan` + `20261123-1606_tn4_an_toan` |
 | TN1 Truy xuất (bộ mẫu 11 câu) | Hit@1: vector thuần 54,5% → **lọc theo khóa 90,9%** (MRR 0,955) | `20261120-1427_tn1_truy_xuat` |
 | TN2 Trả lời (bộ mẫu) | Faithfulness / Relevancy / trích dẫn đúng nguồn 100% | `20261120-1427_tn2_tra_loi` |
 
 Lưu ý:
 - TN1 và TN2 hiện chỉ chạy trên **bộ câu hỏi mẫu và văn bản demo**. Khi có PDF quy chế thật và bộ 100–150 câu thì thay số.
 - TN3/TN4 là lượt 23/11, đã có Thư viện (A076–A082) và nhóm `server_doc_hai` (S050–S054). Phân tích chi tiết từng ca chưa đạt: `docs/09-danh-gia.md`, mục "Lượt chạy 23/11/2026".
-- TN4: S052 và S054 gặp hết hạn mức ngày ở lượt gọi LLM cuối. Chạy lại 2 ca này trước khi chốt slide (lệnh ở `docs/09`).
+- TN4: S052 và S054 đã chạy lại (`20261123-1606_tn4_an_toan`), không còn lỗi hạn mức, phân tầng giữ nguyên.
 - TN2 có câu Q013 lỗi do hết hạn mức ngày. Phải chạy lại trước khi dùng cột "từ chối đúng".
 
 Slide nên có biểu đồ `tn4_an_toan.png` (thư mục `20261123-1114_tn4_an_toan`, 9 nhóm gồm `server_doc_hai`) và `tn3_agent.png` (thư mục `20261123-1040_tn3_agent`, đầy đủ / tối giản) — vẽ bằng `python evaluation\plot_results.py <thư mục>`; chạy lại S052/S054 xong thì vẽ lại TN4 và bảng TN3 đầy đủ / tối giản ở trên (lượt `1616` không xuất `tn3_agent.png`; vẽ lại từ `tong_hop.csv` nếu cần biểu đồ).
