@@ -67,6 +67,7 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 |---|---|---|---|
 | GET | `/api/my/requests?trang_thai=` | SV | Gọi tool `list_my_requests` trực tiếp (không qua LLM), tiêm ma_sv, ghi nhật ký (`hoi_thoai_id = NULL`). Trả `{don: [{ma_don, loai_don, trang_thai (nhãn tiếng Việt), ma_trang_thai (mã gốc, để tô màu nhãn), tao_boi ("Sinh viên"/"Trợ lý AI"), ngay_tao}], thong_bao}`. Tool tắt → 503 `CHUC_NANG_TAM_DUNG` |
 | GET | `/api/my/requests/{ma_don}` | SV | Chi tiết (tool `get_request_status`): thêm `noi_dung`, `ghi_chu_xu_ly`, `cap_nhat_luc`, cũng có `ma_trang_thai`, `tao_boi`; đơn không thuộc em → 404 `DON_KHONG_TON_TAI` |
+| GET | `/api/my/reminders` | SV | Nhắc việc (bổ sung 23/11/2026): gọi trực tiếp các tool đọc `get_tuition_status`, `get_exam_schedule`, `get_borrowed_books` (tool tắt / server chưa cài → bỏ qua, KHÔNG gọi), tiêm ma_sv, ghi nhật ký lý do "Nhắc việc tự động (trang sinh viên)". Trả `{ngay, nhac_viec: [{loai (hoc_phi\|lich_thi\|sach), muc_do (khan\|sap_toi), tieu_de, chi_tiet, han, con_ngay, cau_hoi}], nguon_loi: [tên tool lỗi]}`. Quy tắc: học phí còn nợ, hạn ≤ 30 ngày (khẩn ≤ 7 hoặc quá hạn); thi trong 14 ngày (khẩn ≤ 3); sách hạn ≤ 7 ngày hoặc quá hạn (khẩn ≤ 2). "Hôm nay" theo `DEMO_NOW` nếu có. Thiết kế: `docs/superpowers/specs/2026-11-23-nhac-viec-design.md` |
 
 ### Quản trị
 | Method | Đường dẫn | Quyền | Mô tả |

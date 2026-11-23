@@ -24,7 +24,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 ```
 
 ## Trang chat (quan trọng nhất)
-- **Sidebar trái** (nền xanh đậm): logo, nút "Cuộc trò chuyện mới", danh sách hội thoại gần đây, liên kết "Thủ tục của em", thông tin sinh viên ở đáy.
+- **Sidebar trái** (nền xanh đậm): logo, **chuông nhắc việc** (huy hiệu đỏ = có việc khẩn, cam = sắp tới; mở danh sách học phí / lịch thi / sách sắp đến hạn, nút "Hỏi trợ lý" mở /chat với câu hỏi soạn sẵn trong ô nhập, không tự gửi — bổ sung 23/11/2026), nút "Cuộc trò chuyện mới", danh sách hội thoại gần đây, liên kết "Thủ tục của em", thông tin sinh viên ở đáy.
 - **Khung chat:** tin người dùng căn phải nền xanh; tin trợ lý căn trái nền trắng.
 - **Chip tiến trình** phía trên câu trả lời khi đang xử lý: "Đang tra cứu quy chế…", "Đang xem bảng điểm của em…", chuyển ✓ khi xong. Nhãn lấy từ map tên tool → câu tiếng Việt ở frontend.
 - **Trích dẫn:** `[1]` hiển thị dạng nút nhỏ; bên dưới câu trả lời có các thẻ "Nguồn tham khảo" (văn bản, Điều, trang). Bấm `[n]` mở popover: tên văn bản (phiên bản), Điều/Khoản/trang và trích đoạn (`trich_doan`, ≤ 300 ký tự).

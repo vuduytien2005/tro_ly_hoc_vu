@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ClipboardList,
@@ -10,29 +10,41 @@ import {
   Plus,
   Trash2,
   X,
-} from 'lucide-react'
-import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router'
-import { api } from '../lib/api'
-import { useAuth } from '../lib/auth'
-import type { Conversation } from '../lib/types'
+} from "lucide-react";
+import { useState } from "react";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
+import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { RemindersBell } from "./RemindersBell";
+import type { Conversation } from "../lib/types";
 
 export default function StudentLayout() {
   // Menu trượt (màn hình nhỏ) gắn với trang đang mở -> chuyển trang là tự đóng
-  const location = useLocation()
-  const [openOn, setOpenOn] = useState<string | null>(null)
-  const open = openOn === location.pathname
-  const setOpen = (value: boolean) => setOpenOn(value ? location.pathname : null)
+  const location = useLocation();
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === location.pathname;
+  const setOpen = (value: boolean) =>
+    setOpenOn(value ? location.pathname : null);
 
   return (
     <div className="flex h-full">
       {/* Màn hình nhỏ: sidebar thành menu trượt */}
       {open && (
-        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setOpen(false)} />
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setOpen(false)}
+        />
       )}
       <aside
         className={`fixed inset-y-0 left-0 z-40 w-72 transform transition-transform md:static md:translate-x-0 ${
-          open ? 'translate-x-0' : '-translate-x-full'
+          open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <Sidebar onClose={() => setOpen(false)} />
@@ -54,15 +66,15 @@ export default function StudentLayout() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function Sidebar({ onClose }: { onClose: () => void }) {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
   const conversations = useQuery({
-    queryKey: ['conversations'],
-    queryFn: () => api<Conversation[]>('/api/conversations'),
-  })
+    queryKey: ["conversations"],
+    queryFn: () => api<Conversation[]>("/api/conversations"),
+  });
 
   return (
     <div className="flex h-full flex-col bg-navy text-slate-200">
@@ -71,6 +83,7 @@ function Sidebar({ onClose }: { onClose: () => void }) {
           <GraduationCap size={20} />
         </div>
         <span className="flex-1 font-semibold text-white">Trợ lý học vụ</span>
+        <RemindersBell onNavigate={onClose} />
         <button
           onClick={onClose}
           aria-label="Đóng menu"
@@ -93,12 +106,18 @@ function Sidebar({ onClose }: { onClose: () => void }) {
         <p className="px-2 pb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
           Gần đây
         </p>
-        {conversations.isPending && <p className="px-2 text-sm text-slate-400">Đang tải…</p>}
+        {conversations.isPending && (
+          <p className="px-2 text-sm text-slate-400">Đang tải…</p>
+        )}
         {conversations.data?.length === 0 && (
-          <p className="px-2 text-sm text-slate-400">Chưa có cuộc trò chuyện nào.</p>
+          <p className="px-2 text-sm text-slate-400">
+            Chưa có cuộc trò chuyện nào.
+          </p>
         )}
         <ul className="space-y-1">
-          {conversations.data?.map((c) => <ConversationItem key={c.id} conversation={c} />)}
+          {conversations.data?.map((c) => (
+            <ConversationItem key={c.id} conversation={c} />
+          ))}
         </ul>
       </nav>
 
@@ -107,7 +126,7 @@ function Sidebar({ onClose }: { onClose: () => void }) {
           to="/thu-tuc"
           className={({ isActive }) =>
             `flex h-11 items-center gap-3 rounded-[10px] px-3 hover:bg-white/10 ${
-              isActive ? 'bg-white/10 text-white' : ''
+              isActive ? "bg-white/10 text-white" : ""
             }`
           }
         >
@@ -115,10 +134,12 @@ function Sidebar({ onClose }: { onClose: () => void }) {
         </NavLink>
         <div className="flex items-center gap-3 rounded-[10px] px-3 py-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
-            {user?.ho_ten.split(' ').pop()?.[0] ?? '?'}
+            {user?.ho_ten.split(" ").pop()?.[0] ?? "?"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{user?.ho_ten}</p>
+            <p className="truncate text-sm font-medium text-white">
+              {user?.ho_ten}
+            </p>
             <p className="truncate text-xs text-slate-400">
               {user?.ma_sv} · Khóa {user?.ma_khoa}
             </p>
@@ -134,32 +155,34 @@ function Sidebar({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function ConversationItem({ conversation }: { conversation: Conversation }) {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [title, setTitle] = useState(conversation.tieu_de)
-  const active = id === String(conversation.id)
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(conversation.tieu_de);
+  const active = id === String(conversation.id);
 
   const rename = useMutation({
     mutationFn: (tieu_de: string) =>
       api<Conversation>(`/api/conversations/${conversation.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         json: { tieu_de },
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
-  })
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+  });
   const remove = useMutation({
-    mutationFn: () => api<void>(`/api/conversations/${conversation.id}`, { method: 'DELETE' }),
+    mutationFn: () =>
+      api<void>(`/api/conversations/${conversation.id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-      if (active) navigate('/chat')
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      if (active) navigate("/chat");
     },
-  })
+  });
 
   if (editing) {
     return (
@@ -169,19 +192,19 @@ function ConversationItem({ conversation }: { conversation: Conversation }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && title.trim()) {
-              rename.mutate(title.trim())
-              setEditing(false)
+            if (e.key === "Enter" && title.trim()) {
+              rename.mutate(title.trim());
+              setEditing(false);
             }
-            if (e.key === 'Escape') setEditing(false)
+            if (e.key === "Escape") setEditing(false);
           }}
           className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none"
           aria-label="Tiêu đề mới"
         />
         <button
           onClick={() => {
-            if (title.trim()) rename.mutate(title.trim())
-            setEditing(false)
+            if (title.trim()) rename.mutate(title.trim());
+            setEditing(false);
           }}
           aria-label="Lưu tiêu đề"
           className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-white/10"
@@ -189,12 +212,12 @@ function ConversationItem({ conversation }: { conversation: Conversation }) {
           <Check size={16} />
         </button>
       </li>
-    )
+    );
   }
 
   return (
     <li
-      className={`group flex items-center rounded-[10px] ${active ? 'bg-white/15 text-white' : 'hover:bg-white/10'}`}
+      className={`group flex items-center rounded-[10px] ${active ? "bg-white/15 text-white" : "hover:bg-white/10"}`}
     >
       <Link
         to={`/chat/${conversation.id}`}
@@ -207,8 +230,8 @@ function ConversationItem({ conversation }: { conversation: Conversation }) {
       <div className="flex shrink-0 md:hidden md:group-hover:flex">
         <button
           onClick={() => {
-            setTitle(conversation.tieu_de)
-            setEditing(true)
+            setTitle(conversation.tieu_de);
+            setEditing(true);
           }}
           aria-label="Đổi tên"
           title="Đổi tên"
@@ -218,7 +241,7 @@ function ConversationItem({ conversation }: { conversation: Conversation }) {
         </button>
         <button
           onClick={() => {
-            if (window.confirm('Xóa cuộc trò chuyện này?')) remove.mutate()
+            if (window.confirm("Xóa cuộc trò chuyện này?")) remove.mutate();
           }}
           aria-label="Xóa"
           title="Xóa"
@@ -228,5 +251,5 @@ function ConversationItem({ conversation }: { conversation: Conversation }) {
         </button>
       </div>
     </li>
-  )
+  );
 }

@@ -17,6 +17,8 @@ from src.assistant_api.agent.registry import (
 from src.assistant_api.deps import DbSession, Student
 from src.assistant_api.errors import ApiError
 from src.assistant_api.models import NguoiDung
+from src.assistant_api.reminders import build_reminders
+from src.shared.time import now
 
 router = APIRouter(prefix="/api/my", tags=["Thủ tục của em"])
 
@@ -25,7 +27,12 @@ NOT_FOUND_CODES = {"DON_KHONG_TON_TAI", "SV_KHONG_TON_TAI"}
 
 
 async def call_direct(
-    request: Request, db: DbSession, user: NguoiDung, tool: str, args: dict[str, Any]
+    request: Request,
+    db: DbSession,
+    user: NguoiDung,
+    tool: str,
+    args: dict[str, Any],
+    reason: str = DIRECT_REASON,
 ) -> dict[str, Any]:
     registry: ToolRegistry = request.app.state.registry
     await registry.ensure_fresh(db)
@@ -52,7 +59,7 @@ async def call_direct(
         raise ApiError("KHONG_DU_QUYEN", str(exc), 403) from exc
     log.set_args(full_args)
     outcome = await invoke(registry.client, policy.server, tool, full_args)
-    outcome.reason = outcome.reason or DIRECT_REASON
+    outcome.reason = outcome.reason or reason
     log.save(outcome)
     result = outcome.result
     if outcome.status != "thanh_cong" or not isinstance(result, dict):
@@ -82,3 +89,41 @@ async def get_request(
     request: Request, ma_don: str, user: Student, db: DbSession
 ) -> dict[str, Any]:
     return await call_direct(request, db, user, "get_request_status", {"ma_don": ma_don})
+
+
+REMINDER_REASON = "Nhắc việc tự động (trang sinh viên)"
+REMINDER_TOOLS = ("get_tuition_status", "get_exam_schedule", "get_borrowed_books")
+
+
+@router.get(
+    "/reminders",
+    summary="Nhắc việc: học phí, lịch thi, sách sắp đến hạn (gọi các tool đọc đang bật)",
+)
+async def list_reminders(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
+    registry: ToolRegistry = request.app.state.registry
+    await registry.ensure_fresh(db)
+    policies = registry.policies(db)
+    results: dict[str, dict[str, Any] | None] = {}
+    failed: list[str] = []
+    for tool in REMINDER_TOOLS:
+        policy = policies.get(tool)
+        if policy is None or not policy.available or policy.spec is None:
+            # Quy tắc 6: tool tắt / server chưa cài -> không gọi, không nhắc (không phải lỗi)
+            results[tool] = None
+            continue
+        try:
+            results[tool] = await call_direct(request, db, user, tool, {}, REMINDER_REASON)
+        except ApiError:
+            results[tool] = None  # lần gọi lỗi đã được ghi nhật ký trong call_direct
+            failed.append(tool)
+    today = now().date()
+    return {
+        "ngay": today.isoformat(),
+        "nhac_viec": build_reminders(
+            results["get_tuition_status"],
+            results["get_exam_schedule"],
+            results["get_borrowed_books"],
+            today,
+        ),
+        "nguon_loi": failed,
+    }

@@ -114,3 +114,20 @@ export interface TraceStep {
 export interface TraceResponse {
   luot_goi: TraceStep[]
 }
+
+// ---- Nhắc việc (/api/my/reminders) ----
+export interface Reminder {
+  loai: 'hoc_phi' | 'lich_thi' | 'sach'
+  muc_do: 'khan' | 'sap_toi'
+  tieu_de: string
+  chi_tiet: string
+  han: string
+  con_ngay: number
+  cau_hoi: string
+}
+
+export interface RemindersResponse {
+  ngay: string
+  nhac_viec: Reminder[]
+  nguon_loi: string[]
+}

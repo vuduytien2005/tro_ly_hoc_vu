@@ -237,7 +237,7 @@ def test_pacer_spaces_calls() -> None:
     assert pacer.wait() == 0.0 and pacer.wait() == 0.0  # tắt mặc định
     pacer.min_interval = 0.2
     assert pacer.wait() == 0.0
-    assert 0.1 < pacer.wait() <= 0.2
+    assert 0.1 < pacer.wait() <= 0.2 + 1e-6  # sai số dấu phẩy động của time.monotonic()
 
 
 def test_params_match_list_ignores_order() -> None:
