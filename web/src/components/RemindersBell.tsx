@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bell, BookOpen, CalendarClock, MessageSquare, Wallet } from 'lucide-react'
+import { Bell, BookOpen, CalendarClock, FileText, MessageSquare, Wallet } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../lib/api'
@@ -10,11 +10,12 @@ const ICONS = {
   hoc_phi: Wallet,
   lich_thi: CalendarClock,
   sach: BookOpen,
-} as const
+  don: FileText,
+} as const satisfies Record<Reminder['loai'], unknown>
 
 /**
- * Chuông nhắc việc (học phí, lịch thi, sách sắp đến hạn) — xem /api/my/reminders.
- * Mỗi lần tải là 2–3 lượt gọi tool có ghi nhật ký -> giữ kết quả 5 phút, không tải lại khi đổi tab.
+ * Chuông nhắc việc (học phí, lịch thi, sách sắp đến hạn, đơn vừa xử lý) — xem /api/my/reminders.
+ * Mỗi lần tải là 3–4 lượt gọi tool có ghi nhật ký -> giữ kết quả 5 phút, không tải lại khi đổi tab.
  */
 export function RemindersBell({ onNavigate }: { onNavigate: () => void }) {
   const [open, setOpen] = useState(false)

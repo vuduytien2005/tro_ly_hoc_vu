@@ -92,12 +92,17 @@ async def get_request(
 
 
 REMINDER_REASON = "Nhắc việc tự động (trang sinh viên)"
-REMINDER_TOOLS = ("get_tuition_status", "get_exam_schedule", "get_borrowed_books")
+REMINDER_TOOLS = (
+    "get_tuition_status",
+    "get_exam_schedule",
+    "get_borrowed_books",
+    "list_my_requests",
+)
 
 
 @router.get(
     "/reminders",
-    summary="Nhắc việc: học phí, lịch thi, sách sắp đến hạn (gọi các tool đọc đang bật)",
+    summary="Nhắc việc: học phí, lịch thi, sách sắp đến hạn, đơn vừa xử lý (gọi các tool đọc)",
 )
 async def list_reminders(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
     registry: ToolRegistry = request.app.state.registry
@@ -124,6 +129,7 @@ async def list_reminders(request: Request, user: Student, db: DbSession) -> dict
             results["get_exam_schedule"],
             results["get_borrowed_books"],
             today,
+            results["list_my_requests"],
         ),
         "nguon_loi": failed,
     }

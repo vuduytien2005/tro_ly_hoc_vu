@@ -77,6 +77,7 @@ export interface RequestSummary {
   ma_trang_thai: string
   tao_boi: string
   ngay_tao: string
+  ngay_cap_nhat?: string
 }
 
 export interface RequestListResponse {
@@ -117,7 +118,7 @@ export interface TraceResponse {
 
 // ---- Nhắc việc (/api/my/reminders) ----
 export interface Reminder {
-  loai: 'hoc_phi' | 'lich_thi' | 'sach'
+  loai: 'hoc_phi' | 'lich_thi' | 'sach' | 'don'
   muc_do: 'khan' | 'sap_toi'
   tieu_de: string
   chi_tiet: string

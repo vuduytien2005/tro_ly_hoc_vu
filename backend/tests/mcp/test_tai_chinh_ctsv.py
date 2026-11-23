@@ -97,7 +97,10 @@ async def test_list_my_requests(qlsv_mock: respx.MockRouter) -> None:
     route = qlsv_mock.get("/internal/students/SV22001/requests").respond(
         200,
         json=[
-            {k: REQUEST[k] for k in ("ma_don", "loai_don", "trang_thai", "tao_boi", "created_at")}
+            {
+                k: REQUEST[k]
+                for k in ("ma_don", "loai_don", "trang_thai", "tao_boi", "created_at", "updated_at")
+            }
         ],
     )
     out = await call_tool(
@@ -112,6 +115,7 @@ async def test_list_my_requests(qlsv_mock: respx.MockRouter) -> None:
             "ma_trang_thai": "dang_xu_ly",
             "tao_boi": "Sinh viên",
             "ngay_tao": "2026-11-10",
+            "ngay_cap_nhat": REQUEST["updated_at"][:10],
         }
     ]
 

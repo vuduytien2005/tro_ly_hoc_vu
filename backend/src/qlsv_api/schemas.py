@@ -295,6 +295,7 @@ class RequestSummaryOut(Schema):
     trang_thai: str
     tao_boi: str
     created_at: datetime
+    updated_at: datetime
 
 
 class StaffRequestOut(RequestOut):

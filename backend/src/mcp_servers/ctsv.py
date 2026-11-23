@@ -64,6 +64,7 @@ async def list_my_requests(
             "ma_trang_thai": d["trang_thai"],
             "tao_boi": TAO_BOI.get(d.get("tao_boi", ""), d.get("tao_boi")),
             "ngay_tao": d["created_at"][:10],
+            "ngay_cap_nhat": (d.get("updated_at") or d["created_at"])[:10],
         }
         for d in rows
     ]

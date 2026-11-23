@@ -172,6 +172,7 @@ def test_reminders_skip_disabled_tool_without_calling(
     qlsv_mock.get("/internal/students/SV22001/exam-schedule").respond(
         200, json={"ma_sv": "SV22001", "ma_hoc_ky": "2026-2027-HK1", "lich_thi": []}
     )
+    qlsv_mock.get("/internal/students/SV22001/requests").respond(200, json=[])
     r = client.get("/api/my/reminders", headers=login(client, student.email))
     assert r.status_code == 200
     assert r.json()["nhac_viec"] == [] and r.json()["nguon_loi"] == []
@@ -180,3 +181,76 @@ def test_reminders_skip_disabled_tool_without_calling(
 
 def test_reminders_require_student(client: TestClient) -> None:
     assert client.get("/api/my/reminders").status_code == 401
+
+
+# ----- Đơn vừa được xử lý (bổ sung 23/11/2026) -------------------------------------------------
+def req(ma_trang_thai: str, ngay_cap_nhat: str, ma_don: str = "DT-2026-0007") -> dict[str, Any]:
+    return {
+        "ma_don": ma_don,
+        "loai_don": "Đơn bảo lưu",
+        "ma_trang_thai": ma_trang_thai,
+        "ngay_tao": "2026-11-01",
+        "ngay_cap_nhat": ngay_cap_nhat,
+    }
+
+
+def test_recently_processed_requests_are_reminded() -> None:
+    data = {
+        "don": [
+            req("da_duyet", "2026-11-22", "DT-1"),
+            req("tu_choi", "2026-11-20", "DT-2"),
+            req("hoan_tat", "2026-11-23", "DT-3"),
+            req("dang_xu_ly", "2026-11-23", "DT-4"),  # chưa xử lý xong: không báo
+            req("moi_tao", "2026-11-23", "DT-5"),
+            req("da_duyet", "2026-11-10", "DT-6"),  # quá 7 ngày: không báo nữa
+        ]
+    }
+    items = build_reminders(None, None, None, TODAY, data)
+    assert [(r["loai"], r["muc_do"], r["con_ngay"]) for r in items] == [
+        ("don", "khan", -3),  # bị từ chối -> khẩn (cần làm lại)
+        ("don", "sap_toi", -1),
+        ("don", "sap_toi", 0),
+    ]
+    rejected = items[0]
+    assert rejected["tieu_de"] == "Đơn bảo lưu bị từ chối"
+    assert "DT-2" in rejected["chi_tiet"] and "3 ngày trước" in rejected["chi_tiet"]
+    assert "bị từ chối" in rejected["cau_hoi"]
+    assert items[2]["chi_tiet"].startswith("Mã đơn DT-3, cập nhật hôm nay")
+
+
+def test_request_without_update_date_uses_creation_date() -> None:
+    old_api = {"don": [{**req("da_duyet", ""), "ngay_cap_nhat": None, "ngay_tao": "2026-11-21"}]}
+    assert [r["han"] for r in build_reminders(None, None, None, TODAY, old_api)] == ["2026-11-21"]
+
+
+def test_reminders_api_includes_processed_request(
+    client: TestClient,
+    student: NguoiDung,
+    qlsv_mock: respx.MockRouter,
+    fixed_today: None,
+) -> None:
+    qlsv_mock.get("/internal/students/SV22001/tuition").respond(
+        200, json={"ma_sv": "SV22001", "con_no": 0, "han_nop": "2026-11-28"}
+    )
+    qlsv_mock.get("/internal/students/SV22001/exam-schedule").respond(
+        200, json={"ma_sv": "SV22001", "ma_hoc_ky": "2026-2027-HK1", "lich_thi": []}
+    )
+    route = qlsv_mock.get("/internal/students/SV22001/requests").respond(
+        200,
+        json=[
+            {
+                "ma_don": "DT-2026-0009",
+                "loai_don": "phuc_khao",
+                "trang_thai": "da_duyet",
+                "tao_boi": "tro_ly_ai",
+                "created_at": "2026-11-15T08:00:00+07:00",
+                "updated_at": "2026-11-22T14:30:00+07:00",
+            }
+        ],
+    )
+    r = client.get("/api/my/reminders", headers=login(client, student.email))
+    assert r.status_code == 200, r.text
+    assert route.called
+    [item] = [x for x in r.json()["nhac_viec"] if x["loai"] == "don"]
+    assert item["tieu_de"] == "Đơn phúc khảo đã được duyệt"
+    assert item["han"] == "2026-11-22"

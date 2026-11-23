@@ -46,3 +46,9 @@ hỏi vào ô nhập (không tự gửi). TanStack Query `staleTime` 5 phút đ�
 
 ## Để lại cho người làm
 Văn phong lời nhắc, biểu tượng, vị trí popover.
+
+## Bổ sung 23/11/2026 — báo đơn vừa được xử lý
+- Nguồn thứ tư: công cụ đọc `list_my_requests` (ctsv). Đơn ở trạng thái `da_duyet` / `tu_choi` / `hoan_tat` được cập nhật trong 7 ngày gần đây thì hiện trên chuông (`loai = "don"`).
+- Bị từ chối → mức `khan` (sinh viên cần làm lại / bổ sung), câu hỏi soạn sẵn hỏi lý do; duyệt / hoàn tất → `sap_toi`.
+- Ngày cập nhật lấy từ `updated_at` (qlsv_api trả thêm trong danh sách đơn; `list_my_requests` trả `ngay_cap_nhat`). Không lưu trạng thái "đã xem": đơn tự rời chuông sau 7 ngày — đơn giản, không thêm bảng.
+- Nối tiếp chức năng duyệt đơn hai phía: cán bộ duyệt ở `/admin/don-tu` → sinh viên thấy ngay ở chuông (sau tối đa 5 phút do cache).
