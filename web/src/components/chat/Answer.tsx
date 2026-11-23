@@ -1,8 +1,9 @@
-import { BookOpen, ExternalLink, X } from 'lucide-react'
+import { BookOpen, ExternalLink, ScrollText, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { openDocument } from '../../lib/documents'
+import { api } from '../../lib/api'
+import { articleNumber, openDocument } from '../../lib/documents'
 import { citationLocation, citationNumber, linkCitations } from '../../lib/format'
 import type { Citation } from '../../lib/types'
 
@@ -114,6 +115,9 @@ export function SourceList({ citations }: { citations: Citation[] | null }) {
               </span>
               <span className="block text-xs text-slate-500">{citationLocation(c)}</span>
               {c.van_ban_id != null && <OpenDocumentButton citation={c} />}
+              {c.van_ban_id != null && articleNumber(c.dieu) != null && (
+                <ReadArticleButton vanBanId={c.van_ban_id} dieu={articleNumber(c.dieu)!} />
+              )}
             </span>
           </li>
         ))}
@@ -141,6 +145,48 @@ function OpenDocumentButton({ citation }: { citation: Citation }) {
         {citation.trang != null ? `Mở văn bản (trang ${citation.trang})` : 'Mở văn bản'}
       </button>
       {error && <span className="block text-xs text-err">{error}</span>}
+    </>
+  )
+}
+
+interface ArticleOut {
+  van_ban_id: number
+  so_dieu: number
+  noi_dung: string
+}
+
+/**
+ * Nguyên văn cả Điều ngay dưới nguồn. Backend đọc MCP resource của quy_che (do ỨNG DỤNG đọc,
+ * không qua LLM, không tốn lượt gọi công cụ) — xem GET /api/documents/{id}/articles/{so}.
+ */
+function ReadArticleButton({ vanBanId, dieu }: { vanBanId: number; dieu: number }) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const toggle = () => {
+    setOpen((o) => !o)
+    if (text != null || open) return
+    setError(null)
+    api<ArticleOut>(`/api/documents/${vanBanId}/articles/${dieu}`)
+      .then((a) => setText(a.noi_dung))
+      .catch(() => setError('Không đọc được nguyên văn Điều này.'))
+  }
+  return (
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="mt-1 ml-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        <ScrollText size={12} />
+        {open ? 'Thu gọn' : `Đọc Điều ${dieu}`}
+      </button>
+      {open && (
+        <span className="mt-1 block max-h-64 overflow-y-auto whitespace-pre-line rounded-lg bg-slate-50 p-2 text-xs leading-relaxed text-slate-700">
+          {error ?? text ?? 'Đang tải…'}
+        </span>
+      )}
     </>
   )
 }

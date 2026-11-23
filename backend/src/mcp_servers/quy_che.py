@@ -30,17 +30,19 @@ from typing import Annotated, Any
 
 import anyio
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ResourceError
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from src.assistant_api.models import DoanVanBan, VanBan
-from src.mcp_servers.common import MaKhoa, ToolFailure, run, tool_errors
+from src.mcp_servers.common import MaKhoa, ToolFailure, run, token_allows, tool_errors
 from src.rag import retriever as rag
 from src.rag.indexer import DocumentMeta, delete_document, index_document, mark_failed
 from src.shared.config import get_settings
 from src.shared.db import assistant_session_factory
+from src.shared.oauth import SCOPE_RESOURCES
 
 MAX_TOP_K = 8
 TAG_RE = re.compile(r"<\s*(/?)\s*tai_lieu", re.IGNORECASE)
@@ -100,7 +102,8 @@ def _search(ma_khoa: str, cau_hoi: str, top_k: int) -> dict[str, Any]:
     return {"doan": doan, "ghi_chu": note}
 
 
-def _get_article(van_ban_id: int, dieu: str) -> dict[str, Any]:
+def _load_article(van_ban_id: int, dieu: str) -> dict[str, Any]:
+    """Các đoạn của một Điều ghép thành văn bản thuần (`text`, chưa bọc <tai_lieu>)."""
     m = ARTICLE_NO_RE.search(dieu)
     if not m:
         raise ToolFailure(
@@ -125,16 +128,26 @@ def _get_article(van_ban_id: int, dieu: str) -> dict[str, Any]:
                 f"Văn bản '{van_ban.ten}' ({van_ban.phien_ban}) không có Điều {number}.",
             )
         # Đoạn chia theo khoản có thể chồng lấn khi Khoản quá dài; ghép theo thứ tự là đủ đọc
-        text = "\n".join(_body(r.noi_dung) for r in parts)
         return {
             "van_ban_id": van_ban.id,
             "van_ban": van_ban.ten,
             "phien_ban": van_ban.phien_ban,
             "dieu": parts[0].dieu,
             "trang": parts[0].trang,
-            "noi_dung": wrap_document(f"{van_ban.ten} ({van_ban.phien_ban})\n{text}", "dieu"),
-            "ghi_chu": SEARCH_NOTE.replace(" và trích dẫn bằng [so]", ""),
+            "text": f"{van_ban.ten} ({van_ban.phien_ban})\n"
+            + "\n".join(_body(r.noi_dung) for r in parts),
         }
+
+
+def _get_article(van_ban_id: int, dieu: str) -> dict[str, Any]:
+    """Cho LLM (tool get_article): bọc <tai_lieu> + ghi chú chống prompt injection."""
+    article = _load_article(van_ban_id, dieu)
+    text = article.pop("text")
+    return {
+        **article,
+        "noi_dung": wrap_document(text, "dieu"),
+        "ghi_chu": SEARCH_NOTE.replace(" và trích dẫn bằng [so]", ""),
+    }
 
 
 @mcp.tool()
@@ -182,6 +195,63 @@ async def get_article(
     một Điều cụ thể.
     """
     return await anyio.to_thread.run_sync(_get_article, van_ban_id, dieu)
+
+
+# ---------------------------------------------------------------------------
+# Resources (bổ sung 23/11/2026): do ỨNG DỤNG đọc (web bấm "Đọc Điều"), không phải mô hình.
+# Văn bản thuần cho NGƯỜI đọc -> không bọc <tai_lieu> (không đi vào prompt LLM).
+# ---------------------------------------------------------------------------
+def _require_resource_scope() -> None:
+    if not token_allows(SCOPE_RESOURCES):
+        raise ResourceError("Token không cho phép đọc tài nguyên (KHONG_DU_QUYEN).")
+
+
+def _list_documents() -> list[dict[str, Any]]:
+    with assistant_session_factory()() as db:
+        rows = db.scalars(
+            select(VanBan).where(VanBan.trang_thai == rag.INDEXED).order_by(VanBan.id)
+        ).all()
+        return [
+            {
+                "id": v.id,
+                "ten": v.ten,
+                "phien_ban": v.phien_ban,
+                "ngay_hieu_luc": v.ngay_hieu_luc.isoformat() if v.ngay_hieu_luc else None,
+            }
+            for v in rows
+        ]
+
+
+def article_text(van_ban_id: int, so_dieu: str) -> str:
+    """Nguyên văn một Điều (dùng chung truy vấn với tool get_article)."""
+    try:
+        return str(_load_article(van_ban_id, so_dieu)["text"])
+    except ToolFailure as exc:
+        raise ResourceError(f"{exc.message} ({exc.code})") from exc
+
+
+@mcp.resource(
+    "quy-che://van-ban",
+    name="danh_sach_van_ban",
+    title="Danh sách văn bản quy chế đã lập chỉ mục",
+    mime_type="application/json",
+)
+async def documents_resource() -> list[dict[str, Any]]:
+    _require_resource_scope()
+    return await anyio.to_thread.run_sync(_list_documents)
+
+
+@mcp.resource(
+    "quy-che://van-ban/{van_ban_id}/dieu/{so_dieu}",
+    name="dieu_quy_che",
+    title="Nguyên văn một Điều quy chế",
+    mime_type="text/plain",
+)
+async def article_resource(van_ban_id: str, so_dieu: str) -> str:
+    _require_resource_scope()
+    if not van_ban_id.isdigit():
+        raise ResourceError("Mã văn bản không hợp lệ (VAN_BAN_KHONG_TON_TAI).")
+    return await anyio.to_thread.run_sync(article_text, int(van_ban_id), so_dieu)
 
 
 # ---------------------------------------------------------------------------

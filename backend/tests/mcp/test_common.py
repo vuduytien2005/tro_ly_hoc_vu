@@ -257,3 +257,30 @@ def test_foreign_host_rejected(keys: KeyStore) -> None:
     with TestClient(app, base_url="http://evil.example") as client:
         headers = bearer(issue_mcp_token(DAO_TAO_URL, key_store=keys))
         assert client.post("/mcp", json=INIT, headers=headers).status_code == 421
+
+
+def test_resource_read_needs_resources_scope(keys: KeyStore) -> None:
+    """Token gọi công cụ không đọc được tài nguyên; token scope mcp:resources.read thì được
+    (ở đây Điều 'abc' không hợp lệ -> lỗi nghiệp vụ, nhưng đã QUA bước kiểm quyền)."""
+    from src.mcp_servers import quy_che
+    from src.shared.oauth import SCOPE_RESOURCES
+
+    url = "http://127.0.0.1:9104/mcp"
+
+    async def load() -> dict[str, Any]:
+        return keys.jwks()
+
+    app = build_app(quy_che.mcp, 9104, verifier=JwtVerifier(url, loader=load))
+    read = {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "resources/read",
+        "params": {"uri": "quy-che://van-ban/abc/dieu/1"},
+    }
+    with TestClient(app, base_url="http://127.0.0.1:9104") as client:
+        tool_token = issue_mcp_token(url, tool="get_article", key_store=keys)
+        denied = client.post("/mcp", json=read, headers=bearer(tool_token)).json()
+        assert "KHONG_DU_QUYEN" in denied["error"]["message"]
+        ok_token = issue_mcp_token(url, scope=SCOPE_RESOURCES, key_store=keys)
+        other = client.post("/mcp", json=read, headers=bearer(ok_token)).json()
+        assert "VAN_BAN_KHONG_TON_TAI" in other["error"]["message"]

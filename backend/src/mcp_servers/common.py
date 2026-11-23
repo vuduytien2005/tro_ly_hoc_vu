@@ -167,6 +167,13 @@ def to_tool_error(code: str, message: str) -> dict[str, Any]:
     return {"thanh_cong": False, "ma_loi": code, "thong_bao": message}
 
 
+def token_allows(scope: str) -> bool:
+    """Token của lần gọi HTTP hiện tại có `scope` không. Không có token (gọi trong tiến trình,
+    chế độ token cũ) -> True: lớp xác thực ngoài cùng đã kiểm."""
+    access = get_access_token()
+    return access is None or scope in access.scopes
+
+
 def check_token_for_tool(tool: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     """Phòng thủ nhiều lớp (OAuth): token của lần gọi phải cho phép ĐÚNG công cụ này, và nếu công
     cụ có `ma_sv` thì phải trùng `sub` (sinh viên đang đăng nhập) — assistant_api có lỗi tiêm ngữ

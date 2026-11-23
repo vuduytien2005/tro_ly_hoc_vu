@@ -29,6 +29,16 @@ def use_test_retriever(
     return retriever
 
 
+async def test_resources_are_listed() -> None:
+    async with Client(quy_che.mcp) as client:
+        static = {r.uri for r in (await client.list_resources()).resources}
+        templates = {
+            t.uri_template for t in (await client.list_resource_templates()).resource_templates
+        }
+    assert static == {"quy-che://van-ban"}
+    assert templates == {"quy-che://van-ban/{van_ban_id}/dieu/{so_dieu}"}
+
+
 async def test_tools_and_schema() -> None:
     tools = await list_tools(quy_che.mcp)
     assert set(tools) == {"search_regulations", "get_article"}
@@ -113,3 +123,38 @@ async def test_get_article_errors(
     for args, code in cases:
         out = await call_tool(quy_che.mcp, "get_article", args)
         assert out["ma_loi"] == code, (args, json.dumps(out, ensure_ascii=False))
+
+
+# ----- Resources (bổ sung 23/11/2026) ----------------------------------------------------------
+async def test_article_resource_is_plain_text(
+    two_versions: dict[str, int], use_test_retriever: Retriever
+) -> None:
+    """Cho NGƯỜI đọc: không bọc <tai_lieu>, có tên + phiên bản văn bản ở dòng đầu."""
+    uri = f"quy-che://van-ban/{two_versions['2021']}/dieu/3"
+    async with Client(quy_che.mcp) as client:
+        result = await client.read_resource(uri)
+    text = result.contents[0].text  # type: ignore[union-attr]
+    assert "tối đa là 24 tín chỉ" in text
+    assert "<tai_lieu" not in text
+    assert "(2021)" in text.splitlines()[0]
+
+
+async def test_document_list_resource(
+    two_versions: dict[str, int], use_test_retriever: Retriever
+) -> None:
+    async with Client(quy_che.mcp) as client:
+        result = await client.read_resource("quy-che://van-ban")
+    docs = json.loads(result.contents[0].text)  # type: ignore[union-attr]
+    assert {d["id"] for d in docs} >= set(two_versions.values())
+
+
+async def test_missing_article_resource_is_error(
+    two_versions: dict[str, int], use_test_retriever: Retriever
+) -> None:
+    from mcp.shared.exceptions import MCPError
+
+    async with Client(quy_che.mcp) as client:
+        with pytest.raises(MCPError):
+            await client.read_resource(f"quy-che://van-ban/{two_versions['2023']}/dieu/99")
+        with pytest.raises(MCPError):
+            await client.read_resource("quy-che://van-ban/abc/dieu/1")

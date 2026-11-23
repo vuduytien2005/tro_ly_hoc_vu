@@ -23,9 +23,10 @@ import httpx2
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.server.mcpserver import MCPServer
+from mcp.shared.exceptions import MCPError
 
 from src.shared.config import get_settings
-from src.shared.oauth import issue_mcp_token
+from src.shared.oauth import SCOPE_RESOURCES, issue_mcp_token
 
 logger = logging.getLogger(__name__)
 
@@ -97,24 +98,36 @@ class McpClient:
         probe = McpClient({PREVIEW_SERVER: target}, token=self._token)
         return await probe.list_tools(PREVIEW_SERVER)
 
-    def _bearer(self, target: str, tool: str | None, args: dict[str, Any] | None) -> str:
+    def _bearer(
+        self,
+        target: str,
+        tool: str | None,
+        args: dict[str, Any] | None,
+        scope: str | None = None,
+    ) -> str:
         if self._token:  # token cố định truyền vào (test / công cụ dòng lệnh)
             return self._token
         settings = get_settings()
         if settings.mcp_auth_mode != "oauth":
             return settings.internal_api_token
         ma_sv = (args or {}).get("ma_sv")
-        return issue_mcp_token(target, tool=tool, subject=str(ma_sv) if ma_sv else None)
+        return issue_mcp_token(
+            target, tool=tool, subject=str(ma_sv) if ma_sv else None, scope=scope
+        )
 
     def _client(
-        self, server: str, tool: str | None = None, args: dict[str, Any] | None = None
+        self,
+        server: str,
+        tool: str | None = None,
+        args: dict[str, Any] | None = None,
+        scope: str | None = None,
     ) -> Client:
         target = self._targets.get(server)
         if target is None:
             raise McpUnavailableError(f"Chưa cấu hình MCP server '{server}'.")
         if isinstance(target, MCPServer):
             return Client(target)
-        token = self._bearer(target, tool, args)
+        token = self._bearer(target, tool, args, scope)
         http = httpx2.AsyncClient(
             headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT_SECONDS
         )
@@ -160,3 +173,31 @@ class McpClient:
                 return ToolCallResult(False, {"loi": message}, message)
             return ToolCallResult(True, parse_tool_content(result))
         raise AssertionError("unreachable")
+
+
+class McpResourceError(Exception):
+    """Server báo lỗi khi đọc tài nguyên (không tồn tại, không đủ quyền...)."""
+
+
+async def read_resource(mcp_client: McpClient, server: str, uri: str) -> str:
+    """Đọc tài nguyên MCP dạng văn bản (resources/read) — do ỨNG DỤNG chủ động đọc, không qua LLM.
+
+    Lỗi phía server -> `McpResourceError`; mất kết nối -> `McpUnavailableError`."""
+    for attempt in range(CONNECT_RETRIES + 1):
+        failure: MCPError | None = None
+        try:
+            async with mcp_client._client(server, scope=SCOPE_RESOURCES) as client:
+                try:
+                    result = await client.read_resource(uri)
+                except MCPError as exc:  # bắt TRONG khối: ra ngoài sẽ bị gói thành ExceptionGroup
+                    failure = exc
+                else:
+                    return "".join(getattr(c, "text", "") or "" for c in result.contents)
+        except Exception as exc:
+            if _is_connect_error(exc):
+                if attempt < CONNECT_RETRIES:
+                    continue
+                raise McpUnavailableError(f"Không kết nối được MCP server '{server}'.") from exc
+            raise
+        raise McpResourceError(failure.error.message if failure else uri) from failure
+    raise AssertionError("unreachable")

@@ -89,6 +89,8 @@ def test_end_to_end_over_http(live_dao_tao: str) -> None:
     # Giả lập assistant_api có lỗi: token cấp cho SV22001 (sinh viên đang đăng nhập) nhưng tham
     # số lại mang ma_sv của SV21001 -> MCP server phải chặn trước khi đọc dữ liệu
     original = client._bearer
-    client._bearer = lambda target, tool, args: original(target, tool, {"ma_sv": "SV22001"})  # type: ignore[method-assign]
+    client._bearer = lambda target, tool, args, scope=None: original(  # type: ignore[method-assign]
+        target, tool, {"ma_sv": "SV22001"}, scope
+    )
     result = anyio.run(client.call_tool, "dao_tao", "get_student_profile", {"ma_sv": "SV21001"})
     assert result.data["ma_loi"] == "KHONG_DU_QUYEN"

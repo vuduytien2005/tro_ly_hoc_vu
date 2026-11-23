@@ -76,6 +76,15 @@ async def register_course(
 - Lỗi: `MA_KHOA_KHONG_HOP_LE`, `VAN_BAN_KHONG_TON_TAI`, `DIEU_KHONG_TON_TAI`, `DIEU_KHONG_HOP_LE`.
 - `assistant_api` dùng trường `so`, `van_ban`, `dieu`, `trang` để dựng sự kiện `citations`.
 
+**Resources** (bổ sung 23/11/2026 — do ỨNG DỤNG đọc, không phải mô hình; thiết kế: `docs/superpowers/specs/2026-11-23-mcp-elicitation-resources-design.md`):
+
+| URI | Kiểu | Nội dung |
+|---|---|---|
+| `quy-che://van-ban` | tĩnh, `application/json` | `[{id, ten, phien_ban, ngay_hieu_luc}]` văn bản đã lập chỉ mục |
+| `quy-che://van-ban/{van_ban_id}/dieu/{so_dieu}` | template, `text/plain` | Nguyên văn Điều (dòng đầu: tên + phiên bản), KHÔNG bọc `<tai_lieu>` vì cho người đọc, không vào prompt |
+
+Đọc cần token OAuth scope `mcp:resources.read` (token gọi công cụ bị từ chối). Web đọc qua `GET /api/documents/{id}/articles/{so}` (nút "Đọc Điều N" ở nguồn tham khảo).
+
 ## 4b. Server `thu_vien` (:9105) — thêm lúc chạy (AD-11, SV-11)
 Không có trong seed `04_assistant_seed.sql`: quản trị viên thêm trên trang MCP & quyền khi demo (demo 8), trợ lý dùng được ngay mà không sửa code. Mỗi tool khai báo **`title`** (tên hiển thị) và annotation **`readOnlyHint`** theo chuẩn MCP (`@mcp.tool(title=..., annotations=ToolAnnotations(read_only_hint=...))`). assistant_api dùng `title` cho nhãn "Đang dùng: …" và thẻ xác nhận; `readOnlyHint` chỉ là **gợi ý** hiện cho quản trị viên (server tự khai báo, không tin tuyệt đối — mức rủi ro do quản trị viên quyết).
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pageFragment } from './documents'
+import { articleNumber, pageFragment } from './documents'
 
 describe('pageFragment', () => {
   it('PDF có số trang -> #page=N', () => {
@@ -10,5 +10,16 @@ describe('pageFragment', () => {
     expect(pageFragment('application/pdf', null)).toBe('')
     expect(pageFragment('application/pdf', 0)).toBe('')
     expect(pageFragment(null, 3)).toBe('')
+  })
+})
+
+describe('articleNumber', () => {
+  it('lấy số Điều từ nhãn', () => {
+    expect(articleNumber('Điều 12. Đăng ký học phần')).toBe(12)
+    expect(articleNumber('Điều 3')).toBe(3)
+  })
+  it('không có số Điều -> null', () => {
+    expect(articleNumber(null)).toBeNull()
+    expect(articleNumber('Chương II')).toBeNull()
   })
 })

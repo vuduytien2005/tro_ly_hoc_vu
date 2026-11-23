@@ -27,3 +27,9 @@ export async function openDocument(vanBanId: number, page: number | null): Promi
     throw err
   }
 }
+
+/** Số Điều từ nhãn trích dẫn ("Điều 12. Đăng ký học phần" -> 12); không có -> null. */
+export function articleNumber(dieu: string | null): number | null {
+  const m = dieu?.match(/Điều\s+(\d{1,4})/)
+  return m ? Number(m[1]) : null
+}

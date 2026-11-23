@@ -40,6 +40,8 @@ ALGORITHM = "EdDSA"
 CLIENT_ID = "assistant_api"
 SERVICE_SUBJECT = "assistant_api"  # token không thay mặt sinh viên nào (liệt kê công cụ...)
 SCOPE_LIST = "mcp:tools.list"
+# Đọc tài nguyên MCP (resources/read) — vd nguyên văn một Điều quy chế (bổ sung 23/11/2026)
+SCOPE_RESOURCES = "mcp:resources.read"
 LEEWAY_SECONDS = 10  # chênh đồng hồ giữa các tiến trình (cùng máy -> rất nhỏ)
 JWKS_REFRESH_MIN_SECONDS = 30.0
 
@@ -171,8 +173,10 @@ def issue_mcp_token(
     tool: str | None = None,
     subject: str | None = None,
     key_store: KeyStore | None = None,
+    scope: str | None = None,
 ) -> str:
-    """Token cho MỘT lần gọi tới `resource`: gọi công cụ `tool`, hoặc liệt kê (tool=None)."""
+    """Token cho MỘT lần gọi tới `resource`: gọi công cụ `tool`, liệt kê (tool=None), hoặc
+    `scope` chỉ định (vd SCOPE_RESOURCES)."""
     settings = get_settings()
     store = key_store or get_key_store()
     now = int(time.time())
@@ -181,7 +185,7 @@ def issue_mcp_token(
         "aud": normalize_resource(resource),
         "sub": subject or SERVICE_SUBJECT,
         "client_id": CLIENT_ID,
-        "scope": tool_scope(tool) if tool else SCOPE_LIST,
+        "scope": scope or (tool_scope(tool) if tool else SCOPE_LIST),
         "iat": now,
         "exp": now + settings.oauth_token_ttl_seconds,
         "jti": uuid.uuid4().hex,
