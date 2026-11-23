@@ -88,3 +88,10 @@ Sản phẩm là tệp `docs/kich-ban-demo.md`.
 - Không sửa code hay giao diện.
 - Không làm slide. Tài liệu chỉ nêu ý chính cho từng slide.
 - Số liệu ở slide kết quả lấy từ lần chạy thực nghiệm toàn bộ đang chạy (20/11/2026). Nếu sau đó chạy lại thì cập nhật.
+
+## Cập nhật 23/11/2026 (tuần 3, sau ý 1 và ý 3)
+
+- Phần demo trực tiếp thành **6 bước**, vẫn ~5,5 phút: RAG → đăng ký + thẻ → trùng lịch → từ chối → **thêm server Thư viện, duyệt, gia hạn sách** (demo 8 trong `docs/01`) → nhật ký.
+- Bước Thư viện là bước không được bỏ: nó là câu trả lời trực tiếp cho "vì sao dùng MCP" và cho thấy lớp chặn *tool poisoning* (công cụ mới mặc định tắt, bật = duyệt).
+- Bước "tắt `register_course`" (demo 7) chuyển xuống **dự bị**: công tắc bật/tắt đã xuất hiện ở bước Thư viện. Kế hoạch học kỳ + đăng ký cả gói (demo 9) cũng là dự bị.
+- Số liệu slide lấy từ lượt TN3 20/11 16:16 (75 kịch bản, 18 công cụ, có TTFT). Video dự phòng: 6 đoạn.

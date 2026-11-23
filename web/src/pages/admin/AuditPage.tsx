@@ -7,9 +7,11 @@ import {
   Drawer,
   JsonBlock,
   PageHeader,
+  Switch,
   inputClass,
   secondaryButton,
 } from '../../components/admin/ui'
+import { useFreshIds } from '../../lib/presentation'
 import { formatMs, injectedKeys, toQuery } from '../../lib/admin'
 import {
   CALL_STATUS,
@@ -21,6 +23,7 @@ import { ApiError, api } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
 
 const PAGE_SIZE = 20
+const AUTO_REFRESH_MS = 3000
 
 function InjectedBadge() {
   return (
@@ -40,6 +43,7 @@ export default function AuditPage() {
   })
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<number | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const set = (key: keyof typeof filters) => (value: string) => {
     setFilters((f) => ({ ...f, [key]: value }))
     setPage(1)
@@ -52,7 +56,14 @@ export default function AuditPage() {
         `/api/admin/audit-logs${toQuery({ ...filters, page, page_size: PAGE_SIZE })}`,
       ),
     placeholderData: (prev) => prev,
+    // Demo: dòng mới hiện ngay, không phải F5
+    refetchInterval: autoRefresh ? AUTO_REFRESH_MS : false,
   })
+  // Dòng mới (so với lần tải trước, cùng bộ lọc + trang) nổi bật ~1 giây
+  const fresh = useFreshIds(
+    logs.data?.luot_goi.map((l) => l.id),
+    JSON.stringify([filters, page]),
+  )
   // Danh sách tên công cụ cho ô lọc
   const servers = useQuery({
     queryKey: ['admin', 'mcp-servers'],
@@ -63,7 +74,12 @@ export default function AuditPage() {
 
   return (
     <>
-      <PageHeader title="Nhật ký gọi công cụ" />
+      <PageHeader title="Nhật ký gọi công cụ">
+        <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+          <Switch checked={autoRefresh} onChange={setAutoRefresh} label="Tự cập nhật" />
+          Tự cập nhật
+        </label>
+      </PageHeader>
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
         <Filter label="Từ ngày">
           <input type="date" value={filters.tu} onChange={(e) => set('tu')(e.target.value)} className={inputClass} />
@@ -122,7 +138,7 @@ export default function AuditPage() {
               <tr
                 key={l.id}
                 onClick={() => setSelected(l.id)}
-                className="cursor-pointer hover:bg-page"
+                className={`cursor-pointer hover:bg-page ${fresh.has(l.id) ? 'trace-fresh' : ''}`}
               >
                 <td className="whitespace-nowrap px-4 py-3 text-slate-500">
                   {formatDateTime(l.created_at)}

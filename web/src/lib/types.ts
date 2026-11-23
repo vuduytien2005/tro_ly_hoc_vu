@@ -96,3 +96,21 @@ export interface RequestDetail {
   cap_nhat_luc: string
   thong_bao: string
 }
+
+// ----- Chế độ trình bày: GET /api/conversations/{id}/trace -----
+export interface TraceStep {
+  id: number
+  thoi_diem: string
+  ten_cong_cu: string
+  nhan: string
+  mcp_server: string
+  tham_so_llm: Record<string, unknown> | null // null = hệ thống tự gọi
+  tham_so_he_thong_dien: Record<string, unknown>
+  trang_thai: string
+  ly_do: string | null
+  thoi_gian_ms: number | null
+}
+
+export interface TraceResponse {
+  luot_goi: TraceStep[]
+}

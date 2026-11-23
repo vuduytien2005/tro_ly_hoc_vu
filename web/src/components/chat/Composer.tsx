@@ -1,12 +1,39 @@
 import { SendHorizontal } from 'lucide-react'
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
 const MAX_HEIGHT = 200
 
-/** Ô nhập tự giãn: Enter gửi, Shift+Enter xuống dòng. */
-export function Composer({ disabled, onSend }: { disabled: boolean; onSend: (text: string) => void }) {
+/** Câu điền sẵn từ ngoài (chế độ trình bày); `n` tăng mỗi lần bấm để điền lại cùng một câu. */
+export interface Draft {
+  text: string
+  n: number
+}
+
+/** Ô nhập tự giãn: Enter gửi, Shift+Enter xuống dòng. `toolbar` hiện phía trên ô nhập. */
+export function Composer({
+  disabled,
+  onSend,
+  draft,
+  toolbar,
+}: {
+  disabled: boolean
+  onSend: (text: string) => void
+  draft?: Draft | null
+  toolbar?: ReactNode
+}) {
   const [text, setText] = useState('')
   const ref = useRef<HTMLTextAreaElement>(null)
+
+  // Điền câu soạn sẵn vào ô nhập (KHÔNG gửi): người trình bày nói xong mới bấm Gửi.
+  // Cập nhật state ngay trong lúc render khi `draft` đổi (mẫu "điều chỉnh state theo prop").
+  const [seenDraft, setSeenDraft] = useState<Draft | null | undefined>(draft)
+  if (draft !== seenDraft) {
+    setSeenDraft(draft)
+    if (draft) setText(draft.text)
+  }
+  useEffect(() => {
+    if (draft) ref.current?.focus()
+  }, [draft])
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -33,6 +60,7 @@ export function Composer({ disabled, onSend }: { disabled: boolean; onSend: (tex
   return (
     <div className="border-t border-line bg-white px-3 pb-3 pt-3 sm:px-6">
       <div className="mx-auto max-w-3xl">
+        {toolbar}
         <div className="flex items-end gap-2 rounded-2xl border border-line bg-white p-2 focus-within:border-primary">
           <textarea
             ref={ref}

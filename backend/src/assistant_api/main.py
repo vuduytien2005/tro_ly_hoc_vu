@@ -128,6 +128,7 @@ def create_app(
             "gian_doan": sorted(s for s, v in status.items() if v not in ("ok", "tắt")),
             "llm_da_cau_hinh": bool(model),
             "llm_co_khoa": llm_key_present(model) if model else False,
+            "che_do_trinh_bay": get_settings().che_do_trinh_bay,
         }
 
     return app

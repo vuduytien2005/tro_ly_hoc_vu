@@ -6,6 +6,7 @@ Mọi truy vấn đều lọc theo `nguoi_dung_id` của tài khoản đăng nh�
 
 import json
 from collections.abc import AsyncIterator, Callable
+from typing import Any
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
@@ -13,12 +14,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.assistant_api.agent.loop import DEFAULT_TITLE, AgentEvent, AgentRunner
+from src.assistant_api.agent.prompts import tool_label
+from src.assistant_api.agent.registry import HIDDEN_PARAMS, ToolRegistry
 from src.assistant_api.deps import DbSession, Now, Student
 from src.assistant_api.errors import not_found
 from src.assistant_api.models import (
     DanhGiaCauTraLoi,
     HanhDongChoXacNhan,
     HoiThoai,
+    LuotGoiCongCu,
     NguoiDung,
     TinNhan,
 )
@@ -32,7 +36,10 @@ from src.assistant_api.schemas import (
     MessageOut,
     MessagesOut,
     PendingActionOut,
+    TraceOut,
+    TraceStepOut,
 )
+from src.shared.config import get_settings
 from src.shared.time import to_db, wall_clock
 
 router = APIRouter(prefix="/api", tags=["Hội thoại"])
@@ -206,3 +213,56 @@ def feedback(message_id: int, body: FeedbackIn, user: Student, db: DbSession) ->
     rating.gop_y = body.gop_y or None
     db.commit()
     return FeedbackOut(tin_nhan_id=message.id, diem=rating.diem, gop_y=rating.gop_y)
+
+
+# ----------------------------------------------------------------------------- chế độ trình bày
+def system_filled(tham_so: dict[str, Any], tham_so_llm: dict[str, Any] | None) -> dict[str, Any]:
+    """Tham số do HỆ THỐNG đặt: có trong `tham_so` (thực thi) mà LLM không gửi hoặc gửi khác
+    (tiêm ngữ cảnh ghi đè). Lượt hệ thống tự gọi (`tham_so_llm` None): chỉ các tham số ẩn."""
+    if tham_so_llm is None:
+        return {k: v for k, v in tham_so.items() if k in HIDDEN_PARAMS}
+    return {k: v for k, v in tham_so.items() if k not in tham_so_llm or tham_so_llm[k] != v}
+
+
+def step_label(registry: ToolRegistry, name: str) -> str:
+    """Nhãn bước: 'Đang đăng ký học phần' -> 'Đăng ký học phần'; title server -> title."""
+    label = tool_label(name, registry.title(name))
+    label = label.removeprefix("Đang dùng: ").removeprefix("Đang ").rstrip(".… ")
+    return label[:1].upper() + label[1:]
+
+
+@router.get(
+    "/conversations/{conversation_id}/trace",
+    response_model=TraceOut,
+    summary="Chế độ trình bày: các lượt gọi công cụ của hội thoại (đọc từ nhật ký)",
+)
+def conversation_trace(
+    conversation_id: int, request: Request, user: Student, db: DbSession
+) -> TraceOut:
+    """Chỉ bật khi CHE_DO_TRINH_BAY=true; chỉ chủ hội thoại xem được; không trả kết quả công cụ."""
+    if not get_settings().che_do_trinh_bay:
+        raise not_found("KHONG_BAT_CHE_DO_TRINH_BAY", "Chế độ trình bày đang tắt.")
+    own_conversation(db, user, conversation_id)
+    registry: ToolRegistry = request.app.state.registry
+    rows = db.scalars(
+        select(LuotGoiCongCu)
+        .where(LuotGoiCongCu.hoi_thoai_id == conversation_id)
+        .order_by(LuotGoiCongCu.id)
+    ).all()
+    return TraceOut(
+        luot_goi=[
+            TraceStepOut(
+                id=g.id,
+                thoi_diem=g.created_at,
+                ten_cong_cu=g.ten_cong_cu,
+                nhan=step_label(registry, g.ten_cong_cu),
+                mcp_server=g.mcp_server,
+                tham_so_llm=g.tham_so_llm,
+                tham_so_he_thong_dien=system_filled(g.tham_so or {}, g.tham_so_llm),
+                trang_thai=g.trang_thai,
+                ly_do=g.ly_do,
+                thoi_gian_ms=g.thoi_gian_ms,
+            )
+            for g in rows
+        ]
+    )

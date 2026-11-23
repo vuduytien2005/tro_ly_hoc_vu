@@ -6,6 +6,7 @@ export interface HealthResponse {
   gian_doan?: string[]
   llm_da_cau_hinh: boolean
   llm_co_khoa?: boolean | null
+  che_do_trinh_bay?: boolean
 }
 
 export interface HealthNotice {

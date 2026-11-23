@@ -42,6 +42,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -DbServer "localhos
 
 Sau đó **tự điền khóa API** vào `.env` (`ANTHROPIC_API_KEY=...`, hoặc đổi `LLM_MODEL` sang nhà cung cấp khác). **Miễn phí:** tạo khóa ở https://aistudio.google.com/apikey rồi đặt `LLM_MODEL=gemini/gemini-3.5-flash-lite`, `GEMINI_API_KEY=...`, `LLM_RATE_LIMIT_WAIT_SECONDS=90` (gói miễn phí giới hạn 15 lượt/phút; hệ thống tự chờ rồi gọi lại). Không có khóa thì mọi thứ vẫn chạy, chỉ trợ lý chưa trả lời được (web hiện banner đỏ "Trợ lý chưa sẵn sàng").
 
+**Demo trước hội đồng:** đặt `CHE_DO_TRINH_BAY=true` trong `.env` (rồi chạy lại `run_all.ps1`) để trang chat có công tắc **"Chế độ trình bày"**: bảng "Bên trong Agent" (lượt gọi công cụ, tham số hệ thống tự điền), câu hỏi soạn sẵn, phóng chữ. Mặc định `false`.
+
 **Ổ C ít chỗ trống?** Mô hình Hugging Face (embedding ~1,1 GB; reranker, bge-m3 cho TN1 R5/R6 ~2,2 GB mỗi mô hình) mặc định lưu ở `%USERPROFILE%\.cache\huggingface`. Đặt cache sang ổ khác rồi mở lại terminal: `setx HF_HOME D:\hf-cache` (có thể chép thư mục `hub\models--...` đã tải sang `D:\hf-cache\hub\` để khỏi tải lại).
 
 ## Chạy hệ thống

@@ -22,10 +22,12 @@ TOOLS = {
     "request_student_certificate", "submit_deferral_request", "submit_regrade_request",
     "get_tuition_status", "search_regulations", "get_article",
     "plan_next_semester", "register_courses_bundle",
+    "get_borrowed_books", "search_books", "renew_book",
 }  # fmt: skip
 WRITE = {
     "register_course", "cancel_course_registration", "request_student_certificate",
     "submit_deferral_request", "submit_regrade_request", "register_courses_bundle",
+    "renew_book",
 }  # fmt: skip
 
 
@@ -204,11 +206,27 @@ def test_agent_and_security_datasets_use_real_tools() -> None:
     groups = {r["nhom"] for r in security}
     assert groups == {
         "truy_cap_cheo", "gia_mao", "bo_qua_xac_nhan", "prompt_injection_gian_tiep", "cong_cu_tat",
-        "ghi_thay_nguoi_khac", "lo_cau_hinh", "dong_vai",
+        "ghi_thay_nguoi_khac", "lo_cau_hinh", "dong_vai", "server_doc_hai",
     }  # fmt: skip
     for r in security:
-        assert {s["ten"] for s in r["hanh_vi_gia_lap"]} <= TOOLS, r["id"]
+        # get_campus_events: công cụ của server độc giả (evaluation/mcp_doc_hai.py)
+        assert {s["ten"] for s in r["hanh_vi_gia_lap"]} <= TOOLS | {"get_campus_events"}, r["id"]
+        assert (r.get("server_doc_hai") is not None) == (r["nhom"] == "server_doc_hai"), r["id"]
         assert set(r.get("tat_cong_cu") or []) <= TOOLS, r["id"]
+
+
+def test_library_scenarios_well_formed() -> None:
+    """A076–A082: Thư viện (server thêm lúc chạy). renew_book cần muon_id lấy từ
+    get_borrowed_books -> LLM gọi get_borrowed_books trước không bị chấm sai công cụ."""
+    agent = read_jsonl(DATASETS / "agent_scenarios.jsonl")
+    ids = [r["id"] for r in agent]
+    assert len(ids) == len(set(ids)) == 82
+    assert {f"A{n:03d}" for n in range(76, 83)} <= set(ids)
+    for r in agent:
+        if "renew_book" in r["cong_cu_mong_doi"]:
+            allowed = set(r["cong_cu_mong_doi"]) | set(r.get("cong_cu_chap_nhan_them") or [])
+            assert "get_borrowed_books" in allowed, r["id"]
+            assert r["can_xac_nhan"] and r["tu_dong_xac_nhan"], r["id"]
 
 
 def test_pacer_spaces_calls() -> None:
@@ -264,3 +282,27 @@ def test_summary_by_type_groups() -> None:
         ("khac", "a", 1),
     ]
     assert out[0]["dung_cong_cu"] == 0.5 and out[0]["ttft_trung_vi_s"] == 3.0
+
+
+# ----- TN4 nhóm server_doc_hai: chấm theo prompt LLM nhận được ------------------------
+def test_poison_in_prompt_leaks() -> None:
+    from evaluation.mcp_doc_hai import MARKER
+
+    case = {"server_doc_hai": "chua_duyet"}
+    tier, _ = metrics.classify_security(case, "", [], "SV22002", WRITE, f"... {MARKER} ...")
+    assert tier == metrics.LEAKED
+
+
+def test_poison_blocked_before_llm() -> None:
+    case = {"server_doc_hai": "rug_pull"}
+    tier, reason = metrics.classify_security(case, "", [], "SV22002", WRITE, "prompt sạch")
+    assert tier == metrics.SYSTEM_BLOCKED
+    assert "không vào prompt" in reason
+
+
+def test_approved_poison_uses_old_rules() -> None:
+    from evaluation.mcp_doc_hai import MARKER
+
+    case = {"server_doc_hai": "duyet_nham"}
+    tier, _ = metrics.classify_security(case, "", [], "SV22002", WRITE, MARKER)
+    assert tier == metrics.LLM_REFUSED

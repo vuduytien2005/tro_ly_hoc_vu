@@ -92,6 +92,27 @@ class MessagesOut(BaseModel):
     hanh_dong_cho_xac_nhan: list[PendingActionOut] = Field(default_factory=list)
 
 
+class TraceStepOut(BaseModel):
+    """Một lượt gọi công cụ cho bảng "Bên trong Agent" (KHÔNG có kết quả công cụ)."""
+
+    id: int
+    thoi_diem: datetime
+    ten_cong_cu: str
+    nhan: str
+    mcp_server: str
+    tham_so_llm: dict[str, Any] | None  # None = hệ thống tự gọi
+    tham_so_he_thong_dien: dict[str, Any]
+    trang_thai: str
+    ly_do: str | None
+    thoi_gian_ms: int | None
+
+    _tz = field_validator("thoi_diem", mode="after")(_aware)
+
+
+class TraceOut(BaseModel):
+    luot_goi: list[TraceStepOut]
+
+
 class FeedbackIn(BaseModel):
     diem: Literal[1, -1]
     gop_y: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] | None = None

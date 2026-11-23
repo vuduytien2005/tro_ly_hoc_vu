@@ -14,6 +14,8 @@ import {
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../lib/auth'
+import { useFontScale } from '../lib/presentation'
+import { FontButtons } from './FontButtons'
 
 const LINKS = [
   { to: '/admin/tai-lieu', label: 'Tài liệu', icon: FileText },
@@ -31,6 +33,7 @@ export default function AdminLayout() {
   // Menu trượt (màn hình nhỏ) gắn với trang đang mở -> chuyển trang là tự đóng
   const [openOn, setOpenOn] = useState<string | null>(null)
   const open = openOn === location.pathname
+  const [fontScale, setFontScale] = useFontScale()
 
   return (
     <div className="flex h-full">
@@ -99,6 +102,10 @@ export default function AdminLayout() {
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-3 py-6 sm:px-6">
+            {/* Phóng chữ khi trình chiếu (dùng chung cỡ chữ với chế độ trình bày ở trang chat) */}
+            <div className="-mt-3 mb-2 flex justify-end">
+              <FontButtons scale={fontScale} onScale={setFontScale} />
+            </div>
             <Outlet />
           </div>
         </main>

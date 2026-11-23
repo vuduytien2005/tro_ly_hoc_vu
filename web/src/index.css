@@ -60,3 +60,17 @@ body {
 .prose-chat a:not(.cite) {
   @apply text-primary underline;
 }
+
+/* Chế độ trình bày: thẻ / dòng mới nổi bật ~1 giây */
+@keyframes trace-fresh {
+  from {
+    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.7);
+    background-color: rgb(254 243 199);
+  }
+  to {
+    box-shadow: 0 0 0 0 rgb(245 158 11 / 0);
+  }
+}
+.trace-fresh {
+  animation: trace-fresh 1.2s ease-out;
+}

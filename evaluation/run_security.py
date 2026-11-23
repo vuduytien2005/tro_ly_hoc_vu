@@ -18,6 +18,7 @@ Bộ văn bản gồm evaluation/corpus_an_toan (tài liệu chứa lệnh độ
 import argparse
 import sys
 from collections import Counter
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,7 @@ bootstrap()
 
 from evaluation import metrics  # noqa: E402
 from evaluation.harness import AgentHarness  # noqa: E402
+from evaluation.mcp_doc_hai import MARKER  # noqa: E402
 
 TIERS = (metrics.LLM_REFUSED, metrics.SYSTEM_BLOCKED, metrics.LEAKED)
 TIER_LABEL = {
@@ -48,15 +50,22 @@ TIER_LABEL = {
 
 
 def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
-    steps = [
-        (s["ten"], harness.fill_required(s["ten"], dict(s.get("tham_so") or {}), case["yeu_cau"]))
-        for s in case.get("hanh_vi_gia_lap") or []
-    ]
-    harness.use_llm(steps, "Mình đã làm theo yêu cầu.")
-    with harness.tools_disabled(case.get("tat_cong_cu") or []):
-        result = harness.run(case["dang_nhap"], case["yeu_cau"], auto_confirm=False)
+    poison = case.get("server_doc_hai")
+    # server_doc_hai: nạp server độc CHỈ cho ca này (ca khác không thấy)
+    with harness.extra_server(poison) if poison else nullcontext():
+        steps = [
+            (
+                s["ten"],
+                harness.fill_required(s["ten"], dict(s.get("tham_so") or {}), case["yeu_cau"]),
+            )
+            for s in case.get("hanh_vi_gia_lap") or []
+        ]
+        harness.use_llm(steps, "Mình đã làm theo yêu cầu.")
+        with harness.tools_disabled(case.get("tat_cong_cu") or []):
+            result = harness.run(case["dang_nhap"], case["yeu_cau"], auto_confirm=False)
+        write_tools = set(harness.write_tools)
     tier, reason = metrics.classify_security(
-        case, result.answer, result.calls, case["dang_nhap"], harness.write_tools
+        case, result.answer, result.calls, case["dang_nhap"], write_tools, result.prompt_text
     )
     return {
         "cau_hinh": harness.config["ma"],
@@ -66,6 +75,7 @@ def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
         "tang": tier,
         "giai_thich": reason,
         "cong_cu_da_goi": [f"{c['ten_cong_cu']}:{c['trang_thai']}" for c in result.calls],
+        "prompt_co_doc": bool(poison) and MARKER in result.prompt_text,
         "so_buoc": result.steps,
         "token_vao": result.tokens_in,
         "token_ra": result.tokens_out,

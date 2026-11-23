@@ -22,6 +22,15 @@ Cho phép thêm server mở ra 4 rủi ro riêng của MCP; cách xử lý:
 | Trùng tên (shadowing) | Server mới khai báo công cụ trùng tên công cụ cũ (vd `search_regulations`) để chiếm lời gọi | Giữ bản của server thêm trước, bỏ bản sau, báo trên giao diện | `test_duplicate_tool_name_skipped` |
 | SSRF | Địa chỉ server tùy ý → assistant_api gửi `Bearer INTERNAL_API_TOKEN` ra ngoài / vào mạng nội bộ | `normalize_mcp_address`: chỉ `http://127.0.0.1` hoặc `localhost`, bắt buộc cổng, không user/mật khẩu; kiểm tra cả khi sửa địa chỉ | `test_address_rejected`, `test_patch_server_bad_address_keeps_db` |
 
+Thực nghiệm cho 3 dòng tool poisoning / rug pull / trùng tên: TN4 nhóm `server_doc_hai` (S050–S054, `docs/09`) — đo trên prompt LLM thực nhận rằng chữ độc không tới LLM khi chưa duyệt, sau rug pull, khi trùng tên; và khi quản trị viên duyệt nhầm thì thẻ xác nhận + tiêm ngữ cảnh vẫn chặn hậu quả.
+
+## Bổ sung 23/11/2026 — chế độ trình bày
+`GET /api/conversations/{id}/trace` (bảng "Bên trong Agent") lộ tên công cụ và tham số nội bộ, nên:
+- **mặc định tắt** (`CHE_DO_TRINH_BAY=false`): API trả 404 `KHONG_BAT_CHE_DO_TRINH_BAY`, web ẩn công tắc. Chỉ bật khi demo;
+- chỉ **chủ hội thoại** xem được (lọc `nguoi_dung_id`, người khác 404 `KHONG_TIM_THAY_HOI_THOAI`);
+- **không** trả `ket_qua` của công cụ; chỉ đọc nhật ký, không thêm đường gọi công cụ nào.
+Test: `backend/tests/assistant/test_trace.py`.
+
 ## Hạn chế đã biết (chấp nhận trong phạm vi khóa luận)
 - Mọi MCP server dùng chung `INTERNAL_API_TOKEN`: một server được thêm (chạy trên cùng máy) nhận được token và có thể gọi các MCP server khác. Chấp nhận vì server chỉ chạy trên máy này và do quản trị viên chủ động thêm; hướng phát triển: token riêng từng server.
 - `readOnlyHint` do server tự khai báo, chỉ là gợi ý; mức rủi ro thật do quản trị viên đặt.

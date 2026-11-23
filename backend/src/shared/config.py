@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     demo_now: datetime | None = None
+    # Chế độ trình bày (demo trước hội đồng): bật API trace + bảng "Bên trong Agent" trên web.
+    # Mặc định tắt: triển khai thật không lộ tên công cụ / tham số nội bộ cho sinh viên.
+    che_do_trinh_bay: bool = False
     ten_truong: str = "Trường Đại học"
 
     # ---------- LLM ----------
