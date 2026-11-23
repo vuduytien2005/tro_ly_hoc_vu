@@ -121,3 +121,13 @@ class QlsvDirectory:
             "PATCH", self._student_path(ma_sv), json_body=body
         )
         return result
+
+    async def list_requests(self, params: dict[str, Any]) -> dict[str, Any]:
+        result: dict[str, Any] = await self._request("GET", "/internal/requests", params=params)
+        return result
+
+    async def update_request(self, ma_don: str, body: dict[str, Any]) -> dict[str, Any]:
+        result: dict[str, Any] = await self._request(
+            "PATCH", f"/internal/requests/{quote(ma_don.strip(), safe='')}", json_body=body
+        )
+        return result

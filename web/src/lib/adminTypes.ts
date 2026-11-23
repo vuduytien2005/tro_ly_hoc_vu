@@ -254,3 +254,38 @@ export const STUDENT_STATUS: Record<string, { label: string; className: string }
   thoi_hoc: { label: 'Thôi học', className: 'bg-err-bg text-err' },
   tot_nghiep: { label: 'Tốt nghiệp', className: 'bg-primary/10 text-primary' },
 }
+
+// ---- Duyệt đơn (/api/admin/requests) ----
+export interface StaffRequest {
+  ma_don: string
+  loai_don: string
+  noi_dung: Record<string, unknown>
+  trang_thai: string
+  ghi_chu_xu_ly: string | null
+  tao_boi: string
+  created_at: string
+  updated_at: string
+  ma_sv: string
+  ho_ten: string
+}
+
+export interface StaffRequestPage {
+  tong: number
+  trang_so: number
+  so_moi_trang: number
+  don: StaffRequest[]
+}
+
+export const REQUEST_STATUS: Record<string, { label: string; className: string }> = {
+  moi_tao: { label: 'Mới tạo', className: 'bg-slate-100 text-slate-700' },
+  dang_xu_ly: { label: 'Đang xử lý', className: 'bg-warn-bg text-warn' },
+  da_duyet: { label: 'Đã duyệt', className: 'bg-ok-bg text-ok' },
+  tu_choi: { label: 'Từ chối', className: 'bg-err-bg text-err' },
+  hoan_tat: { label: 'Hoàn tất', className: 'bg-primary/10 text-primary' },
+}
+
+export const REQUEST_KIND: Record<string, string> = {
+  giay_xac_nhan_sv: 'Giấy xác nhận sinh viên',
+  bao_luu: 'Bảo lưu',
+  phuc_khao: 'Phúc khảo',
+}

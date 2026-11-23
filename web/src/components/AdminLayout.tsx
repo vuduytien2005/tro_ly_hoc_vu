@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  FileCheck,
   GraduationCap,
   FileText,
   LogOut,
@@ -25,6 +26,7 @@ const LINKS = [
   { to: '/admin/thong-ke', label: 'Thống kê', icon: BarChart3 },
   { to: '/admin/tai-khoan', label: 'Tài khoản', icon: Users },
   { to: '/admin/sinh-vien', label: 'Sinh viên (QLSV)', icon: GraduationCap },
+  { to: '/admin/don-tu', label: 'Đơn từ', icon: FileCheck },
 ]
 
 export default function AdminLayout() {

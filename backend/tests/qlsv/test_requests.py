@@ -80,3 +80,52 @@ def test_list_requests_filter(db: Session) -> None:
         "DT-2026-0001"
     ]
     assert request_service.list_requests(db, "SV21001", "moi_tao") == []
+
+
+# ----- Duyệt đơn hai phía (bổ sung 23/11/2026) --------------------------------------------------
+def test_status_machine_allows_normal_flow(db: Session) -> None:
+    out = create(db, "SV21001", "giay_xac_nhan_sv", {"muc_dich": "Vay vốn"})
+    for step in ("dang_xu_ly", "da_duyet", "hoan_tat"):
+        updated = request_service.update_status(db, out.ma_don, step, None, DEMO_NOW)
+        assert updated.trang_thai == step
+
+
+@pytest.mark.parametrize(
+    ("path", "bad"),
+    [((), "hoan_tat"), ((), "moi_tao"), (("dang_xu_ly",), "moi_tao"), (("da_duyet",), "tu_choi")],
+)
+def test_status_machine_rejects_invalid_transition(
+    db: Session, path: tuple[str, ...], bad: str
+) -> None:
+    out = create(db, "SV21001", "giay_xac_nhan_sv", {"muc_dich": "Vay vốn"})
+    for step in path:
+        request_service.update_status(db, out.ma_don, step, None, DEMO_NOW)
+    with pytest.raises(BusinessError) as e:
+        request_service.update_status(db, out.ma_don, bad, "x", DEMO_NOW)
+    assert (e.value.code, e.value.status) == ("CHUYEN_TRANG_THAI_KHONG_HOP_LE", 409)
+
+
+@pytest.mark.parametrize("note", [None, "   "])
+def test_reject_requires_reason(db: Session, note: str | None) -> None:
+    out = create(db, "SV21001", "giay_xac_nhan_sv", {"muc_dich": "Vay vốn"})
+    with pytest.raises(BusinessError) as e:
+        request_service.update_status(db, out.ma_don, "tu_choi", note, DEMO_NOW)
+    assert (e.value.code, e.value.status) == ("CAN_LY_DO_TU_CHOI", 422)
+    done = request_service.update_status(db, out.ma_don, "tu_choi", "Thiếu minh chứng", DEMO_NOW)
+    assert done.trang_thai == "tu_choi" and done.ghi_chu_xu_ly == "Thiếu minh chứng"
+
+
+def test_staff_list_all_requests(db: Session) -> None:
+    a = create(db, "SV22001", "giay_xac_nhan_sv", {"muc_dich": "Làm thẻ xe"})
+    page = request_service.list_all_requests(db, None, None, 1, 20)
+    assert page.tong == 2
+    times = [d.created_at for d in page.don]
+    assert times == sorted(times, reverse=True)  # mới nhất trước
+    mine = next(d for d in page.don if d.ma_don == a.ma_don)
+    assert mine.ma_sv == "SV22001" and mine.ho_ten
+    assert mine.noi_dung == {"muc_dich": "Làm thẻ xe", "so_ban": 1}
+    only_new = request_service.list_all_requests(db, "moi_tao", None, 1, 20)
+    assert [d.ma_don for d in only_new.don] == [a.ma_don]
+    assert request_service.list_all_requests(db, None, "bao_luu", 1, 20).tong == 0
+    second = request_service.list_all_requests(db, None, None, 2, 1)
+    assert second.tong == 2 and second.don[0].ma_don == page.don[1].ma_don

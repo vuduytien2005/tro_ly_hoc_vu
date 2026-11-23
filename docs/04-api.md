@@ -23,7 +23,8 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 | POST | `/internal/students/{ma_sv}/requests` | Body `{loai_don, noi_dung, tao_boi}` → `{ma_don, trang_thai}` |
 | GET | `/internal/students/{ma_sv}/requests?trang_thai=` | Danh sách đơn `[{ma_don, loai_don, trang_thai, tao_boi, created_at}]` |
 | GET | `/internal/students/{ma_sv}/requests/{ma_don}` | Chi tiết đơn (404 nếu không thuộc sinh viên này) |
-| PATCH | `/internal/requests/{ma_don}` | (Cán bộ) Body `{trang_thai, ghi_chu_xu_ly}` |
+| GET | `/internal/requests?trang_thai=&loai_don=&page=&page_size=` | (Cán bộ, bổ sung 23/11/2026) Mọi đơn, mới nhất trước → `{tong, trang_so, so_moi_trang, don: [RequestOut + ma_sv, ho_ten]}` |
+| PATCH | `/internal/requests/{ma_don}` | (Cán bộ) Body `{trang_thai, ghi_chu_xu_ly}`. Máy trạng thái (23/11/2026): `moi_tao → dang_xu_ly \| da_duyet \| tu_choi`, `dang_xu_ly → da_duyet \| tu_choi`, `da_duyet → hoan_tat`; sai bước → 409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE`, đơn đã kết thúc → 409 `DON_DA_KET_THUC`, từ chối thiếu ghi chú → 422 `CAN_LY_DO_TU_CHOI`. Khóa hàng `UPDLOCK` |
 | GET | `/internal/semesters/current` | Học kỳ hiện tại và học kỳ đang mở đăng ký |
 | GET | `/internal/students/{ma_sv}/borrows` | (Thư viện, SV-11) Sách đang mượn `[{muon_id, ma_sach, ten_sach, tac_gia, ngay_muon, han_tra, so_lan_gia_han, qua_han, gia_han_duoc, ly_do_khong_gia_han}]` |
 | GET | `/internal/books?tu_khoa=` | Tìm sách theo tên / tác giả (≤ 10) `[{ma_sach, ten_sach, tac_gia, nam_xb, tong_so_ban, so_ban_con}]` |
@@ -94,4 +95,6 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | GET | `/api/admin/students/programs` | AD | Chuyển tiếp `GET /internal/programs` (cho ô chọn ngành / khóa) |
 | POST | `/api/admin/students` | AD | Body như `POST /internal/students` + `cap_tai_khoan?`, `mat_khau?` → 201 `{sinh_vien, tai_khoan \| null, canh_bao}`. Khi cấp tài khoản: kiểm tra mật khẩu, mã SV / email chưa có tài khoản TRƯỚC khi ghi QLSV. Lỗi nghiệp vụ của qlsv_api chuyển nguyên văn |
 | PATCH | `/api/admin/students/{ma_sv}` | AD | Chuyển tiếp `PATCH /internal/students/{ma_sv}`, rồi ĐỒNG BỘ tài khoản liên kết (`ho_ten`, `email`, `ma_khoa`) — nếu không, trợ lý lọc quy chế theo khóa cũ. Email trùng tài khoản khác → 409 `EMAIL_DA_TON_TAI` (chặn trước khi ghi QLSV) |
+| GET | `/api/admin/requests?trang_thai=&loai_don=&page=&page_size=` | AD | Duyệt đơn (23/11/2026): chuyển tiếp `GET /internal/requests` qua `QlsvDirectory` (thao tác cán bộ, không qua MCP/LLM) |
+| PATCH | `/api/admin/requests/{ma_don}` | AD | Body `{trang_thai, ghi_chu_xu_ly}` → chuyển tiếp `PATCH /internal/requests/{ma_don}`; lỗi 4xx của qlsv_api chuyển nguyên văn. Thiết kế: `docs/superpowers/specs/2026-11-23-duyet-don-design.md` |
 | GET | `/api/admin/stats?tu=&den=` | AD | Mặc định 30 ngày gần nhất. `{tu, den, so_hoi_thoai, so_cau_hoi (không tính tin "Xác nhận:/Hủy:" do hệ thống lưu), so_danh_gia, so_huu_ich, ti_le_huu_ich, thoi_gian_phan_hoi_tb_ms, so_luot_goi_cong_cu, top_cong_cu: [{ten_cong_cu, so_lan, so_loi}], theo_ngay: [{ngay, so_cau_hoi}], cau_bi_che: [{tin_nhan_id, hoi_thoai_id, nguoi_dung, cau_hoi, cau_tra_loi, gop_y, created_at}]}` |

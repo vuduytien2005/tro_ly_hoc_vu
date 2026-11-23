@@ -26,6 +26,7 @@ from src.assistant_api.rag_admin import RagAdminClient
 from src.assistant_api.routers import (
     actions,
     admin,
+    admin_requests,
     admin_students,
     admin_users,
     auth,
@@ -111,6 +112,7 @@ def create_app(
     app.include_router(admin.router)
     app.include_router(admin_users.router)
     app.include_router(admin_students.router)
+    app.include_router(admin_requests.router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
     async def health(request: Request) -> dict[str, object]:

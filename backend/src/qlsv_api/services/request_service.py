@@ -23,12 +23,20 @@ from src.qlsv_api.schemas import (
     RegradeContent,
     RequestOut,
     RequestSummaryOut,
+    StaffRequestListOut,
+    StaffRequestOut,
 )
 from src.qlsv_api.services import semester_service
 from src.qlsv_api.services.common import format_vnd, get_student_or_404
 from src.shared.time import from_db, to_db
 
 FINAL_STATUSES = {"hoan_tat", "tu_choi"}
+# Máy trạng thái của đơn (cán bộ xử lý). Trạng thái cuối không có bước kế tiếp.
+NEXT_STATUSES: dict[str, set[str]] = {
+    "moi_tao": {"dang_xu_ly", "da_duyet", "tu_choi"},
+    "dang_xu_ly": {"da_duyet", "tu_choi"},
+    "da_duyet": {"hoan_tat"},
+}
 
 
 def _to_out(don: DonTu) -> RequestOut:
@@ -153,20 +161,46 @@ def get_request(db: Session, ma_sv: str, ma_don: str) -> RequestOut:
 def update_status(
     db: Session, ma_don: str, trang_thai: str, ghi_chu_xu_ly: str | None, now: datetime
 ) -> RequestOut:
-    """(Cán bộ) cập nhật trạng thái đơn. Không commit."""
-    don = request_repo.get_by_ma_don(db, ma_don)
+    """(Cán bộ) chuyển trạng thái đơn theo NEXT_STATUSES. Không commit."""
+    don = request_repo.get_by_ma_don_for_update(db, ma_don)
     if don is None:
         raise not_found("DON_KHONG_TON_TAI", f"Không tìm thấy đơn {ma_don}.")
     if don.trang_thai in FINAL_STATUSES:
         raise conflict(
             "DON_DA_KET_THUC", f"Đơn {ma_don} đã ở trạng thái '{don.trang_thai}', không thể sửa."
         )
+    if trang_thai not in NEXT_STATUSES.get(don.trang_thai, set()):
+        raise conflict(
+            "CHUYEN_TRANG_THAI_KHONG_HOP_LE",
+            f"Không thể chuyển đơn {ma_don} từ '{don.trang_thai}' sang '{trang_thai}'.",
+        )
+    note = ghi_chu_xu_ly.strip() if ghi_chu_xu_ly else None
+    if trang_thai == "tu_choi" and not note:
+        raise invalid("CAN_LY_DO_TU_CHOI", "Từ chối đơn cần ghi rõ lý do cho sinh viên.")
     don.trang_thai = trang_thai
-    if ghi_chu_xu_ly is not None:
-        don.ghi_chu_xu_ly = ghi_chu_xu_ly
+    if note:
+        don.ghi_chu_xu_ly = note
     don.updated_at = to_db(now)
     # Luôn đưa updated_at vào câu UPDATE (kể cả khi giá trị trùng cũ, vd DEMO_NOW cố định),
     # để trigger trg_don_tu_updated_at thấy UPDATE(updated_at) và không ghi đè bằng giờ máy.
     flag_modified(don, "updated_at")
     db.flush()
     return _to_out(don)
+
+
+def list_all_requests(
+    db: Session, trang_thai: str | None, loai_don: str | None, page: int, page_size: int
+) -> StaffRequestListOut:
+    """(Cán bộ) mọi đơn, mới nhất trước, kèm mã SV và họ tên người nộp."""
+    rows = request_repo.list_all_page(db, trang_thai, loai_don, (page - 1) * page_size, page_size)
+    return StaffRequestListOut(
+        tong=request_repo.count_all(db, trang_thai, loai_don),
+        trang_so=page,
+        so_moi_trang=page_size,
+        don=[
+            StaffRequestOut(
+                **_to_out(d).model_dump(), ma_sv=d.sinh_vien.ma_sv, ho_ten=d.sinh_vien.ho_ten
+            )
+            for d in rows
+        ],
+    )

@@ -21,6 +21,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 /admin/thu-truy-xuat
 /admin/mcp
 /admin/nhat-ky
+/admin/don-tu           → Đơn từ (duyệt đơn, bổ sung 23/11/2026)
 ```
 
 ## Trang chat (quan trọng nhất)
@@ -48,4 +49,5 @@ Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên /
   - Nhãn duyệt cạnh tên công cụ: **"Mới — cần duyệt"** (xanh) / **"Mô tả đã thay đổi — cần duyệt lại"** (vàng). Mũi tên cạnh tên mở rộng xem mô tả đầy đủ server gửi cho LLM + tham số (JSON, đã ẩn `ma_sv`/`ma_khoa`). Bật công cụ = duyệt.
   - Dưới server: "`x`: trùng tên với công cụ của server `y` — bị bỏ qua".
 - **Nhật ký:** công tắc **"Tự cập nhật"** (3 giây/lần, dòng mới nổi bật ~1 giây — dùng khi demo, không phải F5); bảng thời gian, người dùng, server/tool, trạng thái, thời gian xử lý; bấm dòng mở ngăn chi tiết JSON. Nếu `tham_so_llm` khác `tham_so` → tô vàng "Đã tiêm ngữ cảnh".
+- **Đơn từ** (bổ sung 23/11/2026): quản trị viên đóng vai cán bộ phòng CTSV. Lọc trạng thái (mặc định "Mới tạo") và loại đơn; bảng mã đơn, sinh viên, loại (kèm "Trợ lý AI"/"Sinh viên" tạo), thời điểm nộp, trạng thái. Nút "Xử lý" mở ngăn chi tiết: nội dung đơn, ô ghi chú gửi sinh viên (bắt buộc khi từ chối), chỉ hiện các nút bước kế tiếp hợp lệ (Nhận xử lý / Duyệt / Từ chối / Hoàn tất). Kết quả hiện ngay ở "Thủ tục của em".
 - **Thống kê:** 4 thẻ số liệu, biểu đồ chủ đề/tool dùng nhiều, danh sách câu trả lời bị đánh giá "chưa đúng".

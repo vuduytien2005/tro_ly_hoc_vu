@@ -1,8 +1,10 @@
+from typing import Any
+
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from src.qlsv_api.models import DonTu
-from src.shared.locking import lock_range_for_update
+from src.shared.locking import lock_for_update, lock_range_for_update
 
 
 def list_for_student(db: Session, sinh_vien_id: int, trang_thai: str | None) -> list[DonTu]:
@@ -18,6 +20,40 @@ def list_for_student(db: Session, sinh_vien_id: int, trang_thai: str | None) -> 
 
 def get_by_ma_don(db: Session, ma_don: str) -> DonTu | None:
     return db.scalar(select(DonTu).where(DonTu.ma_don == ma_don))
+
+
+def get_by_ma_don_for_update(db: Session, ma_don: str) -> DonTu | None:
+    """Đọc kèm khóa hàng: hai cán bộ cùng xử lý một đơn thì người sau thấy trạng thái mới."""
+    return db.scalar(lock_for_update(select(DonTu).where(DonTu.ma_don == ma_don), DonTu))
+
+
+def _filters(trang_thai: str | None, loai_don: str | None) -> list[Any]:
+    conds: list[Any] = []
+    if trang_thai:
+        conds.append(DonTu.trang_thai == trang_thai)
+    if loai_don:
+        conds.append(DonTu.loai_don == loai_don)
+    return conds
+
+
+def count_all(db: Session, trang_thai: str | None, loai_don: str | None) -> int:
+    stmt = select(func.count(DonTu.id)).where(*_filters(trang_thai, loai_don))
+    return db.scalar(stmt) or 0
+
+
+def list_all_page(
+    db: Session, trang_thai: str | None, loai_don: str | None, offset: int, limit: int
+) -> list[DonTu]:
+    return list(
+        db.scalars(
+            select(DonTu)
+            .options(joinedload(DonTu.sinh_vien))
+            .where(*_filters(trang_thai, loai_don))
+            .order_by(DonTu.created_at.desc(), DonTu.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+    )
 
 
 def next_sequence(db: Session, year: int) -> int:

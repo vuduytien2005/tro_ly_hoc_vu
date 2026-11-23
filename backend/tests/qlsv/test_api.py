@@ -113,3 +113,9 @@ def test_request_endpoints(client: TestClient) -> None:
     assert client.get(f"/internal/students/SV22001/requests/{ma_don}").status_code == 404
     patched = client.patch(f"/internal/requests/{ma_don}", json={"trang_thai": "da_duyet"})
     assert patched.json()["trang_thai"] == "da_duyet"
+
+
+def test_staff_request_list_endpoint(client: TestClient) -> None:
+    body = client.get("/internal/requests", params={"trang_thai": "hoan_tat"}).json()
+    assert body["tong"] == 1 and body["don"][0]["ma_sv"] == "SV21001"
+    assert client.get("/internal/requests", params={"trang_thai": "xoa"}).status_code == 422

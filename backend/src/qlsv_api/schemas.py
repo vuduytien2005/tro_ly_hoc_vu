@@ -297,6 +297,20 @@ class RequestSummaryOut(Schema):
     created_at: datetime
 
 
+class StaffRequestOut(RequestOut):
+    """Đơn kèm người nộp — cho trang duyệt đơn của cán bộ."""
+
+    ma_sv: str
+    ho_ten: str
+
+
+class StaffRequestListOut(Schema):
+    tong: int
+    trang_so: int
+    so_moi_trang: int
+    don: list[StaffRequestOut]
+
+
 class RequestUpdateIn(Schema):
     trang_thai: TrangThaiDon
     ghi_chu_xu_ly: str | None = None

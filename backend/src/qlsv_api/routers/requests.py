@@ -4,10 +4,12 @@ from fastapi import APIRouter, Query, status
 
 from src.qlsv_api.routers.deps import DbSession, InternalAuth, Now, run_in_transaction
 from src.qlsv_api.schemas import (
+    LoaiDon,
     RequestCreateIn,
     RequestOut,
     RequestSummaryOut,
     RequestUpdateIn,
+    StaffRequestListOut,
     TrangThaiDon,
 )
 from src.qlsv_api.services import request_service
@@ -48,6 +50,21 @@ def list_requests(
 )
 def get_request(ma_sv: str, ma_don: str, db: DbSession) -> RequestOut:
     return request_service.get_request(db, ma_sv, ma_don)
+
+
+@router.get(
+    "/requests",
+    response_model=StaffRequestListOut,
+    summary="(Cán bộ) Mọi đơn, mới nhất trước, kèm người nộp",
+)
+def list_all_requests(
+    db: DbSession,
+    trang_thai: Annotated[TrangThaiDon | None, Query()] = None,
+    loai_don: Annotated[LoaiDon | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> StaffRequestListOut:
+    return request_service.list_all_requests(db, trang_thai, loai_don, page, page_size)
 
 
 @router.patch(

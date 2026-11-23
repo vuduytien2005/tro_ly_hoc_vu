@@ -261,6 +261,8 @@ class DonTu(QlsvBase):
         server_onupdate=FetchedValue(),  # trigger AFTER UPDATE trong script SQL
     )
 
+    sinh_vien: Mapped["SinhVien"] = relationship()
+
 
 class Sach(QlsvBase):
     __tablename__ = "sach"

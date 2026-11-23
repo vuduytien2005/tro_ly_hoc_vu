@@ -67,3 +67,22 @@ export function reviewBadge(
   if (duyet === 'thay_doi') return { text: 'Mô tả đã thay đổi — cần duyệt lại', tone: 'changed' }
   return null
 }
+
+/**
+ * Các bước kế tiếp hợp lệ của một đơn — bản sao máy trạng thái ở qlsv_api
+ * (request_service.NEXT_STATUSES) chỉ để hiện đúng nút; qlsv_api vẫn là nơi kiểm tra.
+ */
+const NEXT_STATUSES: Record<string, string[]> = {
+  moi_tao: ['dang_xu_ly', 'da_duyet', 'tu_choi'],
+  dang_xu_ly: ['da_duyet', 'tu_choi'],
+  da_duyet: ['hoan_tat'],
+}
+
+export function nextStatuses(current: string): string[] {
+  return NEXT_STATUSES[current] ?? []
+}
+
+/** Từ chối phải có lý do (qlsv_api trả 422 CAN_LY_DO_TU_CHOI nếu thiếu). */
+export function reviewNoteProblem(target: string, note: string): string | null {
+  return target === 'tu_choi' && !note.trim() ? 'Cần ghi lý do từ chối để sinh viên biết.' : null
+}
