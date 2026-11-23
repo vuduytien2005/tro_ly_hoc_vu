@@ -20,7 +20,7 @@ Cho phép thêm server mở ra 4 rủi ro riêng của MCP; cách xử lý:
 | Tool poisoning | Mô tả công cụ (do server viết) đi thẳng vào prompt LLM, có thể chứa lệnh ẩn | Công cụ mới luôn `bat=0`, `ghi`, cần xác nhận; quản trị viên đọc mô tả đầy đủ trước khi bật. System prompt không dùng `title` của công cụ chưa duyệt | `test_new_server_tools_added_disabled`, `prompts.paused_label` |
 | Rug pull | Server được duyệt rồi lặng lẽ đổi mô tả | `cong_cu.ban_duyet` = SHA-256 (title + mô tả + schema) lúc bật; mã băm khác ở lần đồng bộ sau → tự tắt, chờ duyệt lại | `test_approve_then_description_change_disables` |
 | Trùng tên (shadowing) | Server mới khai báo công cụ trùng tên công cụ cũ (vd `search_regulations`) để chiếm lời gọi | Giữ bản của server thêm trước, bỏ bản sau, báo trên giao diện | `test_duplicate_tool_name_skipped` |
-| SSRF | Địa chỉ server tùy ý → assistant_api gửi `Bearer INTERNAL_API_TOKEN` ra ngoài / vào mạng nội bộ | `normalize_mcp_address`: chỉ `http://127.0.0.1` hoặc `localhost`, bắt buộc cổng, không user/mật khẩu; kiểm tra cả khi sửa địa chỉ | `test_address_rejected`, `test_patch_server_bad_address_keeps_db` |
+| SSRF | Địa chỉ server tùy ý → assistant_api gửi token ra ngoài / vào mạng nội bộ | `normalize_mcp_address`: chỉ `http://127.0.0.1` hoặc `localhost`, bắt buộc cổng, không user/mật khẩu; kiểm tra cả khi sửa địa chỉ | `test_address_rejected`, `test_patch_server_bad_address_keeps_db` |
 
 Thực nghiệm cho 3 dòng tool poisoning / rug pull / trùng tên: TN4 nhóm `server_doc_hai` (S050–S054, `docs/09`) — đo trên prompt LLM thực nhận rằng chữ độc không tới LLM khi chưa duyệt, sau rug pull, khi trùng tên; và khi quản trị viên duyệt nhầm thì thẻ xác nhận + tiêm ngữ cảnh vẫn chặn hậu quả.
 
@@ -31,8 +31,22 @@ Thực nghiệm cho 3 dòng tool poisoning / rug pull / trùng tên: TN4 nhóm `
 - **không** trả `ket_qua` của công cụ; chỉ đọc nhật ký, không thêm đường gọi công cụ nào.
 Test: `backend/tests/assistant/test_trace.py`.
 
+## Bổ sung 23/11/2026 — OAuth 2.1 cho MCP
+Trước đây mọi MCP server nhận chung `Bearer INTERNAL_API_TOKEN`: server được thêm (có thể độc) giữ token đó là gọi được mọi server khác, đọc dữ liệu bất kỳ sinh viên nào. Nay (`MCP_AUTH_MODE=oauth`, mặc định):
+
+| Thuộc tính token | Chặn được |
+|---|---|
+| `aud` = URL đúng server (RFC 8707) | Server độc đem token của nó dùng ở server khác |
+| `scope` = đúng một công cụ | Dùng token của `get_exam_schedule` để gọi `get_student_profile` |
+| `sub` = `ma_sv` đã tiêm; MCP server kiểm `ma_sv == sub` | Lỗi tiêm ngữ cảnh ở assistant_api cũng không đọc được dữ liệu sinh viên khác (phòng thủ nhiều lớp) |
+| `exp` 60 giây, `jti` ngẫu nhiên | Token bị lộ hết giá trị rất nhanh |
+| Ký Ed25519 (bất đối xứng), chỉ nhận `alg=EdDSA` | MCP server chỉ có khóa công khai, không tự cấp token được; chặn `alg=none`/HS256 |
+
+MCP server công bố `/.well-known/oauth-protected-resource/mcp` (RFC 9728) và trả `WWW-Authenticate: Bearer ... resource_metadata=...` khi 401; assistant_api công bố `/.well-known/jwks.json` và `/.well-known/oauth-authorization-server` (RFC 8414). Khóa riêng ở `data/keys/` (không commit). `/internal/*` của quy_che (quản trị RAG) vẫn dùng `INTERNAL_API_TOKEN`; MCP server ↔ qlsv_api vẫn `X-Internal-Token`.
+Test: `tests/test_oauth.py`, `tests/mcp/test_common.py` (phần HTTP), `tests/assistant/test_mcp_client_oauth.py` (đầu-cuối qua uvicorn).
+
 ## Hạn chế đã biết (chấp nhận trong phạm vi khóa luận)
-- Mọi MCP server dùng chung `INTERNAL_API_TOKEN`: một server được thêm (chạy trên cùng máy) nhận được token và có thể gọi các MCP server khác. Chấp nhận vì server chỉ chạy trên máy này và do quản trị viên chủ động thêm; hướng phát triển: token riêng từng server.
+- Chỉ dùng phần cấp/kiểm token của OAuth 2.1: assistant_api vừa là client vừa là authorization server, không có luồng ủy quyền người dùng (authorization code + PKCE) vì người dùng đã đăng nhập vào assistant_api. MCP server được thêm vẫn nhận được `X-Internal-Token` nếu quản trị viên tự cấu hình cho nó; token qlsv_api là bí mật riêng của các server do trường triển khai.
 - `readOnlyHint` do server tự khai báo, chỉ là gợi ý; mức rủi ro thật do quản trị viên đặt.
 - JWT lưu trong `localStorage` của trình duyệt: đơn giản nhưng đọc được nếu web bị XSS. Phương án tốt hơn: cookie `HttpOnly` + chống CSRF.
 - Thẻ xác nhận không ai bấm vẫn ở trạng thái `cho` trong CSDL sau khi hết hạn (chỉ chuyển `het_han` khi có người bấm). Không thể thực thi nữa vì hạn được kiểm tra lúc bấm -> không phải lỗ hổng, chỉ ảnh hưởng thống kê.

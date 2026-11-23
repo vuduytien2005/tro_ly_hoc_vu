@@ -99,3 +99,10 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | GET | `/api/admin/requests?trang_thai=&loai_don=&page=&page_size=` | AD | Duyệt đơn (23/11/2026): chuyển tiếp `GET /internal/requests` qua `QlsvDirectory` (thao tác cán bộ, không qua MCP/LLM) |
 | PATCH | `/api/admin/requests/{ma_don}` | AD | Body `{trang_thai, ghi_chu_xu_ly}` → chuyển tiếp `PATCH /internal/requests/{ma_don}`; lỗi 4xx của qlsv_api chuyển nguyên văn. Thiết kế: `docs/superpowers/specs/2026-11-23-duyet-don-design.md` |
 | GET | `/api/admin/stats?tu=&den=` | AD | Mặc định 30 ngày gần nhất. `{tu, den, so_hoi_thoai, so_cau_hoi (không tính tin "Xác nhận:/Hủy:" do hệ thống lưu), so_danh_gia, so_huu_ich, ti_le_huu_ich, thoi_gian_phan_hoi_tb_ms, so_luot_goi_cong_cu, top_cong_cu: [{ten_cong_cu, so_lan, so_loi}], theo_ngay: [{ngay, so_cau_hoi}], cau_bi_che: [{tin_nhan_id, hoi_thoai_id, nguoi_dung, cau_hoi, cau_tra_loi, gop_y, created_at}]}` |
+
+### OAuth cho MCP (23/11/2026, công khai, không tiền tố `/api`)
+| Method | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/.well-known/oauth-authorization-server` | – | Metadata authorization server (RFC 8414): `issuer`, `jwks_uri`, `scopes_supported`, `token_endpoint_auth_methods_supported` |
+| GET | `/.well-known/jwks.json` | – | Khóa CÔNG KHAI Ed25519 để MCP server kiểm token |
+| GET | `http://127.0.0.1:<cổng MCP>/.well-known/oauth-protected-resource/mcp` | – | (Trên từng MCP server, RFC 9728) `{resource, authorization_servers, ...}`. `/mcp` thiếu hoặc sai token → 401 `THIEU_TOKEN` / `TOKEN_KHONG_HOP_LE` + `WWW-Authenticate: Bearer error="invalid_token", resource_metadata="..."` |

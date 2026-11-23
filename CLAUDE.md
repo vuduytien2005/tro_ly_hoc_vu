@@ -74,7 +74,7 @@ tro-ly-hoc-vu/
 1. **Tiêm ngữ cảnh (context injection):** mọi công cụ MCP liên quan dữ liệu cá nhân có tham số `ma_sv` (và `quy_che` có `ma_khoa`). Các tham số này **bị ẩn khỏi schema gửi cho LLM**; `assistant_api` tự điền từ tài khoản đang đăng nhập. LLM KHÔNG BAO GIỜ được tự chọn `ma_sv`. Nếu LLM gửi kèm `ma_sv`, giá trị đó bị ghi đè.
 2. **Xác nhận hành động:** công cụ có `can_xac_nhan = 1` (bảng `cong_cu`) KHÔNG được thực thi ngay. Agent tạo bản ghi `hanh_dong_cho_xac_nhan`, giao diện hiện thẻ xác nhận, chỉ thực thi khi người dùng bấm "Xác nhận" (hết hạn sau 10 phút).
 3. **Nhật ký:** MỌI lần gọi công cụ (thành công, lỗi, bị từ chối, chờ xác nhận) đều ghi vào `luot_goi_cong_cu`.
-4. **Xác thực nội bộ:** MCP server ↔ qlsv_api dùng header `X-Internal-Token`; assistant_api ↔ MCP server dùng header `Authorization: Bearer <INTERNAL_API_TOKEN>`. MCP server và qlsv_api chỉ lắng nghe `127.0.0.1`.
+4. **Xác thực nội bộ:** MCP server ↔ qlsv_api dùng header `X-Internal-Token`; assistant_api ↔ MCP server dùng OAuth 2.1: token JWT Ed25519 sống 60 giây, gắn `aud` = URL server, `scope` = công cụ, `sub` = `ma_sv` (`src/shared/oauth.py`; `MCP_AUTH_MODE=token` quay về `Authorization: Bearer <INTERNAL_API_TOKEN>`). MCP server và qlsv_api chỉ lắng nghe `127.0.0.1`.
 5. **Chống prompt injection từ tài liệu:** nội dung trả về từ `search_regulations` được bọc trong thẻ `<tai_lieu>` và system prompt nói rõ đó là dữ liệu, không phải lệnh.
 6. Công cụ bị tắt (`cong_cu.bat = 0`) không được đưa cho LLM.
 

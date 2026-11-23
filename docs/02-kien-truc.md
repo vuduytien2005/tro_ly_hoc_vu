@@ -170,7 +170,7 @@ Nguyên tắc:
 - Mỗi tool MCP khai báo `ma_sv: str` (và `ma_khoa: str` với `search_regulations`) là **tham số đầu tiên**. Ghi chú `[INJECTED]` nằm trong mô tả của tham số (JSON schema), không nằm trong docstring.
 - `ToolRegistry` khi nạp schema: xóa các khóa `ma_sv`, `ma_khoa` khỏi `properties` và `required`.
 - Khi gọi: `args.pop("ma_sv", None); args["ma_sv"] = user.ma_sv` (tương tự `ma_khoa`). Ghi cả `tham_so_llm` (gốc) và `tham_so` (sau tiêm) vào nhật ký → minh chứng thực nghiệm an toàn.
-- assistant_api gọi MCP server với header `Authorization: Bearer {INTERNAL_API_TOKEN}`; MCP server từ chối nếu sai.
+- assistant_api gọi `/mcp` của MCP server bằng **OAuth 2.1** (bổ sung 23/11/2026, `MCP_AUTH_MODE=oauth`): mỗi lần gọi một token JWT riêng, ký Ed25519, sống 60 giây, gắn `aud` = URL server (RFC 8707), `scope` = `mcp:tool:<tên công cụ>` (hoặc `mcp:tools.list`), `sub` = `ma_sv` đã tiêm. MCP server kiểm chữ ký qua JWKS (`/.well-known/jwks.json` của assistant_api, dự phòng tệp JWKS công khai trong `data/keys/`), rồi kiểm lại scope và `ma_sv == sub` trước khi chạy công cụ. Token cấp cho server A không dùng được ở server B. `MCP_AUTH_MODE=token` quay về cách cũ (Bearer `INTERNAL_API_TOKEN` dùng chung). Chi tiết: `docs/superpowers/specs/2026-11-23-oauth-mcp-design.md`.
 - MCP server gọi qlsv_api với header `X-Internal-Token: {INTERNAL_API_TOKEN}`.
 
 ## 7. Đồng bộ danh mục công cụ
@@ -191,7 +191,7 @@ sequenceDiagram
     participant S as MCP server mới (127.0.0.1)
     A->>API: POST /api/admin/mcp-servers/check {dia_chi}
     API->>API: chỉ nhận http://127.0.0.1|localhost:<cổng> (chống SSRF)
-    API->>S: list_tools (Bearer INTERNAL_API_TOKEN)
+    API->>S: list_tools (token OAuth aud=server này, scope mcp:tools.list)
     API-->>A: xem trước: title, mô tả đầy đủ, tham số, gợi ý readOnly, trùng tên
     A->>API: POST /api/admin/mcp-servers {ten, mo_ta, dia_chi}
     API->>API: lưu mcp_server, sync → công cụ mới bat=0, ghi, cần xác nhận
@@ -233,7 +233,7 @@ Giải pháp: chỉ `quy_che` đọc/ghi Chroma; assistant_api gọi API nội b
 | `DELETE /internal/documents/{id}` | Xóa bản ghi + đoạn + vector |
 | `POST /internal/rag/search` | Thử truy xuất với cờ bật/tắt vector, từ khóa, lọc phiên bản, rerank |
 
-Các route này KHÔNG phải tool MCP (LLM không thấy) và dùng chung middleware Bearer với `/mcp`.
+Các route này KHÔNG phải tool MCP (LLM không thấy) và dùng middleware `McpAuthMiddleware`, nhánh Bearer `INTERNAL_API_TOKEN` (còn `/mcp` dùng token OAuth).
 Lợi ích phụ: mô hình embedding chỉ nạp một lần (trong quy_che).
 
 ## 9. Kịch bản demo 7 — tắt công cụ

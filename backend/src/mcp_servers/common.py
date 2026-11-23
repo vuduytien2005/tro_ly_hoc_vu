@@ -4,8 +4,11 @@ SDK: package `mcp` 2.x — lớp `MCPServer` (bản 1.x gọi là `FastMCP`), tr
 streamable HTTP tại `/mcp`, chỉ lắng nghe 127.0.0.1.
 
 Bảo mật:
-- assistant_api -> MCP server: header `Authorization: Bearer <INTERNAL_API_TOKEN>`,
-  kiểm bằng `BearerAuthMiddleware` (ASGI) bọc ngoài ứng dụng của SDK.
+- assistant_api -> MCP server (`/mcp`): OAuth 2.1 — token JWT ngắn hạn do assistant_api ký
+  (Ed25519), gắn `aud` = URL server này, `scope` = công cụ, `sub` = mã sinh viên; kiểm bằng
+  `McpAuthMiddleware` (ASGI) + `check_token_for_tool` trong `tool_errors`. `MCP_AUTH_MODE=token`
+  quay về cách cũ (Bearer INTERNAL_API_TOKEN dùng chung).
+- assistant_api -> `/internal/*` của quy_che (quản trị RAG): Bearer INTERNAL_API_TOKEN.
 - MCP server -> qlsv_api: header `X-Internal-Token` (trong `QlsvClient`).
 - SDK tự bật chống DNS rebinding khi host = 127.0.0.1 (chỉ nhận Host 127.0.0.1/localhost).
 
@@ -22,16 +25,19 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, ParamSpec
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 import uvicorn
+from mcp.server.auth.middleware.auth_context import auth_context_var, get_access_token
+from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 from starlette.applications import Starlette
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from src.shared.config import get_settings
+from src.shared.oauth import JwtVerifier, normalize_resource, tool_scope
 from src.shared.security import INTERNAL_TOKEN_HEADER, is_valid_internal_token
 
 logger = logging.getLogger("mcp_servers")
@@ -161,6 +167,24 @@ def to_tool_error(code: str, message: str) -> dict[str, Any]:
     return {"thanh_cong": False, "ma_loi": code, "thong_bao": message}
 
 
+def check_token_for_tool(tool: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
+    """Phòng thủ nhiều lớp (OAuth): token của lần gọi phải cho phép ĐÚNG công cụ này, và nếu công
+    cụ có `ma_sv` thì phải trùng `sub` (sinh viên đang đăng nhập) — assistant_api có lỗi tiêm ngữ
+    cảnh cũng không đọc được dữ liệu sinh viên khác. Không có token (gọi trong tiến trình: test,
+    thực nghiệm; hoặc chế độ token cũ) thì bỏ qua."""
+    access = get_access_token()
+    if access is None:
+        return None
+    if tool_scope(tool) not in access.scopes:
+        logger.warning("Từ chối %s: token chỉ cho phép %s", tool, access.scopes)
+        return to_tool_error("KHONG_DU_QUYEN", "Token không cho phép gọi công cụ này.")
+    ma_sv = kwargs.get("ma_sv")
+    if ma_sv is not None and str(ma_sv).strip().upper() != (access.subject or "").upper():
+        logger.warning("Từ chối %s: ma_sv không khớp sub của token", tool)
+        return to_tool_error("KHONG_DU_QUYEN", "Không được truy cập dữ liệu của sinh viên khác.")
+    return None
+
+
 def tool_errors(
     fn: Callable[P, Awaitable[dict[str, Any]]],
 ) -> Callable[P, Awaitable[dict[str, Any]]]:
@@ -171,6 +195,9 @@ def tool_errors(
 
     @functools.wraps(fn)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
+        denied = check_token_for_tool(fn.__name__, kwargs)
+        if denied is not None:
+            return denied
         try:
             return await fn(*args, **kwargs)
         except ToolFailure as exc:
@@ -195,69 +222,160 @@ def day_label(thu: int) -> str:
 # ---------------------------------------------------------------------------
 # Xác thực Bearer + chạy server
 # ---------------------------------------------------------------------------
-class BearerAuthMiddleware:
-    """ASGI middleware: mọi request HTTP phải có `Authorization: Bearer <INTERNAL_API_TOKEN>`.
+PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource"
 
-    Viết dạng ASGI thuần (không dùng BaseHTTPMiddleware) để không ảnh hưởng luồng streaming
-    của transport MCP.
+
+def _bearer(scope: Scope) -> str | None:
+    for key, value in scope["headers"]:
+        if key.decode("latin-1").lower() == "authorization":
+            scheme, _, token = value.decode("latin-1").partition(" ")
+            return token.strip() if scheme.lower() == "bearer" and token.strip() else None
+    return None
+
+
+class McpAuthMiddleware:
+    """ASGI middleware xác thực MCP server.
+
+    - `PROTECTED_RESOURCE_PATH` (RFC 9728): công khai — cho client biết authorization server nào
+      cấp token cho tài nguyên này.
+    - `/internal/*` (quản trị RAG của quy_che): Bearer INTERNAL_API_TOKEN.
+    - Còn lại (`/mcp`): chế độ `oauth` -> token JWT hợp lệ cho ĐÚNG server này, đặt `AccessToken`
+      vào context của SDK (`get_access_token()`); chế độ `token` -> Bearer INTERNAL_API_TOKEN.
+
+    Viết dạng ASGI thuần (không dùng BaseHTTPMiddleware) để không ảnh hưởng luồng streaming.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, resource_url: str, verifier: JwtVerifier | None) -> None:
         self.app = app
+        self.resource_url = normalize_resource(resource_url)
+        self.verifier = verifier
+        self.metadata_url = metadata_url_for(self.resource_url)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
-        scheme, _, token = headers.get("authorization", "").partition(" ")
-        if scheme.lower() != "bearer" or not token:
+        path: str = scope.get("path", "")
+        if path == PROTECTED_RESOURCE_PATH or path.startswith(PROTECTED_RESOURCE_PATH + "/"):
+            await _send_json(send, 200, self._metadata())
+            return
+        token = _bearer(scope)
+        if path.startswith("/internal") or self.verifier is None:
+            if token is None:
+                await _reject(
+                    send, "Thiếu token xác thực nội bộ (Authorization: Bearer).", "THIEU_TOKEN"
+                )
+            elif not is_valid_internal_token(token):
+                await _reject(send, "Token xác thực nội bộ không hợp lệ.", "TOKEN_KHONG_HOP_LE")
+            else:
+                await self.app(scope, receive, send)
+            return
+        if token is None:
             await _reject(
-                send, "Thiếu token xác thực nội bộ (Authorization: Bearer).", "THIEU_TOKEN"
+                send,
+                "Thiếu token truy cập (Authorization: Bearer).",
+                "THIEU_TOKEN",
+                self.metadata_url,
             )
             return
-        if not is_valid_internal_token(token.strip()):
-            await _reject(send, "Token xác thực nội bộ không hợp lệ.", "TOKEN_KHONG_HOP_LE")
+        access = await self.verifier.verify_token(token)
+        if access is None:
+            await _reject(
+                send,
+                "Token truy cập không hợp lệ, hết hạn hoặc không cấp cho server này.",
+                "TOKEN_KHONG_HOP_LE",
+                self.metadata_url,
+            )
             return
-        await self.app(scope, receive, send)
+        reset = auth_context_var.set(AuthenticatedUser(access))
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            auth_context_var.reset(reset)
+
+    def _metadata(self) -> dict[str, Any]:
+        return {
+            "resource": self.resource_url,
+            "authorization_servers": [get_settings().oauth_issuer_url],
+            "bearer_methods_supported": ["header"],
+            "scopes_supported": ["mcp:tools.list", "mcp:tool:<tên công cụ>"],
+        }
 
 
-async def _reject(send: Send, detail: str, code: str) -> None:
-    body = json.dumps({"detail": detail, "code": code}, ensure_ascii=False).encode("utf-8")
+def metadata_url_for(resource_url: str) -> str:
+    """RFC 9728 mục 3.1: chèn /.well-known/oauth-protected-resource trước đường dẫn tài nguyên."""
+    parts = urlsplit(resource_url)
+    return f"{parts.scheme}://{parts.netloc}{PROTECTED_RESOURCE_PATH}{parts.path}"
+
+
+async def _send_json(
+    send: Send,
+    status: int,
+    payload: dict[str, Any],
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
+) -> None:
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     await send(
         {
             "type": "http.response.start",
-            "status": 401,
+            "status": status,
             "headers": [
                 (b"content-type", b"application/json; charset=utf-8"),
-                (b"www-authenticate", b"Bearer"),
                 (b"content-length", str(len(body)).encode()),
+                *(extra_headers or []),
             ],
         }
     )
     await send({"type": "http.response.body", "body": body})
 
 
+async def _reject(send: Send, detail: str, code: str, metadata_url: str | None = None) -> None:
+    challenge = "Bearer"
+    if metadata_url:  # RFC 6750 + RFC 9728: chỉ cho client nơi tìm authorization server
+        challenge += f' error="invalid_token", resource_metadata="{metadata_url}"'
+    await _send_json(
+        send, 401, {"detail": detail, "code": code}, [(b"www-authenticate", challenge.encode())]
+    )
+
+
 HOST = "127.0.0.1"
 
 
-def build_app(mcp: MCPServer) -> Starlette:
-    """Ứng dụng ASGI của MCP server (endpoint /mcp) đã bọc xác thực Bearer.
+def resource_url_for(port: int) -> str:
+    return f"http://{HOST}:{port}/mcp"
+
+
+def _default_port(mcp: MCPServer) -> int:
+    port = getattr(get_settings(), f"mcp_{mcp.name}_port", None)
+    if not isinstance(port, int):
+        raise ValueError(f"Không biết cổng của MCP server '{mcp.name}', truyền port vào build_app.")
+    return port
+
+
+def build_app(
+    mcp: MCPServer, port: int | None = None, verifier: JwtVerifier | None = None
+) -> Starlette:
+    """Ứng dụng ASGI của MCP server (endpoint /mcp) đã bọc xác thực.
 
     - stateless_http: mỗi lệnh gọi tool độc lập, không giữ phiên -> đơn giản cho assistant_api.
     - json_response: trả JSON thay vì SSE (tool trả kết quả một lần, không cần streaming).
+    - `verifier`: None -> tự tạo theo `MCP_AUTH_MODE` (oauth: JwtVerifier cho URL server này).
     """
+    resource_url = resource_url_for(port if port is not None else _default_port(mcp))
+    if verifier is None and get_settings().mcp_auth_mode == "oauth":
+        verifier = JwtVerifier(resource_url)
     app = mcp.streamable_http_app(
         streamable_http_path="/mcp",
         stateless_http=True,
         json_response=True,
         host=HOST,  # SDK tự bật chống DNS rebinding cho 127.0.0.1
     )
-    app.add_middleware(BearerAuthMiddleware)
+    app.add_middleware(McpAuthMiddleware, resource_url=resource_url, verifier=verifier)
     return app
 
 
 def run(mcp: MCPServer, port: int) -> None:
     logging.basicConfig(level=logging.INFO)
     logger.info("MCP server %s: http://%s:%d/mcp", mcp.name, HOST, port)
-    uvicorn.run(build_app(mcp), host=HOST, port=port)
+    logger.info("Xác thực /mcp: %s", get_settings().mcp_auth_mode)
+    uvicorn.run(build_app(mcp, port), host=HOST, port=port)

@@ -7,6 +7,7 @@ không có mật khẩu/khoá/URL nào bị hard-code trong code.
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -51,6 +52,16 @@ class Settings(BaseSettings):
     mcp_tai_chinh_port: int = 9103
     mcp_quy_che_port: int = 9104
     mcp_thu_vien_port: int = 9105  # server bổ sung: quản trị viên thêm trên giao diện
+
+    # ---------- OAuth cho MCP (23/11/2026, docs/superpowers/specs/2026-11-23-oauth-mcp-design.md)
+    # oauth = token JWT ngắn hạn gắn server/công cụ/sinh viên
+    # token = Bearer INTERNAL_API_TOKEN dùng chung (cách cũ)
+    mcp_auth_mode: Literal["oauth", "token"] = "oauth"
+    # Khóa ký Ed25519 của assistant_api (tự sinh lần đầu, KHÔNG commit). MCP server chỉ cần JWKS.
+    oauth_key_path: Path = Path("./data/keys/mcp_oauth_ed25519.pem")
+    # Định danh authorization server (`iss`); trống = http://127.0.0.1:<ASSISTANT_API_PORT>
+    oauth_issuer: str = ""
+    oauth_token_ttl_seconds: int = 60
     cors_origins: str = "http://localhost:5173"
 
     demo_now: datetime | None = None
@@ -116,11 +127,15 @@ class Settings(BaseSettings):
             )
         return v.strip()
 
-    @field_validator("chroma_dir", "upload_dir", mode="after")
+    @field_validator("chroma_dir", "upload_dir", "oauth_key_path", mode="after")
     @classmethod
     def _resolve_from_root(cls, v: Path) -> Path:
         # Đường dẫn tương đối tính từ thư mục gốc dự án, không phụ thuộc thư mục đang đứng
         return v if v.is_absolute() else (PROJECT_ROOT / v).resolve()
+
+    @property
+    def oauth_issuer_url(self) -> str:
+        return (self.oauth_issuer or f"http://127.0.0.1:{self.assistant_api_port}").rstrip("/")
 
     @property
     def cors_origin_list(self) -> list[str]:

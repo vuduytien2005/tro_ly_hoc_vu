@@ -55,5 +55,5 @@ foreach ($s in $Services) {
 }
 
 Write-Host ""
-Write-Host "MCP endpoint: http://127.0.0.1:<cổng>/mcp (header Authorization: Bearer <INTERNAL_API_TOKEN>)"
+Write-Host "MCP endpoint: http://127.0.0.1:<cổng>/mcp (OAuth: token JWT do assistant_api cấp; MCP_AUTH_MODE=token -> Bearer <INTERNAL_API_TOKEN>)"
 Write-Host "Tắt tất cả: .\scripts\run_all.ps1 -Stop"

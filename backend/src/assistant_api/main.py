@@ -33,9 +33,11 @@ from src.assistant_api.routers import (
     conversations,
     documents,
     my_requests,
+    oauth,
 )
 from src.shared.config import get_settings
 from src.shared.db import assistant_session_factory
+from src.shared.oauth import get_key_store
 
 logger = logging.getLogger("assistant_api")
 
@@ -61,6 +63,9 @@ def create_app(
         app.state.runner = AgentRunner(app.state.registry, llm or LiteLlm())
         app.state.rag_admin = rag_admin or RagAdminClient()
         app.state.qlsv_directory = qlsv_directory or QlsvDirectory()
+        if get_settings().mcp_auth_mode == "oauth":
+            # Tạo/nạp khóa ký TRƯỚC khi đồng bộ công cụ: kèm tệp JWKS công khai cho MCP server
+            logger.info("Khóa ký OAuth cho MCP: kid=%s", get_key_store().ensure())
         if registry is None:
             with app.state.session_factory() as db:
                 await app.state.registry.sync(db)
@@ -111,6 +116,7 @@ def create_app(
     app.include_router(actions.router)
     app.include_router(my_requests.router)
     app.include_router(documents.router)
+    app.include_router(oauth.router)
     app.include_router(admin.router)
     app.include_router(admin_users.router)
     app.include_router(admin_students.router)

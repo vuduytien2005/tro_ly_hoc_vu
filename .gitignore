@@ -13,3 +13,6 @@ data/van_ban/*
 evaluation/results/
 .DS_Store
 .vscode/settings.json
+
+# Khóa ký OAuth cho MCP (tự sinh, bí mật)
+data/keys/
