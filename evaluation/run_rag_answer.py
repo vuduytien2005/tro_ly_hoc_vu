@@ -6,11 +6,16 @@
 
 Chỉ số:
 - faithfulness, relevancy: LLM chấm (judge_model) thang 1–5, quy về 0–1 bằng (điểm-1)/4.
+- faithfulness theo mệnh đề (bổ sung 23/11/2026, kiểu RAGAS): giám khảo tách câu trả lời thành các
+  mệnh đề nguyên tử rồi kết luận từng mệnh đề co_can_cu / khong_can_cu / mau_thuan kèm đoạn [n] làm
+  căn cứ; tỉ lệ = mệnh đề có căn cứ (và [n] thật sự có trong ngữ cảnh) / tổng. Mịn hơn điểm 1–5,
+  và liệt kê mệnh đề bị nghi bịa (cột menh_de_khong_can_cu) để kiểm tra tay.
 - trích dẫn hợp lệ: mọi [n] trong câu trả lời GỐC của LLM (trước hậu kiểm) đều có trong kết quả tra
   cứu của lượt -> đo LLM bịa trích dẫn; "bị hậu kiểm xóa" = số [n] bịa mà hệ thống đã xóa.
 - trích đúng nguồn: có [n] trỏ tới văn bản + phiên bản + Điều đúng (với câu có nguồn đúng).
 - từ chối đúng: câu "ngoai_pham_vi" phải trả lời là không tìm thấy (không bịa).
-Chấm tay 30 câu: mở chi_tiet.csv, điền cột cham_tay (thang 0–2, docs/09) rồi so với LLM chấm.
+Chấm tay 30 câu: mở chi_tiet.csv, điền cột cham_tay (và cham_tay_2 nếu người thứ hai chấm; thang
+0–2, docs/09) rồi chạy `python evaluation\\doi_chieu_cham_tay.py <thư mục kết quả>`.
 """
 
 import argparse
@@ -85,6 +90,65 @@ def _completion_with_wait(max_wait: float = 180.0, **params: Any) -> Any:
             print(f"    (LLM chấm vượt hạn mức, chờ {delay:.0f}s)")
             time.sleep(delay)
             waited += delay
+
+
+CLAIM_PROMPT = """Bạn là giám khảo kiểm tra độ trung thực của trợ lý tra cứu quy chế đào tạo.
+Chỉ dựa vào ngữ cảnh truy xuất dưới đây, KHÔNG dùng hiểu biết riêng.
+
+<ngu_canh_truy_xuat>
+{context}
+</ngu_canh_truy_xuat>
+<cau_tra_loi>{answer}</cau_tra_loi>
+
+Bước 1: tách câu trả lời thành các mệnh đề nguyên tử (mỗi mệnh đề một ý có thể đúng/sai: một con
+số, một điều kiện, một thời hạn, một thủ tục). Bỏ qua câu chào hỏi, câu dẫn, lời khuyên liên hệ
+phòng ban và các số trích dẫn [n].
+Bước 2: với từng mệnh đề, kết luận:
+- "co_can_cu": ngữ cảnh nói đúng điều này (ghi các số đoạn [n] làm căn cứ vào "can_cu");
+- "khong_can_cu": ngữ cảnh không đề cập;
+- "mau_thuan": ngữ cảnh nói khác.
+Nếu câu trả lời chỉ nói không tìm thấy thông tin thì trả danh sách rỗng.
+
+Chỉ trả về một đối tượng JSON, không thêm chữ nào khác:
+{{"menh_de": [{{"noi_dung": "<mệnh đề>",
+  "ket_luan": "co_can_cu|khong_can_cu|mau_thuan", "can_cu": [<số đoạn>]}}]}}"""
+
+
+def _json_object(text: str) -> Any:
+    m = re.search(r"\{.*\}", text, re.S)
+    return json.loads(m.group(0)) if m else None
+
+
+def judge_claims(
+    model: str, context: str, answer: str, found: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Faithfulness theo mệnh đề (xem docstring đầu tệp)."""
+    response = _completion_with_wait(
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": CLAIM_PROMPT.format(context=context or "(không có)", answer=answer),
+            }
+        ],
+        max_tokens=3000,
+    )
+    text = response.choices[0].message.content or ""
+    usage = getattr(response, "usage", None)
+    out: dict[str, Any] = {
+        "token_vao": getattr(usage, "prompt_tokens", 0) or 0,
+        "token_ra": getattr(usage, "completion_tokens", 0) or 0,
+    }
+    try:
+        data = _json_object(text)
+    except ValueError:
+        data = None
+    if data is None:
+        out.update(ty_le=None, so_menh_de=None, co_can_cu=None, mau_thuan=None, khong_can_cu=[])
+        out["loi"] = f"Không đọc được JSON: {text[:200]}"
+        return out
+    out.update(metrics.claim_faithfulness(metrics.parse_claims(data), (d.get("so") for d in found)))
+    return out
 
 
 def judge(model: str, question: str, reference: str, context: str, answer: str) -> dict[str, Any]:
@@ -162,15 +226,22 @@ def evaluate(q: dict[str, Any], harness: AgentHarness, use_judge: bool) -> dict[
         "token_ra": result.tokens_out,
         "faithfulness": None,
         "relevancy": None,
+        "faithfulness_menh_de": None,
+        "so_menh_de": None,
+        "menh_de_co_can_cu": None,
+        "menh_de_mau_thuan": None,
+        "menh_de_khong_can_cu": "",
         "ly_do_cham": "",
         "cham_tay": "",
+        "cham_tay_2": "",
         "loi": result.error,
         "dap_an_chuan": q.get("dap_an_chuan"),
         "tra_loi": result.last_answer[:1500],
     }
+    judge_model = harness.config.get("judge_model") or harness.model
     if use_judge and result.last_answer:
         verdict = judge(
-            harness.config.get("judge_model") or harness.model,
+            judge_model,
             q["cau_hoi"],
             q.get("dap_an_chuan", ""),
             context,
@@ -182,6 +253,16 @@ def evaluate(q: dict[str, Any], harness: AgentHarness, use_judge: bool) -> dict[
             ly_do_cham=verdict["ly_do"],
             judge_token_vao=verdict["token_vao"],
             judge_token_ra=verdict["token_ra"],
+        )
+        claims = judge_claims(judge_model, context, result.last_answer, found)
+        row.update(
+            faithfulness_menh_de=claims["ty_le"],
+            so_menh_de=claims["so_menh_de"],
+            menh_de_co_can_cu=claims["co_can_cu"],
+            menh_de_mau_thuan=claims["mau_thuan"],
+            menh_de_khong_can_cu=" | ".join(claims["khong_can_cu"]) or claims.get("loi", ""),
+            judge_token_vao=row["judge_token_vao"] + claims["token_vao"],
+            judge_token_ra=row["judge_token_ra"] + claims["token_ra"],
         )
     return row
 
@@ -202,6 +283,8 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "n": len(items),
                 "faithfulness": mean(r["faithfulness"] for r in items),
                 "relevancy": mean(r["relevancy"] for r in items),
+                "faithfulness_menh_de": mean(r["faithfulness_menh_de"] for r in items),
+                "menh_de_mau_thuan": sum(r["menh_de_mau_thuan"] or 0 for r in items),
                 "trich_dan_hop_le": mean(r["trich_dan_hop_le"] for r in items),
                 "trich_dung_nguon": mean(r["trich_dung_nguon"] for r in items),
                 "tu_choi_dung": mean(r["tu_choi_dung"] for r in items),
@@ -220,6 +303,8 @@ COLUMNS = [
     ("n", "Số câu"),
     ("faithfulness", "Faithfulness"),
     ("relevancy", "Relevancy"),
+    ("faithfulness_menh_de", "F theo mệnh đề"),
+    ("menh_de_mau_thuan", "Mệnh đề mâu thuẫn"),
     ("trich_dan_hop_le", "Trích dẫn hợp lệ"),
     ("trich_dung_nguon", "Trích đúng nguồn"),
     ("tu_choi_dung", "Từ chối đúng"),
@@ -231,6 +316,7 @@ COLUMNS = [
 ]
 PERCENT = {
     "faithfulness",
+    "faithfulness_menh_de",
     "relevancy",
     "trich_dan_hop_le",
     "trich_dung_nguon",
@@ -265,7 +351,8 @@ def main() -> int:
                 i,
                 len(questions),
                 f"{q['id']} [{row['loai']}] F={metrics_fmt(row['faithfulness'])} "
-                f"R={metrics_fmt(row['relevancy'])} trích dẫn={row['so_trich_dan']}"
+                f"R={metrics_fmt(row['relevancy'])} "
+                f"FM={metrics_fmt(row['faithfulness_menh_de'])} trích dẫn={row['so_trich_dan']}"
                 + (f" LỖI: {row['loi']}" if row["loi"] else ""),
             )
         tin = sum(r["token_vao"] for r in rows)

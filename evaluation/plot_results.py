@@ -134,6 +134,7 @@ def plot_tn2(run: Path) -> Path:
     metrics = [
         ("faithfulness", "Faithfulness"),
         ("relevancy", "Relevancy"),
+        ("faithfulness_menh_de", "F theo mệnh đề"),
         ("trich_dan_hop_le", "Trích dẫn hợp lệ"),
         ("trich_dung_nguon", "Trích đúng nguồn"),
         ("tu_choi_dung", "Từ chối đúng"),

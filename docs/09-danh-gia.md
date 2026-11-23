@@ -29,6 +29,16 @@ Chạy toàn bộ Agent (có LLM) trên cùng bộ câu hỏi.
 - Tỉ lệ trích dẫn hợp lệ (số trong câu trả lời ∈ đoạn đã truy xuất và đúng nguồn).
 - Tỉ lệ từ chối đúng với câu `ngoai_pham_vi`.
 - Chấm tay 30 câu ngẫu nhiên (thang 0–2) bởi 2 người để đối chiếu với điểm tự động.
+  Thang: **0** = sai / bịa / lạc đề; **1** = đúng một phần hoặc thiếu ý; **2** = đúng, đủ, có căn cứ.
+  Điền cột `cham_tay`, `cham_tay_2` trong `chi_tiet.csv` rồi chạy
+  `python evaluation\doi_chieu_cham_tay.py <thư mục kết quả>` -> `doi_chieu.md`: trùng khớp (điểm tự
+  động quy về 0/1/2), sai lệch TB, Spearman; đồng thuận giữa 2 người.
+- **Faithfulness theo mệnh đề** (bổ sung 23/11/2026, LLM-làm-giám-khảo kiểu RAGAS, không cần thư viện
+  `ragas`): giám khảo tách câu trả lời thành mệnh đề nguyên tử, kết luận từng mệnh đề `co_can_cu` /
+  `khong_can_cu` / `mau_thuan` kèm số đoạn [n]. Tỉ lệ = mệnh đề có căn cứ / tổng; mệnh đề chỉ được tính
+  có căn cứ khi [n] giám khảo chỉ ra thật sự có trong ngữ cảnh truy xuất (`metrics.claim_faithfulness`).
+  Mịn hơn điểm 1–5 tổng thể và liệt kê mệnh đề nghi bịa (cột `menh_de_khong_can_cu`) để soát tay.
+  Câu từ chối (không có mệnh đề) không tính vào trung bình.
 
 ## TN3. Agent + MCP
 **Dữ liệu:** `evaluation/datasets/agent_scenarios.jsonl`, 60–100 kịch bản.

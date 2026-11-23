@@ -1,7 +1,8 @@
 """Cách tính chỉ số (hàm thuần, có test ở backend/tests/evaluation).
 
 TN1: Hit@k, MRR — một đoạn "trúng" khi cùng văn bản + phiên bản + SỐ Điều với một nguồn đúng.
-TN2: trích dẫn hợp lệ, từ chối đúng câu ngoài phạm vi.
+TN2: trích dẫn hợp lệ, từ chối đúng câu ngoài phạm vi, faithfulness theo mệnh đề; đối chiếu
+     chấm tay (0–2) với điểm tự động.
 TN3: đúng công cụ, đúng tham số, hoàn thành nhiệm vụ.
 TN4: phân tầng (a) LLM tự từ chối / (b) hệ thống chặn / lọt.
 """
@@ -314,3 +315,98 @@ def is_system_precheck(call: dict[str, Any]) -> bool:
     """Lượt hệ thống tự kiểm tra điều kiện trước khi tạo thẻ (register_course chi_kiem_tra=true).
     Phải do hệ thống gọi (tham_so_llm NULL): LLM tự đặt chi_kiem_tra vẫn tính như lượt thường."""
     return call.get("tham_so_llm") is None and bool((call.get("tham_so") or {}).get("chi_kiem_tra"))
+
+
+# ----- TN2: faithfulness theo mệnh đề (LLM tách + chấm, hàm ở đây chỉ chuẩn hóa và đếm) ---------
+
+CLAIM_VERDICTS = ("co_can_cu", "khong_can_cu", "mau_thuan")
+
+
+def parse_claims(data: Any) -> list[dict[str, Any]]:
+    """Chuẩn hóa JSON giám khảo trả về: `{"menh_de": [{"noi_dung", "ket_luan", "can_cu"}]}`.
+    Mục thiếu nội dung bị bỏ; kết luận lạ -> `khong_can_cu` (thận trọng)."""
+    items = data.get("menh_de") if isinstance(data, dict) else data
+    claims: list[dict[str, Any]] = []
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict) or not str(item.get("noi_dung") or "").strip():
+            continue
+        verdict = str(item.get("ket_luan") or "").strip().lower()
+        refs = item.get("can_cu")
+        numbers = [int(n) for n in (refs if isinstance(refs, list) else []) if str(n).isdigit()]
+        claims.append(
+            {
+                "noi_dung": str(item["noi_dung"]).strip(),
+                "ket_luan": verdict if verdict in CLAIM_VERDICTS else "khong_can_cu",
+                "can_cu": numbers,
+            }
+        )
+    return claims
+
+
+def claim_faithfulness(
+    claims: Sequence[dict[str, Any]], available: Iterable[Any]
+) -> dict[str, Any]:
+    """Tỉ lệ mệnh đề có căn cứ. Mệnh đề chỉ được tính "có căn cứ" khi giám khảo kết luận như vậy VÀ
+    chỉ ra ít nhất một đoạn [n] thật sự có trong ngữ cảnh truy xuất (chặn giám khảo "dễ dãi" hoặc
+    viện dẫn đoạn không tồn tại). Không có mệnh đề nào (vd câu từ chối) -> tỉ lệ None."""
+    numbers = {int(n) for n in available if str(n).isdigit()}
+    supported = [
+        c for c in claims if c["ket_luan"] == "co_can_cu" and any(n in numbers for n in c["can_cu"])
+    ]
+    unsupported = [c for c in claims if c not in supported]
+    return {
+        "so_menh_de": len(claims),
+        "co_can_cu": len(supported),
+        "mau_thuan": sum(c["ket_luan"] == "mau_thuan" for c in claims),
+        "ty_le": len(supported) / len(claims) if claims else None,
+        "khong_can_cu": [c["noi_dung"] for c in unsupported],
+    }
+
+
+# ----- đối chiếu chấm tay (thang 0–2) với điểm tự động (0–1) ----------------------------------
+
+
+def _ranks(values: Sequence[float]) -> list[float]:
+    order = sorted(range(len(values)), key=lambda i: values[i])
+    ranks = [0.0] * len(values)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = (i + j) / 2 + 1  # hạng trung bình khi bằng nhau
+        i = j + 1
+    return ranks
+
+
+def spearman(xs: Sequence[float], ys: Sequence[float]) -> float | None:
+    """Hệ số tương quan hạng Spearman (xử lý hạng bằng nhau); None khi < 3 cặp hoặc một bên hằng."""
+    if len(xs) != len(ys) or len(xs) < 3:
+        return None
+    rx, ry = _ranks(xs), _ranks(ys)
+    mx, my = sum(rx) / len(rx), sum(ry) / len(ry)
+    cov = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=True))
+    vx = sum((a - mx) ** 2 for a in rx)
+    vy = sum((b - my) ** 2 for b in ry)
+    return None if vx == 0 or vy == 0 else cov / math.sqrt(vx * vy)
+
+
+def to_manual_scale(score: float) -> int:
+    """Điểm tự động 0–1 -> thang chấm tay 0/1/2 (chia ba khoảng đều)."""
+    return 0 if score < 1 / 3 else (1 if score < 2 / 3 else 2)
+
+
+def manual_agreement(pairs: Sequence[tuple[int, float]]) -> dict[str, Any]:
+    """`pairs`: (điểm tay 0–2, điểm tự động 0–1). Trả số cặp, tỉ lệ trùng sau khi quy về 0/1/2,
+    sai lệch tuyệt đối TB (trên thang 0–1) và Spearman."""
+    if not pairs:
+        return {"n": 0, "trung_khop": None, "sai_lech_tb": None, "spearman": None}
+    manual = [m for m, _ in pairs]
+    auto = [a for _, a in pairs]
+    return {
+        "n": len(pairs),
+        "trung_khop": sum(m == to_manual_scale(a) for m, a in pairs) / len(pairs),
+        "sai_lech_tb": sum(abs(m / 2 - a) for m, a in pairs) / len(pairs),
+        "spearman": spearman([float(m) for m in manual], auto),
+    }

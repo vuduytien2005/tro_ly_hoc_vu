@@ -45,7 +45,7 @@ Mỗi lượt chạy lưu cấu hình, kết quả chi tiết (`chi_tiet.csv`) v
 
 ## 4.3. TN2 — Chất lượng câu trả lời
 
-> **[Chờ dữ liệu]** Chỉ số dự kiến: độ trung thành với tài liệu (faithfulness), độ liên quan, tỉ lệ trích dẫn đúng nguồn, tỉ lệ từ chối đúng với câu ngoài phạm vi, kèm chấm tay 30 câu. Chạy `python evaluation\run_rag_answer.py` sau khi có bộ câu hỏi thật.
+> **[Chờ dữ liệu]** Chỉ số dự kiến: độ trung thành với tài liệu (faithfulness — điểm tổng thể 1–5 và **tỉ lệ mệnh đề có căn cứ**), độ liên quan, tỉ lệ trích dẫn đúng nguồn, tỉ lệ từ chối đúng với câu ngoài phạm vi, kèm chấm tay 30 câu đối chiếu với giám khảo LLM (`evaluation\doi_chieu_cham_tay.py`). Chạy `python evaluation\run_rag_answer.py` sau khi có bộ câu hỏi thật.
 
 ## 4.4. TN3 — Năng lực Agent và MCP
 
