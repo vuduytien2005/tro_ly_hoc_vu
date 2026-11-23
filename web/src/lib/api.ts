@@ -1,6 +1,11 @@
-// Gọi assistant_api qua proxy Vite ("/api/..."), tự gắn JWT; lỗi {detail, code} -> ApiError.
+// Gọi assistant_api qua proxy Vite ("/api/..."); lỗi {detail, code} -> ApiError.
+// Đăng nhập bằng cookie HttpOnly (bổ sung 23/11/2026): JavaScript KHÔNG giữ token (XSS không lấy
+// được), trình duyệt tự gửi cookie cùng nguồn. Yêu cầu thay đổi dữ liệu kèm header X-CSRF-Token
+// đọc từ cookie tlhv_csrf (trang web khác không đọc được cookie này -> chống CSRF).
 
-const TOKEN_KEY = 'tlhv_token'
+const CSRF_COOKIE = 'tlhv_csrf'
+const CSRF_HEADER = 'X-CSRF-Token'
+const LEGACY_TOKEN_KEY = 'tlhv_token' // bản cũ lưu JWT ở localStorage -> xóa đi
 
 export class ApiError extends Error {
   readonly status: number
@@ -13,21 +18,24 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
-}
-
-export function setToken(token: string | null): void {
-  if (token) localStorage.setItem(TOKEN_KEY, token)
-  else localStorage.removeItem(TOKEN_KEY)
-}
-
-/** Token hết hạn / bị khóa giữa chừng -> xóa token, quay về trang đăng nhập. */
-function handleUnauthorized(): void {
-  if (getToken()) {
-    setToken(null)
-    if (window.location.pathname !== '/login') window.location.assign('/login')
+/** Đọc một cookie (không HttpOnly) theo tên. */
+export function readCookie(name: string, cookies: string = document.cookie): string | null {
+  for (const part of cookies.split(';')) {
+    const [k, ...v] = part.trim().split('=')
+    if (k === name) return decodeURIComponent(v.join('='))
   }
+  return null
+}
+
+/** Có dấu hiệu đang đăng nhập (cookie CSRF đi cùng cookie phiên) — chỉ để khỏi gọi /me thừa. */
+export function hasSession(): boolean {
+  localStorage.removeItem(LEGACY_TOKEN_KEY)
+  return readCookie(CSRF_COOKIE) != null
+}
+
+/** Phiên hết hạn / bị khóa giữa chừng -> quay về trang đăng nhập. */
+function handleUnauthorized(): void {
+  if (window.location.pathname !== '/login') window.location.assign('/login')
 }
 
 export async function toApiError(response: Response): Promise<ApiError> {
@@ -45,14 +53,16 @@ export async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, detail)
 }
 
+/** Header chống CSRF (cookie phiên do trình duyệt tự gửi). */
 export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const token = getToken()
-  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra
+  const csrf = readCookie(CSRF_COOKIE)
+  return csrf ? { ...extra, [CSRF_HEADER]: csrf } : extra
 }
 
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, headers, ...rest } = init
   const response = await fetch(path, {
+    credentials: 'same-origin',
     ...rest,
     headers: authHeaders({
       ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),

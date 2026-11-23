@@ -1,9 +1,12 @@
 """Mật khẩu (bcrypt) và JWT (HS256).
 
-JWT chứa: sub = id người dùng (chuỗi), vai_tro, iat, exp. Thông tin khác (ma_sv, ma_khoa) luôn
-đọc lại từ CSDL khi xử lý request -> khóa tài khoản / đổi khóa có hiệu lực ngay.
+JWT chứa: sub = id người dùng (chuỗi), vai_tro, iat, exp, csrf. Thông tin khác (ma_sv, ma_khoa)
+luôn đọc lại từ CSDL khi xử lý request -> khóa tài khoản / đổi khóa có hiệu lực ngay.
+`csrf`: giá trị chống CSRF của phiên (bổ sung 23/11/2026) — web gửi lại trong header X-CSRF-Token
+khi xác thực bằng cookie; ký trong JWT nên kẻ tấn công không tự đặt cookie giả được.
 """
 
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -33,12 +36,20 @@ def verify_password(password: str, password_hash: str | None) -> bool:
         return False
 
 
-def create_access_token(user_id: int, vai_tro: str) -> tuple[str, datetime]:
+def new_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def create_access_token(
+    user_id: int, vai_tro: str, csrf: str | None = None
+) -> tuple[str, datetime]:
     # Dùng đồng hồ THẬT (không dùng DEMO_NOW): PyJWT kiểm tra exp/iat theo giờ hệ thống
     settings = get_settings()
     now = datetime.now(UTC)
     expires = now + timedelta(minutes=settings.jwt_expire_minutes)
-    payload = {"sub": str(user_id), "vai_tro": vai_tro, "iat": now, "exp": expires}
+    payload: dict[str, Any] = {"sub": str(user_id), "vai_tro": vai_tro, "iat": now, "exp": expires}
+    if csrf:
+        payload["csrf"] = csrf
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM), expires
 
 

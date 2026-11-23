@@ -60,7 +60,17 @@ Test: `tests/assistant/test_elicitation.py`, `tests/assistant/test_mcp_client_oa
 ## Hạn chế đã biết (chấp nhận trong phạm vi khóa luận)
 - Chỉ dùng phần cấp/kiểm token của OAuth 2.1: assistant_api vừa là client vừa là authorization server, không có luồng ủy quyền người dùng (authorization code + PKCE) vì người dùng đã đăng nhập vào assistant_api. MCP server được thêm vẫn nhận được `X-Internal-Token` nếu quản trị viên tự cấu hình cho nó; token qlsv_api là bí mật riêng của các server do trường triển khai.
 - `readOnlyHint` do server tự khai báo, chỉ là gợi ý; mức rủi ro thật do quản trị viên đặt.
-- JWT lưu trong `localStorage` của trình duyệt: đơn giản nhưng đọc được nếu web bị XSS. Phương án tốt hơn: cookie `HttpOnly` + chống CSRF.
+- ~~JWT lưu trong `localStorage`~~ — đã khắc phục 23/11/2026 (xem mục cookie HttpOnly bên dưới). Còn lại: đăng xuất chỉ xóa cookie, JWT đã lộ (nếu có) vẫn dùng được tới khi hết hạn (không có danh sách thu hồi).
 - Thẻ xác nhận không ai bấm vẫn ở trạng thái `cho` trong CSDL sau khi hết hạn (chỉ chuyển `het_han` khi có người bấm). Không thể thực thi nữa vì hạn được kiểm tra lúc bấm -> không phải lỗ hổng, chỉ ảnh hưởng thống kê.
 - Tên văn bản / số Điều (do quản trị viên nhập khi tải lên) nằm ngoài thẻ `<tai_lieu>`; quản trị viên là người tin cậy.
 - `docs` OpenAPI của qlsv_api và MCP chỉ mở ở `127.0.0.1`.
+
+## Bổ sung 23/11/2026 — Đăng nhập bằng cookie HttpOnly + chống CSRF
+Trước đây web giữ JWT trong `localStorage` -> một lỗi XSS là lấy được token. Nay:
+| Biện pháp | Chặn gì | Code |
+|---|---|---|
+| JWT nằm trong cookie `tlhv_phien` HttpOnly, Path=/api, SameSite=Strict | JavaScript (kể cả mã XSS) không đọc được token; trang khác không gửi kèm cookie | `assistant_api/auth/cookies.py`, `routers/auth.py` |
+| Signed double-submit: cookie `tlhv_csrf` (JS đọc được) + header `X-CSRF-Token`, so với claim `csrf` **ký trong JWT** | CSRF: trang độc không đọc được cookie của ta nên không gửi đúng header; ghi đè cookie CSRF (vd từ subdomain) cũng vô ích vì phải trùng claim đã ký | `assistant_api/deps.py::get_current_user` (`hmac.compare_digest`) |
+| Header `Bearer` ưu tiên hơn cookie, không cần CSRF | Thực nghiệm / công cụ dòng lệnh vẫn chạy (trình duyệt không tự gửi header này) | `deps.py` |
+| `POST /api/auth/logout` xóa cookie; `AUTH_COOKIE_SECURE=true` khi chạy HTTPS | — | `routers/auth.py`, `shared/config.py` |
+Web: `web/src/lib/api.ts` (không còn getToken/setToken; gửi `X-CSRF-Token`; xóa khóa `tlhv_token` cũ). Test: `tests/assistant/test_cookie_auth.py`, `web/src/lib/api.test.ts`. Đã kiểm thủ công qua proxy Vite: đăng nhập -> `/chat`, `document.cookie` chỉ thấy `tlhv_csrf`, POST thiếu header -> 403, có header -> 201, đăng xuất -> `/me` 401.

@@ -35,12 +35,13 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 | PATCH | `/internal/students/{ma_sv}` | (Phòng đào tạo) Gửi trường cần đổi (như trên, trừ `ma_sv` — không đổi được). Đổi `trang_thai` có tác dụng nghiệp vụ: khác `dang_hoc` thì không đăng ký học phần / nộp đơn được. Không có API xóa (SV đã có điểm, đơn → chuyển trạng thái `thoi_hoc`) |
 
 ## B. assistant_api (công khai, :8000, tiền tố `/api`)
-Header `Authorization: Bearer <JWT>` (trừ login). Quyền: `SV` = sinh viên, `AD` = admin.
+Xác thực (trừ login): web dùng **cookie HttpOnly** `tlhv_phien` (Path=/api, SameSite=Strict, Secure theo `AUTH_COOKIE_SECURE`) do login đặt; yêu cầu thay đổi dữ liệu (POST/PUT/PATCH/DELETE) qua cookie phải kèm header `X-CSRF-Token` = giá trị cookie `tlhv_csrf` (trùng claim `csrf` ký trong JWT), sai/thiếu → 403 `CSRF_KHONG_HOP_LE`. API / thực nghiệm dùng header `Authorization: Bearer <JWT>` (không cần CSRF; ưu tiên hơn cookie). Quyền: `SV` = sinh viên, `AD` = admin.
 
 ### Xác thực
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
-| POST | `/api/auth/login` | – | `{email, mat_khau}` → `{access_token, token_type, het_han_luc, nguoi_dung}`. Sai email hoặc mật khẩu đều trả 401 `SAI_THONG_TIN_DANG_NHAP` (không dò được email); tài khoản khóa 403 `TAI_KHOAN_BI_KHOA` |
+| POST | `/api/auth/login` | – | `{email, mat_khau}` → `{access_token, token_type, het_han_luc, nguoi_dung}` + đặt cookie `tlhv_phien` (HttpOnly) và `tlhv_csrf` (web KHÔNG lưu `access_token`). Sai email hoặc mật khẩu đều trả 401 `SAI_THONG_TIN_DANG_NHAP` (không dò được email); tài khoản khóa 403 `TAI_KHOAN_BI_KHOA` |
+| POST | `/api/auth/logout` | – | 204, xóa cookie `tlhv_phien` + `tlhv_csrf` (JWT không thu hồi được, hết hạn theo `JWT_EXPIRE_MINUTES`) |
 | GET | `/api/auth/me` | SV, AD | Thông tin tài khoản |
 
 ### Hội thoại

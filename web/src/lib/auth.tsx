@@ -1,11 +1,11 @@
-// Trạng thái đăng nhập: token trong localStorage, thông tin người dùng lấy từ /api/auth/me.
-// Hạn chế đã biết (ghi trong khóa luận): token trong localStorage đọc được nếu web bị XSS;
-// phương án an toàn hơn là cookie HttpOnly (cần backend hỗ trợ cookie + chống CSRF).
+// Trạng thái đăng nhập: cookie HttpOnly do backend đặt (JavaScript không thấy token), thông tin
+// người dùng lấy từ /api/auth/me. Trước 23/11/2026 token nằm trong localStorage (đọc được nếu
+// web bị XSS) — đã chuyển sang cookie HttpOnly + chống CSRF.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import { api, getToken, setToken } from './api'
+import { api, hasSession } from './api'
 import type { LoginResponse, Role, User } from './types'
 
 interface AuthState {
@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => api<User>('/api/auth/me'),
-    enabled: !!getToken(),
+    enabled: hasSession(),
     retry: false,
     staleTime: Infinity,
   })
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         json: { email, mat_khau: password },
       })
-      setToken(res.access_token)
+      // Cookie phiên đã được backend đặt; KHÔNG lưu res.access_token
       // Xóa dữ liệu của phiên trước nhưng GIỮ query ['me']: AuthProvider đang theo dõi
       // đúng đối tượng query này. clear() sẽ xóa nó, setQueryData tạo query mới mà
       // AuthProvider không nghe -> user vẫn null -> bị đẩy về /login.
@@ -45,15 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(() => {
-    setToken(null)
-    queryClient.clear()
-    window.location.assign('/login')
+    // Cookie HttpOnly chỉ backend xóa được
+    api('/api/auth/logout', { method: 'POST' })
+      .catch(() => undefined)
+      .finally(() => {
+        queryClient.clear()
+        window.location.assign('/login')
+      })
   }, [queryClient])
 
   const value = useMemo<AuthState>(
     () => ({
-      user: getToken() ? (me.data ?? null) : null,
-      loading: !!getToken() && me.isPending,
+      user: me.data ?? null,
+      loading: hasSession() && me.isPending,
       login,
       logout,
     }),

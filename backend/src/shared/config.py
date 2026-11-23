@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # ---------- Bảo mật ----------
     jwt_secret: str
     jwt_expire_minutes: int = 480
+    # Cookie phiên đăng nhập của web (HttpOnly). True khi chạy HTTPS (cookie chỉ gửi qua HTTPS);
+    # máy dev dùng http://localhost nên để False.
+    auth_cookie_secure: bool = False
     internal_api_token: str
 
     # ---------- Dịch vụ ----------
