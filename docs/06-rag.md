@@ -53,6 +53,7 @@ Văn bản không có cấu trúc Điều (thông báo, hướng dẫn) → tự
 3. **Từ khóa: BM25 trong Python** (`rank-bm25`, lớp `BM25Okapi`), top 20.
    - Kho đoạn: các `doan_van_ban` thuộc `van_ban` có `trang_thai = 'da_lap_chi_muc'` và phiên bản áp dụng cho khóa `k`
      (`(ap_dung_tu_khoa IS NULL OR ap_dung_tu_khoa <= k) AND (ap_dung_den_khoa IS NULL OR ap_dung_den_khoa >= k)`).
+   - **Ngày hiệu lực (bổ sung 23/11/2026):** thêm `AND (ngay_hieu_luc IS NULL OR ngay_hieu_luc <= hôm nay)` (hôm nay theo `DEMO_NOW`). Áp cho BM25 và cho bước lọc lần 2 ở CSDL của nhánh vector; cache BM25 theo (khóa, ngày). Xem `docs/superpowers/specs/2026-11-23-hieu-luc-van-ban-design.md`.
    - Tách từ: chuẩn hóa Unicode NFC → chữ thường → tách theo ký tự không phải chữ/số; giữ cả âm tiết 1–2 ký tự
      ("đi", "kỳ", "nợ") vì tiếng Việt có nhiều âm tiết ngắn mang nghĩa. Thêm bigram âm tiết (vd "học_lại") để bắt cụm từ.
    - Chỉ mục dựng trong bộ nhớ khi service khởi động và dựng lại sau mỗi lần lập chỉ mục/xóa văn bản

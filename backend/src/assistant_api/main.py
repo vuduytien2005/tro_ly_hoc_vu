@@ -31,6 +31,7 @@ from src.assistant_api.routers import (
     admin_users,
     auth,
     conversations,
+    documents,
     my_requests,
 )
 from src.shared.config import get_settings
@@ -109,6 +110,7 @@ def create_app(
     app.include_router(conversations.router)
     app.include_router(actions.router)
     app.include_router(my_requests.router)
+    app.include_router(documents.router)
     app.include_router(admin.router)
     app.include_router(admin_users.router)
     app.include_router(admin_students.router)

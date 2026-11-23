@@ -1,7 +1,8 @@
-import { BookOpen, X } from 'lucide-react'
+import { BookOpen, ExternalLink, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { openDocument } from '../../lib/documents'
 import { citationLocation, citationNumber, linkCitations } from '../../lib/format'
 import type { Citation } from '../../lib/types'
 
@@ -112,10 +113,34 @@ export function SourceList({ citations }: { citations: Citation[] | null }) {
                 {c.van_ban}
               </span>
               <span className="block text-xs text-slate-500">{citationLocation(c)}</span>
+              {c.van_ban_id != null && <OpenDocumentButton citation={c} />}
             </span>
           </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+function OpenDocumentButton({ citation }: { citation: Citation }) {
+  const [error, setError] = useState<string | null>(null)
+  const open = () => {
+    setError(null)
+    openDocument(citation.van_ban_id!, citation.trang).catch(() =>
+      setError('Không mở được văn bản gốc.'),
+    )
+  }
+  return (
+    <>
+      <button
+        type="button"
+        onClick={open}
+        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        <ExternalLink size={12} />
+        {citation.trang != null ? `Mở văn bản (trang ${citation.trang})` : 'Mở văn bản'}
+      </button>
+      {error && <span className="block text-xs text-err">{error}</span>}
+    </>
   )
 }

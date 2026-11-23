@@ -4,6 +4,7 @@ Kiểm tra lọc phiên bản, RRF, cờ thực nghiệm.
 """
 
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,7 @@ from src.rag.embedder import HashingEmbedder
 from src.rag.indexer import DocumentMeta, delete_document, index_document, mark_failed
 from src.rag.retriever import InvalidCohortError, Retriever, SearchOptions, parse_ma_khoa, rrf_fuse
 from src.rag.store import VectorStore
-from tests.rag.conftest import DOC_NAME, SAMPLE
+from tests.rag.conftest import DOC_NAME, SAMPLE, make_version
 
 MAX_CREDITS_Q = "khối lượng đăng ký tối đa bao nhiêu tín chỉ mỗi học kỳ"
 
@@ -132,6 +133,58 @@ def test_without_version_filter_mixes_versions(
 ) -> None:
     results = retriever.search(MAX_CREDITS_Q, None, 8, SearchOptions(use_version_filter=False))
     assert _versions(results) == {"2021", "2023"}
+
+
+# --- ngày hiệu lực (bổ sung 23/11/2026) --------------------------------------
+@pytest.fixture
+def future_version(
+    two_versions: dict[str, int],
+    tmp_path: Path,
+    db: Session,
+    store: VectorStore,
+    embedder: HashingEmbedder,
+) -> int:
+    """Bản 2099 áp dụng từ K22 nhưng CHƯA có hiệu lực (ngày hiệu lực 01/08/2099)."""
+    path = make_version(tmp_path, "2099", 30, "3. Điểm học lại theo quy định mới.")
+    meta = DocumentMeta(
+        ten=DOC_NAME,
+        loai="quy_che",
+        phien_ban="2099",
+        ten_tep=path.name,
+        duong_dan_tep=str(path),
+        ap_dung_tu_khoa=22,
+        ngay_hieu_luc=date(2099, 8, 1),
+    )
+    van_ban_id = index_document(db, store, embedder, path, meta).van_ban_id
+    db.commit()
+    return van_ban_id
+
+
+@pytest.mark.parametrize(
+    "options",
+    [SearchOptions(), SearchOptions(use_keyword=False), SearchOptions(use_vector=False)],
+    ids=["lai", "chi_vector", "chi_bm25"],
+)
+def test_not_yet_effective_document_is_hidden(
+    future_version: int, retriever: Retriever, options: SearchOptions
+) -> None:
+    assert _versions(retriever.search(MAX_CREDITS_Q, "K22", 8, options)) == {"2023"}
+
+
+def test_document_becomes_visible_on_effective_date(
+    future_version: int, retriever: Retriever, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.rag import retriever as retriever_module
+
+    monkeypatch.setattr(retriever_module, "_today", lambda: date(2099, 8, 1))
+    assert "2099" in _versions(retriever.search(MAX_CREDITS_Q, "K22", 8))
+
+
+def test_without_version_filter_also_ignores_effective_date(
+    future_version: int, retriever: Retriever
+) -> None:
+    results = retriever.search(MAX_CREDITS_Q, None, 12, SearchOptions(use_version_filter=False))
+    assert "2099" in _versions(results)
 
 
 def test_invalid_cohort(two_versions: dict[str, int], retriever: Retriever) -> None:
