@@ -4,6 +4,7 @@ Chạy (từ thư mục backend/):  python -m src.assistant_api.main   -> http:/
 - Khởi động: đồng bộ danh mục công cụ với các MCP server (server chưa chạy -> thử lại sau 30 giây).
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from src.assistant_api.agent.actions import expire_stale_actions
 from src.assistant_api.agent.llm import LLM, LiteLlm, llm_key_present
 from src.assistant_api.agent.loop import AgentRunner
 from src.assistant_api.agent.registry import ToolRegistry
@@ -40,6 +42,24 @@ from src.shared.db import assistant_session_factory
 from src.shared.oauth import get_key_store
 
 logger = logging.getLogger("assistant_api")
+
+
+async def sweep_expired_actions(session_factory: Callable[[], Session], interval: float) -> None:
+    """Việc nền: định kỳ chuyển thẻ xác nhận quá hạn sang `het_han` (chạy trong luồng riêng vì
+    pyodbc đồng bộ). Lỗi CSDL chỉ ghi log, lần sau thử lại."""
+
+    def run_once() -> int:
+        with session_factory() as db:
+            return expire_stale_actions(db)
+
+    while True:
+        try:
+            count = await asyncio.to_thread(run_once)
+            if count:
+                logger.info("Đã chuyển %d thẻ xác nhận quá hạn sang het_han.", count)
+        except Exception:
+            logger.exception("Dọn thẻ xác nhận quá hạn thất bại.")
+        await asyncio.sleep(interval)
 
 
 def error_response(status: int, detail: str, code: str) -> JSONResponse:
@@ -72,7 +92,19 @@ def create_app(
             logger.info("Trạng thái MCP server: %s", app.state.registry.server_status)
         if not get_settings().llm_model and llm is None:
             logger.warning("Chưa đặt LLM_MODEL trong .env -> trợ lý sẽ báo lỗi khi trò chuyện.")
-        yield
+        sweeper = None
+        interval = get_settings().action_sweep_seconds
+        # Test truyền session_factory riêng (transaction + savepoint, một kết nối) -> không chạy
+        # việc nền ở luồng khác; test gọi expire_stale_actions trực tiếp.
+        if session_factory is None and interval > 0:
+            sweeper = asyncio.create_task(
+                sweep_expired_actions(app.state.session_factory, interval)
+            )
+        try:
+            yield
+        finally:
+            if sweeper is not None:
+                sweeper.cancel()
 
     app = FastAPI(
         title="Trợ lý học vụ — assistant_api",

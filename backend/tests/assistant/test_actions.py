@@ -4,6 +4,7 @@ Kịch bản bắt buộc (docs/07, giai đoạn 6): xác nhận -> đăng ký t
 người khác xác nhận -> 403; hết hạn -> het_han; trùng lịch -> LLM nhận lỗi TRUNG_LICH.
 """
 
+import asyncio
 import json
 from collections.abc import Callable
 from datetime import timedelta
@@ -15,7 +16,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from src.assistant_api.agent.actions import expire_stale_actions
 from src.assistant_api.agent.llm import FakeLLM, FakeResponse
+from src.assistant_api.main import sweep_expired_actions
 from src.assistant_api.models import CongCu, HanhDongChoXacNhan, LuotGoiCongCu, NguoiDung
 from src.shared.time import to_db, wall_clock
 from tests.assistant.conftest import chat, login, parse_sse
@@ -515,3 +518,72 @@ def test_bundle_labels() -> None:
 
     assert tool_label("plan_next_semester") == "Đang lập kế hoạch học kỳ tới"
     assert tool_label("register_courses_bundle") == "Đang đăng ký cả gói học phần"
+
+
+# ----- việc nền dọn thẻ quá hạn -----------------------------------------------
+
+
+def _set_expiry(db: Session, ma: str, seconds: int, status: str | None = None) -> None:
+    values: dict[str, Any] = {"het_han_luc": to_db(wall_clock() + timedelta(seconds=seconds))}
+    if status:
+        values["trang_thai"] = status
+    db.execute(update(HanhDongChoXacNhan).where(HanhDongChoXacNhan.ma == ma).values(**values))
+    db.commit()
+
+
+@pytest.mark.parametrize("status", ["cho", "cho_bo_sung"])
+def test_sweeper_expires_stale_cards(
+    client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    qlsv_mock: respx.MockRouter,
+    status: str,
+) -> None:
+    """Thẻ không ai bấm: việc nền chuyển het_han, nhật ký da_huy (trước đây kẹt ở 'cho')."""
+    headers = login(client, student.email)
+    cid, events = start_register(client, headers, script, qlsv_mock)
+    ma = dict(events)["pending_action"]["ma"]
+    _set_expiry(db, ma, -1, status)
+
+    assert expire_stale_actions(db) >= 1
+    row = action_row(db, ma)
+    assert row.trang_thai == "het_han" and row.xu_ly_luc is not None
+    (log,) = tool_logs(db, cid, "register_course")
+    assert log.trang_thai == "da_huy" and log.ly_do == "Hết hạn xác nhận"
+    assert confirm(client, headers, ma).json()["code"] == "HANH_DONG_DA_XU_LY"
+    assert expire_stale_actions(db) == 0  # lần quét sau không đụng lại
+
+
+def test_sweeper_leaves_live_cards(
+    client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    qlsv_mock: respx.MockRouter,
+) -> None:
+    headers = login(client, student.email)
+    cid, events = start_register(client, headers, script, qlsv_mock)
+    ma = dict(events)["pending_action"]["ma"]
+    expire_stale_actions(db)
+    assert action_row(db, ma).trang_thai == "cho"
+    (log,) = tool_logs(db, cid, "register_course")
+    assert log.trang_thai == "cho_xac_nhan"
+
+
+def test_sweep_loop_survives_db_errors(caplog: pytest.LogCaptureFixture) -> None:
+    calls = 0
+
+    def broken_factory() -> Session:
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("mất kết nối")
+
+    async def run() -> None:
+        task = asyncio.create_task(sweep_expired_actions(broken_factory, 0.01))
+        await asyncio.sleep(0.1)
+        task.cancel()
+
+    asyncio.run(run())
+    assert calls >= 2  # lỗi không làm dừng việc nền
+    assert any(r.getMessage().startswith("Dọn thẻ xác nhận quá hạn") for r in caplog.records)

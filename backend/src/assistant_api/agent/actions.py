@@ -8,6 +8,8 @@
 - Xác nhận/hủy: khóa hàng `WITH (UPDLOCK, ROWLOCK)`, kiểm tra chủ sở hữu, trạng thái, hạn; đổi
   trạng thái và COMMIT trước khi thực thi -> bấm 2 lần (kể cả đồng thời) chỉ thực thi 1 lần.
 - Hạn tính theo GIỜ THẬT (`wall_clock`), không theo DEMO_NOW.
+- Thẻ không ai bấm: việc nền `expire_stale_actions` (gọi định kỳ từ main.py) chuyển sang `het_han`,
+  nhật ký `da_huy` -> thống kê / trang quản trị không còn thẻ "chờ" ma.
 """
 
 import uuid
@@ -23,7 +25,7 @@ from src.assistant_api.agent.executor import Outcome
 from src.assistant_api.errors import ApiError, forbidden, not_found
 from src.assistant_api.models import HanhDongChoXacNhan, HoiThoai, LuotGoiCongCu, NguoiDung
 from src.shared.config import get_settings
-from src.shared.locking import lock_for_update
+from src.shared.locking import lock_for_update, lock_skip_locked
 from src.shared.time import to_db, wall_clock
 
 Lookup = Callable[[str, str, dict[str, Any]], Awaitable[Outcome]]
@@ -215,11 +217,7 @@ def lock_pending(
         raise ApiError("HANH_DONG_DA_XU_LY", f"Thao tác này {label} trước đó.", 409)
     now = to_db(wall_clock())
     if action.het_han_luc <= now:
-        action.trang_thai = "het_han"
-        action.xu_ly_luc = now
-        log = action.luot_goi
-        log.trang_thai = "da_huy"
-        log.ly_do = "Hết hạn xác nhận"
+        _expire(action, now)
         db.commit()
         raise ApiError(
             "HANH_DONG_HET_HAN",
@@ -227,6 +225,46 @@ def lock_pending(
             409,
         )
     return action
+
+
+OPEN_STATUSES = ("cho", "cho_bo_sung")
+EXPIRED_REASON = "Hết hạn xác nhận"
+SWEEP_BATCH = 200
+
+
+def _expire(action: HanhDongChoXacNhan, now: Any) -> None:
+    action.trang_thai = "het_han"
+    action.xu_ly_luc = now
+    log = action.luot_goi
+    if log.trang_thai == "cho_xac_nhan":
+        log.trang_thai = "da_huy"
+        log.ly_do = EXPIRED_REASON
+
+
+def expire_stale_actions(db: Session) -> int:
+    """Chuyển thẻ `cho` / `cho_bo_sung` đã quá hạn sang `het_han` (nhật ký -> `da_huy`); trả số thẻ.
+
+    Khóa `UPDLOCK, READPAST`: thẻ đang được bấm Xác nhận / Hủy (hàng bị khóa) bị bỏ qua, lần quét
+    sau xử lý; thẻ vừa được xử lý xong không còn ở trạng thái mở nên không bị đụng tới. Chỉ dọn
+    trạng thái — hạn vẫn được kiểm tra lúc bấm (`lock_pending`), nên việc nền tắt cũng không mở
+    lỗ hổng."""
+    now = to_db(wall_clock())
+    actions = db.scalars(
+        lock_skip_locked(
+            select(HanhDongChoXacNhan)
+            .where(
+                HanhDongChoXacNhan.trang_thai.in_(OPEN_STATUSES),
+                HanhDongChoXacNhan.het_han_luc <= now,
+            )
+            .order_by(HanhDongChoXacNhan.id)
+            .limit(SWEEP_BATCH),
+            HanhDongChoXacNhan,
+        )
+    ).all()
+    for action in actions:
+        _expire(action, now)
+    db.commit()
+    return len(actions)
 
 
 def close_action(db: Session, action: HanhDongChoXacNhan, status: str) -> None:

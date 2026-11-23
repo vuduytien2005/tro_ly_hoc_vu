@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     agent_max_steps: int = 6
     agent_history_messages: int = 20
     action_expire_minutes: int = 10
+    # Việc nền chuyển thẻ xác nhận quá hạn sang `het_han` (giây giữa hai lần quét; 0 = tắt)
+    action_sweep_seconds: int = 60
 
     @field_validator("demo_now", "llm_temperature", "llm_num_ctx", mode="before")
     @classmethod
