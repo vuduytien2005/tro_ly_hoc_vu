@@ -1,0 +1,17 @@
+# TN2 — chất lượng câu trả lời RAG, trợ lý chạy CỤC BỘ qua Ollama.
+# Chuẩn bị: ollama pull qwen2.5:7b. Chạy: python evaluation/run_rag_answer.py --config rag_answer_ollama
+# Giám khảo vẫn là Gemini (như rag_answer_gemini) -> hai lượt chấm cùng thước đo, so sánh được;
+# mô hình 7B không tự chấm chính mình. TN2 chỉ gửi câu hỏi quy chế (không có dữ liệu sinh viên).
+ma: rag_answer_ollama
+ten: "Trợ lý (Qwen2.5 7B cục bộ, Ollama) + LLM chấm (Gemini 3.5 Flash-Lite)"
+du_lieu: evaluation/datasets/rag_questions.jsonl
+llm_model: ollama_chat/qwen2.5:7b
+mo_ta_cong_cu: day_du
+corpus: evaluation/corpus_demo
+embedding: intfloat/multilingual-e5-base
+judge_model: gemini/gemini-3.5-flash-lite   # mô hình chấm faithfulness / relevancy / mệnh đề
+gia_vao_usd_trieu_token: 0   # trợ lý chạy trên máy; giám khảo dùng gói miễn phí Google AI Studio
+gia_ra_usd_trieu_token: 0
+llm_num_ctx: 16384           # mặc định của Ollama (2–4 nghìn token) lặng lẽ cắt mất danh sách công cụ
+llm_timeout_giay: 600
+cho_giua_luot_goi_giay: 4.5  # giám khảo Gemini gói miễn phí 15 lượt/phút
