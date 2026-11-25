@@ -30,7 +30,15 @@ class VanBan(AssistantBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ten: Mapped[str] = mapped_column(Unicode(255))
     loai: Mapped[str] = mapped_column(
-        Enum("quy_che", "so_tay", "quy_dinh", "huong_dan", "thong_bao", name="loai_van_ban")
+        Enum(
+            "quy_che",
+            "so_tay",
+            "quy_dinh",
+            "huong_dan",
+            "thong_bao",
+            "hoi_dap",
+            name="loai_van_ban",
+        )
     )
     phien_ban: Mapped[str] = mapped_column(Unicode(50))
     ap_dung_tu_khoa: Mapped[int | None] = mapped_column(TINYINT)
@@ -78,3 +86,22 @@ class DoanVanBan(AssistantBase):
     vector_id: Mapped[str] = mapped_column(Unicode(64), unique=True)  # vb{van_ban_id}_d{thu_tu}
 
     van_ban: Mapped[VanBan] = relationship(back_populates="doan")
+
+
+class KhoHoiDap(AssistantBase):
+    """Cặp hỏi–đáp cán bộ đã biên tập (nâng cấp 10). quy_che dựng các mục thành đoạn của văn bản
+    loại `hoi_dap` (không có tệp) để RAG tìm được. Không có trigger: code tự ghi updated_at."""
+
+    __tablename__ = "kho_hoi_dap"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cau_hoi: Mapped[str] = mapped_column(Unicode(1000))
+    tra_loi: Mapped[str] = mapped_column(UnicodeText)
+    phong_ban: Mapped[str] = mapped_column(
+        Enum("dao_tao", "ctsv", "tai_chinh", "khac", name="phong_ban_khd")
+    )
+    ma_don: Mapped[str | None] = mapped_column(Unicode(30))
+    tin_nhan_id: Mapped[int | None] = mapped_column(ForeignKey("tin_nhan.id", ondelete="SET NULL"))
+    nguoi_tao_id: Mapped[int] = mapped_column(ForeignKey("nguoi_dung.id"))
+    created_at: Mapped[datetime] = mapped_column(DATETIME2, server_default=text("SYSDATETIME()"))
+    updated_at: Mapped[datetime] = mapped_column(DATETIME2, server_default=text("SYSDATETIME()"))

@@ -28,6 +28,7 @@ from src.assistant_api.rag_admin import RagAdminClient
 from src.assistant_api.routers import (
     actions,
     admin,
+    admin_knowledge,
     admin_requests,
     admin_students,
     admin_users,
@@ -66,12 +67,22 @@ def error_response(status: int, detail: str, code: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"detail": detail, "code": code})
 
 
+def default_verifier(llm: LLM | None) -> LLM | None:
+    """Giám khảo kiểm chứng: chạy thật (không truyền LLM giả) và ANSWER_VERIFY bật -> LiteLlm với
+    VERIFIER_MODEL (trống = LLM_MODEL). Test truyền FakeLLM thì mặc định KHÔNG có giám khảo."""
+    settings = get_settings()
+    if llm is not None or not settings.answer_verify:
+        return None
+    return LiteLlm(settings.verifier_model or None)
+
+
 def create_app(
     registry: ToolRegistry | None = None,
     llm: LLM | None = None,
     session_factory: Callable[[], Session] | None = None,
     rag_admin: RagAdminClient | None = None,
     qlsv_directory: QlsvDirectory | None = None,
+    verifier_llm: LLM | None = None,
 ) -> FastAPI:
     """Test truyền registry (MCP server chạy trong tiến trình), FakeLLM, session_factory riêng
     và rag_admin (gọi app quy_che trong tiến trình)."""
@@ -80,7 +91,9 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.session_factory = session_factory or assistant_session_factory()
         app.state.registry = registry or ToolRegistry(McpClient({}))
-        app.state.runner = AgentRunner(app.state.registry, llm or LiteLlm())
+        app.state.runner = AgentRunner(
+            app.state.registry, llm or LiteLlm(), verifier_llm or default_verifier(llm)
+        )
         app.state.rag_admin = rag_admin or RagAdminClient()
         app.state.qlsv_directory = qlsv_directory or QlsvDirectory()
         if get_settings().mcp_auth_mode == "oauth":
@@ -153,6 +166,7 @@ def create_app(
     app.include_router(admin_users.router)
     app.include_router(admin_students.router)
     app.include_router(admin_requests.router)
+    app.include_router(admin_knowledge.router)
 
     @app.get("/health", tags=["Hệ thống"], summary="Trạng thái service và các MCP server")
     async def health(request: Request) -> dict[str, object]:

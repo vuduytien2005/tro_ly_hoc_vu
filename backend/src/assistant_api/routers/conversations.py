@@ -144,6 +144,7 @@ def list_messages(conversation_id: int, user: Student, db: DbSession) -> Message
                 vai_tro=r.vai_tro,  # type: ignore[arg-type]
                 noi_dung=r.noi_dung,
                 trich_dan=r.trich_dan,
+                kiem_chung=r.kiem_chung,
                 danh_gia=ratings.get(r.id),
                 created_at=r.created_at,
             )

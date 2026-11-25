@@ -122,6 +122,28 @@ class MeteredLLM:
             yield item
 
 
+class DryVerifier:
+    """Giám khảo giả cho --dry-run: câu trả lời "không đề cập / không có" -> 0 ý; còn lại mọi câu
+    đều có căn cứ ở đoạn 1 (chỉ kiểm tra đường ống kiểm chứng, không phải số liệu)."""
+
+    async def stream(
+        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
+    ) -> AsyncIterator[Any]:
+        from src.assistant_api.agent.llm import LlmTurn
+
+        answer = str(messages[-1]["content"]).split("\n\n", 1)[-1]
+        lowered = answer.lower()
+        if any(p in lowered for p in ("không đề cập", "không có thông tin", "không có dữ liệu")):
+            items: list[dict[str, Any]] = []
+        else:
+            items = [
+                {"cau": s.strip() + ".", "ket_luan": "co_can_cu", "doan": [1], "ly_do": "giả lập"}
+                for s in answer.split(".")
+                if s.strip()
+            ]
+        yield LlmTurn(text=json.dumps({"y": items}, ensure_ascii=False))
+
+
 def cost_usd(model: str, tokens_in: int, tokens_out: int, config: dict[str, Any]) -> float | None:
     price_in = config.get("gia_vao_usd_trieu_token")
     price_out = config.get("gia_ra_usd_trieu_token")
@@ -205,6 +227,8 @@ class TurnResult:
     first_feedback_s: float | None = None  # NF-01, xem MeteredLLM
     ttft_s: float | None = None
     prompt_text: str = ""  # mọi prompt gửi LLM trong kịch bản (xem MeteredLLM.prompts)
+    kiem_chung: dict[str, Any] | None = None  # kết quả giám khảo (chỉ khi cấu hình verifier_model)
+    tin_nhan_id: int | None = None  # tin assistant cuối cùng
 
     @property
     def llm_calls(self) -> list[dict[str, Any]]:
@@ -229,6 +253,10 @@ class AgentHarness:
         self.embedder_kind = "hashing" if dry_run else embedder_kind
         self.model = config.get("llm_model") or ""
         self.llm = MeteredLLM(None)
+        # verifier_model (cấu hình, TN6): bật giám khảo kiểm chứng như lúc chạy thật; đo riêng token
+        self.verifier: MeteredLLM | None = (
+            MeteredLLM(None) if config.get("verifier_model") else None
+        )
         # cho_giua_luot_goi_giay (cấu hình): khoảng cách tối thiểu giữa hai lần gọi LLM thật
         PACER.min_interval = 0.0 if dry_run else float(config.get("cho_giua_luot_goi_giay") or 0)
         self._stack = ExitStack()
@@ -309,7 +337,40 @@ class AgentHarness:
             if missing:
                 raise RuntimeError(f"MCP server lỗi: {self.registry.server_status}")
 
-        app = create_app(registry=self.registry, llm=self.llm, session_factory=self.iso.factory)
+        # Lập chỉ mục do API quản trị yêu cầu (kho hỏi đáp, TN6): quy_che chạy trong tiến trình,
+        # cùng CSDL rollback và Chroma tạm, đồng bộ (không luồng nền) — như backend/tests/assistant
+        from src.assistant_api.rag_admin import RagAdminClient
+        from src.mcp_servers.common import build_app
+
+        for name, value in (
+            ("assistant_session_factory", lambda: self.iso.factory),
+            ("_spawn", lambda fn, *args: fn(*args)),
+        ):
+            stack.callback(setattr, quy_che, name, getattr(quy_che, name))
+            setattr(quy_che, name, value)
+        rag_admin = RagAdminClient(
+            "http://127.0.0.1:9104", httpx.ASGITransport(app=build_app(quy_che.mcp))
+        )
+        if self.verifier is not None:
+            from src.assistant_api.agent.llm import LiteLlm
+
+            self.verifier.inner = (
+                DryVerifier()
+                if self.dry_run
+                else LiteLlm(
+                    str(self.config["verifier_model"]),
+                    timeout=self.config.get("llm_timeout_giay"),
+                    num_ctx=self.config.get("llm_num_ctx"),
+                )
+            )
+
+        app = create_app(
+            registry=self.registry,
+            llm=self.llm,
+            session_factory=self.iso.factory,
+            rag_admin=rag_admin,
+            verifier_llm=self.verifier,
+        )
 
         def override_db() -> Iterator[Any]:
             # như backend/tests/assistant/conftest.py: kết thúc bằng commit (SQL Server không có
@@ -448,6 +509,26 @@ class AgentHarness:
             self._tokens[ma_sv] = {"Authorization": f"Bearer {token}"}
         return self._tokens[ma_sv]
 
+    def admin_headers(self) -> dict[str, str]:
+        """Tài khoản quản trị (trong transaction rollback) để gọi API quản trị như cán bộ."""
+        from sqlalchemy import select
+        from src.assistant_api.auth.security import create_access_token
+        from src.assistant_api.models import NguoiDung
+
+        if "__admin__" not in self._tokens:
+            email = "eval.admin@tlhv.test"
+            with self.iso.factory() as db:
+                user = db.scalar(select(NguoiDung).where(NguoiDung.email == email))
+                if user is None:
+                    user = NguoiDung(ho_ten="Quản trị thực nghiệm", email=email, mat_khau_hash="x")
+                    db.add(user)
+                user.vai_tro = "admin"
+                user.dang_hoat_dong = True
+                db.commit()
+                token, _ = create_access_token(user.id, "admin")
+            self._tokens["__admin__"] = {"Authorization": f"Bearer {token}"}
+        return self._tokens["__admin__"]
+
     # -- bật/tắt công cụ (trong transaction, khôi phục sau kịch bản) --
     @contextmanager
     def tools_disabled(self, names: list[str]) -> Iterator[None]:
@@ -579,6 +660,8 @@ class AgentHarness:
             ).all()
             texts = [m.noi_dung for m in replies if m.noi_dung]
             cited = next((m.trich_dan for m in reversed(replies) if m.trich_dan), None) or []
+            verified = next((m.kiem_chung for m in reversed(replies) if m.kiem_chung), None)
+            last_id = replies[-1].id if replies else None
         return TurnResult(
             hoi_thoai_id=cid,
             answer="\n".join(texts),
@@ -597,6 +680,8 @@ class AgentHarness:
             first_feedback_s=self.llm.first_feedback_s,
             ttft_s=self.llm.ttft_s,
             prompt_text="\n".join(self.llm.prompts),
+            kiem_chung=verified,
+            tin_nhan_id=last_id,
         )
 
     def cost(self, tokens_in: int, tokens_out: int) -> float | None:

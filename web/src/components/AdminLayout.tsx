@@ -1,4 +1,5 @@
 import {
+  Lightbulb,
   BarChart3,
   FileCheck,
   GraduationCap,
@@ -27,6 +28,7 @@ const LINKS = [
   { to: '/admin/tai-khoan', label: 'Tài khoản', icon: Users },
   { to: '/admin/sinh-vien', label: 'Sinh viên (QLSV)', icon: GraduationCap },
   { to: '/admin/don-tu', label: 'Đơn từ', icon: FileCheck },
+  { to: '/admin/tri-thuc', label: 'Tri thức', icon: Lightbulb },
 ]
 
 export default function AdminLayout() {

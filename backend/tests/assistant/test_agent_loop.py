@@ -350,3 +350,137 @@ def test_plan_then_bundle_one_card(
     assert pending[-1].trang_thai == "cho_xac_nhan"
     assert pending[-1].tham_so["ma_sv"] == student.ma_sv
     assert real.called is False  # chưa xác nhận -> chưa đăng ký thật
+
+
+# ----- Kiểm chứng câu trả lời bằng LLM giám khảo (bổ sung 23/11/2026) ---------------------------
+VERIFIED_ANSWER = "Em phải đăng ký học lại [1]. Học lại tối đa 2 lần [2]."
+
+
+def verdict_json() -> str:
+    return json.dumps(
+        {
+            "y": [
+                {"cau": "Em phải đăng ký học lại [1].", "ket_luan": "co_can_cu", "doan": [1]},
+                {"cau": "Học lại tối đa 2 lần [2].", "ket_luan": "khong_co_can_cu", "doan": [2]},
+            ]
+        },
+        ensure_ascii=False,
+    )
+
+
+def regulation_turn(script: Callable[..., FakeLLM]) -> FakeLLM:
+    return script(
+        FakeResponse(tool_calls=[("search_regulations", {"cau_hoi": "học lại"})]),
+        FakeResponse(text=VERIFIED_ANSWER),
+    )
+
+
+def test_answer_is_verified_and_saved(
+    verified_client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    verifier_llm: FakeLLM,
+    search_calls: list,
+) -> None:
+    regulation_turn(script)
+    verifier_llm._responses.append(FakeResponse(text=verdict_json()))
+    headers = login(verified_client, student.email)
+    cid = new_conversation(verified_client, headers)
+    events = chat(verified_client, headers, cid, "Em bị F thì sao?")
+
+    kinds = [e for e, _ in events]
+    assert kinds[-4:] == ["citations", "verifying", "verification", "done"]
+    result = dict(events)["verification"]
+    assert (result["tong"], result["co_can_cu"]) == (2, 1)
+    # Giám khảo nhận toàn văn đoạn (không phải trích đoạn 300 ký tự), bọc lại trong <tai_lieu>
+    system = verifier_llm.calls[0]["messages"][0]["content"]
+    assert '<tai_lieu so="1">\nSinh viên bị điểm F phải đăng ký học lại.\n</tai_lieu>' in system
+
+    db.expire_all()
+    answer = db.get(TinNhan, dict(events)["done"]["tin_nhan_id"])
+    assert answer.kiem_chung is not None and answer.kiem_chung["tong"] == 2
+    assert answer.so_token_vao == 200 + 100 and answer.so_token_ra == 40 + 20
+
+    r = verified_client.get(f"/api/conversations/{cid}/messages", headers=headers)
+    last = r.json()["tin_nhan"][-1]
+    assert last["kiem_chung"]["co_can_cu"] == 1
+
+
+def test_no_verification_without_search(
+    verified_client: TestClient,
+    student: NguoiDung,
+    script: Callable[..., FakeLLM],
+    verifier_llm: FakeLLM,
+) -> None:
+    script(FakeResponse(text="Chào em, mình có thể giúp gì?"))
+    headers = login(verified_client, student.email)
+    cid = new_conversation(verified_client, headers)
+    events = chat(verified_client, headers, cid, "Chào bạn")
+    assert "verifying" not in [e for e, _ in events]
+    assert verifier_llm.calls == []
+
+
+def test_verifier_failure_keeps_answer(
+    verified_client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    verifier_llm: FakeLLM,
+    search_calls: list,
+) -> None:
+    regulation_turn(script)  # verifier_llm không có phản hồi -> LlmError bên trong giám khảo
+    headers = login(verified_client, student.email)
+    cid = new_conversation(verified_client, headers)
+    events = chat(verified_client, headers, cid, "Em bị F thì sao?")
+    kinds = [e for e, _ in events]
+    assert "verification" not in kinds and "error" not in kinds and kinds[-1] == "done"
+    db.expire_all()
+    answer = db.get(TinNhan, dict(events)["done"]["tin_nhan_id"])
+    assert answer.noi_dung == VERIFIED_ANSWER and answer.kiem_chung is None
+
+
+def test_client_without_verifier_is_unchanged(
+    client: TestClient,
+    student: NguoiDung,
+    script: Callable[..., FakeLLM],
+    search_calls: list,
+) -> None:
+    regulation_turn(script)
+    headers = login(client, student.email)
+    cid = new_conversation(client, headers)
+    kinds = [e for e, _ in chat(client, headers, cid, "Em bị F thì sao?")]
+    assert "verifying" not in kinds and kinds[-1] == "done"
+
+
+def test_collect_sources_keeps_document_kind() -> None:
+    """Trích dẫn từ kho hỏi đáp cán bộ mang loai=hoi_dap -> web hiện nhãn, ẩn nút mở tệp gốc."""
+    from src.assistant_api.agent.loop import collect_sources
+
+    result = {
+        "doan": [
+            {"so": 1, "van_ban": "Hỏi đáp cán bộ", "loai": "hoi_dap", "noi_dung": "23 giờ"},
+            {"so": 2, "van_ban": "Quy chế", "noi_dung": "Điều 4"},  # server cũ chưa trả loai
+        ]
+    }
+    sources = collect_sources(result)
+    assert sources[1]["loai"] == "hoi_dap" and sources[2]["loai"] == "quy_che"
+
+
+def test_answer_without_claims_is_saved_as_zero_verification(
+    verified_client: TestClient,
+    student: NguoiDung,
+    db: Session,
+    script: Callable[..., FakeLLM],
+    verifier_llm: FakeLLM,
+    search_calls: list,
+) -> None:
+    regulation_turn(script)
+    verifier_llm._responses.append(FakeResponse(text='{"y": []}'))
+    headers = login(verified_client, student.email)
+    cid = new_conversation(verified_client, headers)
+    events = chat(verified_client, headers, cid, "KTX đóng cửa mấy giờ?")
+    assert dict(events)["verification"]["tong"] == 0
+    db.expire_all()
+    answer = db.get(TinNhan, dict(events)["done"]["tin_nhan_id"])
+    assert answer.kiem_chung is not None and answer.kiem_chung["tong"] == 0

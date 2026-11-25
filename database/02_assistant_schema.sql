@@ -21,6 +21,7 @@ GO
 USE tlhv_assistant;
 GO
 
+DROP TABLE IF EXISTS kho_hoi_dap;
 DROP TABLE IF EXISTS danh_gia_cau_tra_loi;
 DROP TABLE IF EXISTS hanh_dong_cho_xac_nhan;
 DROP TABLE IF EXISTS luot_goi_cong_cu;
@@ -77,6 +78,7 @@ CREATE TABLE tin_nhan (
   tool_call_id  NVARCHAR(MAX) NULL,          -- với vai_tro = tool; Gemini nhúng "thought signature" vào id (hàng trăm-nghìn ký tự)
   tool_calls    NVARCHAR(MAX) NULL CONSTRAINT chk_tn_tool_calls CHECK (ISJSON(tool_calls) = 1),
   trich_dan     NVARCHAR(MAX) NULL CONSTRAINT chk_tn_trich_dan  CHECK (ISJSON(trich_dan) = 1),
+  kiem_chung    NVARCHAR(MAX) NULL CONSTRAINT chk_tn_kiem_chung CHECK (ISJSON(kiem_chung) = 1),  -- kết quả LLM giám khảo (nâng cấp 09)
   so_token_vao  INT           NULL,
   so_token_ra   INT           NULL,
   thoi_gian_ms  INT           NULL,
@@ -173,6 +175,24 @@ CREATE TABLE danh_gia_cau_tra_loi (
   CONSTRAINT fk_dg_nd FOREIGN KEY (nguoi_dung_id) REFERENCES nguoi_dung(id)
 );
 
+-- Kho hỏi đáp cán bộ (nâng cấp 10): cặp hỏi–đáp đã biên tập, quy_che dựng thành các đoạn của
+-- văn bản loại hoi_dap để RAG tìm được. ma_don / tin_nhan_id: nguồn gốc (nếu có).
+CREATE TABLE kho_hoi_dap (
+  id            INT IDENTITY(1,1) PRIMARY KEY,
+  cau_hoi       NVARCHAR(1000) NOT NULL,
+  tra_loi       NVARCHAR(MAX)  NOT NULL,
+  phong_ban     NVARCHAR(20)   NOT NULL
+                CONSTRAINT chk_khd_phong_ban
+                CHECK (phong_ban IN (N'dao_tao', N'ctsv', N'tai_chinh', N'khac')),
+  ma_don        NVARCHAR(30)   NULL,
+  tin_nhan_id   INT            NULL,
+  nguoi_tao_id  INT            NOT NULL,
+  created_at    DATETIME2(0)   NOT NULL CONSTRAINT df_khd_created DEFAULT SYSDATETIME(),
+  updated_at    DATETIME2(0)   NOT NULL CONSTRAINT df_khd_updated DEFAULT SYSDATETIME(),
+  CONSTRAINT fk_khd_tn FOREIGN KEY (tin_nhan_id)  REFERENCES tin_nhan(id) ON DELETE SET NULL,
+  CONSTRAINT fk_khd_nd FOREIGN KEY (nguoi_tao_id) REFERENCES nguoi_dung(id)
+);
+
 -- ---------------------------------------------------------------------
 -- Văn bản cho RAG
 -- ---------------------------------------------------------------------
@@ -183,7 +203,7 @@ CREATE TABLE van_ban (
   ten               NVARCHAR(255) NOT NULL,
   loai              NVARCHAR(20)  NOT NULL
                     CONSTRAINT chk_vb_loai
-                    CHECK (loai IN (N'quy_che', N'so_tay', N'quy_dinh', N'huong_dan', N'thong_bao')),
+                    CHECK (loai IN (N'quy_che', N'so_tay', N'quy_dinh', N'huong_dan', N'thong_bao', N'hoi_dap')),  -- hoi_dap: kho hỏi đáp cán bộ, không có tệp (nâng cấp 10)
   phien_ban         NVARCHAR(50)  NOT NULL,       -- vd: 2023
   ap_dung_tu_khoa   TINYINT       NULL,
   ap_dung_den_khoa  TINYINT       NULL,

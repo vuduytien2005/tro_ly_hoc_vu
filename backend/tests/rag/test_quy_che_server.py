@@ -158,3 +158,62 @@ async def test_missing_article_resource_is_error(
             await client.read_resource(f"quy-che://van-ban/{two_versions['2023']}/dieu/99")
         with pytest.raises(MCPError):
             await client.read_resource("quy-che://van-ban/abc/dieu/1")
+
+
+async def test_knowledge_doc_indexed_from_table_and_searchable(
+    db: Session, use_test_retriever: Retriever, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Văn bản loại hoi_dap không có tệp: quy_che dựng đoạn từ kho_hoi_dap rồi lập chỉ mục;
+    search_regulations trả `loai` để web ẩn nút "mở tệp gốc"."""
+    from sqlalchemy import select
+
+    from src.assistant_api.models import KhoHoiDap, NguoiDung, VanBan
+
+    monkeypatch.setattr(quy_che, "_spawn", lambda fn, *args: fn(*args))
+    admin = db.scalar(select(NguoiDung).where(NguoiDung.vai_tro == "admin"))
+    assert admin is not None
+    van_ban = VanBan(
+        ten="Hỏi đáp cán bộ", loai="hoi_dap", phien_ban="kho", ten_tep="", duong_dan_tep=""
+    )
+    db.add(van_ban)
+    db.add(
+        KhoHoiDap(
+            cau_hoi="Ký túc xá đóng cửa lúc mấy giờ?",
+            tra_loi="Ký túc xá đóng cửa lúc 23 giờ hằng ngày.",
+            phong_ban="ctsv",
+            nguoi_tao_id=admin.id,
+        )
+    )
+    db.commit()
+
+    quy_che.index_van_ban(van_ban.id)
+    db.expire_all()
+    assert db.get(VanBan, van_ban.id).trang_thai == "da_lap_chi_muc"
+
+    out = await call_tool(
+        quy_che.mcp,
+        "search_regulations",
+        {"ma_khoa": "K22", "cau_hoi": "ký túc xá đóng cửa mấy giờ", "top_k": 3},
+    )
+    first = out["doan"][0]
+    assert first["loai"] == "hoi_dap" and first["van_ban"] == "Hỏi đáp cán bộ"
+    assert "23 giờ" in first["noi_dung"] and first["dieu"].startswith("Hỏi đáp: ")
+
+
+async def test_empty_knowledge_doc_is_marked_failed(
+    db: Session, use_test_retriever: Retriever
+) -> None:
+    from sqlalchemy import delete
+
+    from src.assistant_api.models import KhoHoiDap, VanBan
+
+    db.execute(delete(KhoHoiDap))  # CSDL dev có thể đã có mục thật (bị rollback cuối test)
+    van_ban = VanBan(
+        ten="Hỏi đáp cán bộ", loai="hoi_dap", phien_ban="kho", ten_tep="", duong_dan_tep=""
+    )
+    db.add(van_ban)
+    db.commit()
+    quy_che.index_van_ban(van_ban.id)
+    db.expire_all()
+    saved = db.get(VanBan, van_ban.id)
+    assert saved.trang_thai == "loi" and "Kho hỏi đáp chưa có mục nào" in (saved.loi or "")

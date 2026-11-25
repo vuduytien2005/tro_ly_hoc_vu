@@ -92,7 +92,7 @@ LIBRARY_TOOLS = {"get_borrowed_books", "search_books", "renew_book"}
 
 def test_library_tools_loaded(harness: AgentHarness) -> None:
     assert set(harness.specs) >= LIBRARY_TOOLS
-    assert len(harness.specs) == 21
+    assert len(harness.specs) == 22  # 18 công cụ gốc + ask_staff (nâng cấp 09) + 3 thư viện
     assert "renew_book" in harness.write_tools
     assert "get_borrowed_books" not in harness.write_tools
     assert "search_books" not in harness.write_tools

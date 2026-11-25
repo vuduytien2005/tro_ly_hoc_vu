@@ -1,0 +1,14 @@
+# TN6 — vòng khép kín kho hỏi đáp cán bộ. Trợ lý + giám khảo Gemini (gói miễn phí). Chạy:
+#   python evaluation/run_knowledge.py                    # cấu hình này
+#   python evaluation/run_knowledge.py --dry-run          # LLM giả, kiểm tra đường ống
+ma: knowledge
+ten: "Gemini 3.5 Flash-Lite (trợ lý + giám khảo), kho hỏi đáp cán bộ"
+du_lieu: evaluation/datasets/knowledge_cases.jsonl
+llm_model: gemini/gemini-3.5-flash-lite
+verifier_model: gemini/gemini-3.5-flash-lite
+mo_ta_cong_cu: day_du
+corpus: evaluation/corpus_demo
+embedding: intfloat/multilingual-e5-base
+gia_vao_usd_trieu_token: 0   # gói miễn phí Google AI Studio
+gia_ra_usd_trieu_token: 0
+cho_giua_luot_goi_giay: 4.5  # 15 lượt/phút, trợ lý + giám khảo dùng chung nhịp

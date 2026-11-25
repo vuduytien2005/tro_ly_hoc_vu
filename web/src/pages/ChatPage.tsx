@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { AnswerText, SourceList } from '../components/chat/Answer'
+import { AnswerText, SourceList, VerificationBadge } from '../components/chat/Answer'
 import { Composer, type Draft } from '../components/chat/Composer'
 import { Feedback } from '../components/chat/Feedback'
 import { PendingActionCard, type CardState } from '../components/chat/PendingActionCard'
@@ -32,7 +32,9 @@ import type {
   Message,
   MessagesResponse,
   PendingAction,
+  Verification,
 } from '../lib/types'
+import { ASK_STAFF_PROMPT } from '../lib/verification'
 
 const SUGGESTIONS = [
   'Em còn thiếu gì để tốt nghiệp?',
@@ -47,6 +49,8 @@ interface LiveTurn {
   text: string
   chips: ToolChip[]
   citations: Citation[] | null
+  verifying: boolean
+  verification: Verification | null
   breakNext: boolean // có tool chen giữa -> đoạn chữ tiếp theo xuống đoạn mới
   finished: boolean
 }
@@ -139,6 +143,8 @@ export default function ChatPage() {
   }, [messages.data, live?.text, live?.chips.length, liveCards.length])
 
   const busy = live != null && !live.finished
+  /** Nút "Hỏi cán bộ" dưới câu trả lời chưa đủ căn cứ: điền sẵn ô chat, sinh viên tự gửi. */
+  const askStaff = useCallback(() => setDraft((d) => ({ text: ASK_STAFF_PROMPT, n: (d?.n ?? 0) + 1 })), [])
 
   const onEvent = useCallback((event: AgentEvent) => {
     switch (event.event) {
@@ -176,6 +182,12 @@ export default function ChatPage() {
       case 'citations':
         setLive((t) => t && { ...t, citations: event.data })
         break
+      case 'verifying':
+        setLive((t) => t && { ...t, verifying: true })
+        break
+      case 'verification':
+        setLive((t) => t && { ...t, verifying: false, verification: event.data })
+        break
       case 'pending_action':
         setLiveCards((cards) => [...cards.filter((c) => c.ma !== event.data.ma), event.data])
         // Thẻ vừa xác nhận quay lại kèm biểu mẫu bổ sung (MCP elicitation) -> hiện lại thẻ
@@ -204,7 +216,16 @@ export default function ChatPage() {
       const controller = new AbortController()
       abortRef.current = controller
       setError(null)
-      setLive({ userText, text: '', chips: [], citations: null, breakNext: false, finished: false })
+      setLive({
+        userText,
+        text: '',
+        chips: [],
+        citations: null,
+        verifying: false,
+        verification: null,
+        breakNext: false,
+        finished: false,
+      })
       try {
         await postSse(path, body, onEvent, controller.signal)
       } catch (err) {
@@ -373,7 +394,7 @@ export default function ChatPage() {
           {empty && !live && <Welcome onPick={send} disabled={busy} />}
 
           {history.map((m) => (
-            <MessageView key={m.id} message={m} />
+            <MessageView key={m.id} message={m} onAskStaff={askStaff} />
           ))}
 
           {live && (
@@ -382,11 +403,16 @@ export default function ChatPage() {
               <AssistantBubble>
                 <ToolChips chips={live.chips} />
                 {live.text ? (
-                  <AnswerText text={live.text} citations={live.citations} />
+                  <AnswerText text={live.text} citations={live.citations} verification={live.verification} />
                 ) : (
                   !live.finished && <TypingDots />
                 )}
                 <SourceList citations={live.citations} />
+                <VerificationBadge
+                  verification={live.verification}
+                  verifying={live.verifying && !live.finished}
+                  onAskStaff={busy ? undefined : askStaff}
+                />
               </AssistantBubble>
             </>
           )}
@@ -463,12 +489,13 @@ function dedupe(actions: PendingAction[]): PendingAction[] {
   return actions.filter((a) => (seen.has(a.ma) ? false : (seen.add(a.ma), true)))
 }
 
-function MessageView({ message }: { message: Message }) {
+function MessageView({ message, onAskStaff }: { message: Message; onAskStaff: () => void }) {
   if (message.vai_tro === 'user') return <UserBubble text={message.noi_dung} />
   return (
     <AssistantBubble>
-      <AnswerText text={message.noi_dung} citations={message.trich_dan} />
+      <AnswerText text={message.noi_dung} citations={message.trich_dan} verification={message.kiem_chung} />
       <SourceList citations={message.trich_dan} />
+      <VerificationBadge verification={message.kiem_chung} onAskStaff={onAskStaff} />
       <Feedback messageId={message.id} initial={message.danh_gia} />
     </AssistantBubble>
   )

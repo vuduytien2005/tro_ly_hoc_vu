@@ -1,14 +1,36 @@
-import { BookOpen, ExternalLink, ScrollText, X } from 'lucide-react'
+import {
+  BookOpen,
+  ExternalLink,
+  LoaderCircle,
+  ScrollText,
+  ShieldAlert,
+  ShieldCheck,
+  UserRound,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../../lib/api'
 import { articleNumber, openDocument } from '../../lib/documents'
 import { citationLocation, citationNumber, linkCitations } from '../../lib/format'
-import type { Citation } from '../../lib/types'
+import type { Citation, Verification } from '../../lib/types'
+import { markUnverified, unverifiedIndex, verificationSummary } from '../../lib/verification'
+import { isKnowledgeCitation } from '../../lib/knowledge'
 
-/** Câu trả lời dạng markdown; "[n]" thành nút mở popover nguồn. */
-export function AnswerText({ text, citations }: { text: string; citations: Citation[] | null }) {
+/**
+ * Câu trả lời dạng markdown; "[n]" thành nút mở popover nguồn; ý giám khảo đánh giá "không có
+ * căn cứ" được gạch chân chấm (rê chuột xem lý do).
+ */
+export function AnswerText({
+  text,
+  citations,
+  verification,
+}: {
+  text: string
+  citations: Citation[] | null
+  verification?: Verification | null
+}) {
   const byNumber = new Map((citations ?? []).map((c) => [c.so, c]))
   return (
     <div className="prose-chat">
@@ -16,6 +38,18 @@ export function AnswerText({ text, citations }: { text: string; citations: Citat
         remarkPlugins={[remarkGfm]}
         components={{
           a({ href, children }) {
+            const u = unverifiedIndex(href)
+            if (u != null) {
+              const claim = verification?.y[u]
+              return (
+                <span
+                  title={claim?.ly_do ? `Chưa có căn cứ trong văn bản: ${claim.ly_do}` : 'Chưa có căn cứ trong văn bản'}
+                  className="underline decoration-warn decoration-dotted decoration-2 underline-offset-4"
+                >
+                  {children}
+                </span>
+              )
+            }
             const n = citationNumber(href)
             const citation = n != null ? byNumber.get(n) : undefined
             if (citation) return <CitationButton citation={citation} />
@@ -27,7 +61,7 @@ export function AnswerText({ text, citations }: { text: string; citations: Citat
           },
         }}
       >
-        {linkCitations(text, citations)}
+        {linkCitations(markUnverified(text, verification), citations)}
       </Markdown>
     </div>
   )
@@ -71,7 +105,8 @@ function CitationButton({ citation }: { citation: Citation }) {
             <BookOpen size={16} className="mt-0.5 shrink-0 text-primary" />
             <span className="flex-1 font-semibold text-navy">
               {citation.van_ban}
-              {citation.phien_ban && (
+              {isKnowledgeCitation(citation) && <StaffBadge />}
+              {citation.phien_ban && !isKnowledgeCitation(citation) && (
                 <span className="font-normal text-slate-500"> ({citation.phien_ban})</span>
               )}
             </span>
@@ -114,7 +149,11 @@ export function SourceList({ citations }: { citations: Citation[] | null }) {
                 {c.van_ban}
               </span>
               <span className="block text-xs text-slate-500">{citationLocation(c)}</span>
-              {c.van_ban_id != null && <OpenDocumentButton citation={c} />}
+              {isKnowledgeCitation(c) ? (
+                <StaffBadge />
+              ) : (
+                c.van_ban_id != null && <OpenDocumentButton citation={c} />
+              )}
               {c.van_ban_id != null && articleNumber(c.dieu) != null && (
                 <ReadArticleButton vanBanId={c.van_ban_id} dieu={articleNumber(c.dieu)!} />
               )}
@@ -123,6 +162,15 @@ export function SourceList({ citations }: { citations: Citation[] | null }) {
         ))}
       </ul>
     </div>
+  )
+}
+
+/** Trích dẫn từ kho hỏi đáp: câu trả lời của cán bộ đã được biên tập (không có tệp gốc). */
+function StaffBadge() {
+  return (
+    <span className="ml-1 inline-block rounded-full bg-ok-bg px-2 py-0.5 align-middle text-[11px] font-medium text-ok">
+      Cán bộ trả lời
+    </span>
   )
 }
 
@@ -188,5 +236,49 @@ function ReadArticleButton({ vanBanId, dieu }: { vanBanId: number; dieu: number 
         </span>
       )}
     </>
+  )
+}
+
+/** Dòng kết quả kiểm chứng dưới câu trả lời + nút "Hỏi cán bộ" khi có ý chưa có căn cứ. */
+export function VerificationBadge({
+  verification,
+  verifying,
+  onAskStaff,
+}: {
+  verification: Verification | null | undefined
+  verifying?: boolean
+  onAskStaff?: () => void
+}) {
+  if (!verification) {
+    return verifying ? (
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+        <LoaderCircle size={13} className="animate-spin" /> Đang kiểm chứng với văn bản…
+      </p>
+    ) : null
+  }
+  const summary = verificationSummary(verification)
+  if (!summary) return null
+  const { label, ok } = summary
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      <span
+        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${
+          ok ? 'bg-ok-bg text-ok' : 'bg-warn-bg text-warn'
+        }`}
+        title={`Mô hình kiểm chứng: ${verification.mo_hinh}`}
+      >
+        {ok ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+        {label}
+      </span>
+      {!ok && onAskStaff && (
+        <button
+          type="button"
+          onClick={onAskStaff}
+          className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-slate-600 hover:border-primary hover:text-primary"
+        >
+          <UserRound size={13} /> Hỏi cán bộ
+        </button>
+      )}
+    </div>
   )
 }

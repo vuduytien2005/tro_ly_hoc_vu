@@ -88,6 +88,7 @@ async def test_ctsv_tools() -> None:
         "request_student_certificate",
         "submit_deferral_request",
         "submit_regrade_request",
+        "ask_staff",
     }
     for tool in tools.values():
         assert next(iter(tool.input_schema["properties"])) == "ma_sv"
@@ -111,6 +112,7 @@ async def test_list_my_requests(qlsv_mock: respx.MockRouter) -> None:
         {
             "ma_don": "DT-2026-0001",
             "loai_don": "Giấy xác nhận sinh viên",
+            "ma_loai_don": "giay_xac_nhan_sv",
             "trang_thai": "đang xử lý",
             "ma_trang_thai": "dang_xu_ly",
             "tao_boi": "Sinh viên",
@@ -136,7 +138,7 @@ async def test_get_request_status(qlsv_mock: respx.MockRouter) -> None:
     out = await call_tool(
         ctsv.mcp, "get_request_status", {"ma_sv": "SV22001", "ma_don": "DT-2026-0001"}
     )
-    assert out["trang_thai"] == "đang xử lý"
+    assert out["trang_thai"] == "đang xử lý" and out["ma_loai_don"] == "giay_xac_nhan_sv"
     assert out["thong_bao"] == (
         "Giấy xác nhận sinh viên DT-2026-0001 đang ở trạng thái đang xử lý. "
         "Ghi chú: Nhận tại phòng A1.01"
@@ -164,3 +166,19 @@ async def test_other_students_request_is_not_found(qlsv_mock: respx.MockRouter) 
         ctsv.mcp, "get_request_status", {"ma_sv": "SV22001", "ma_don": "DT-2026-0002"}
     )
     assert out["ma_loi"] == "DON_KHONG_TON_TAI"
+
+
+async def test_answered_question_status_says_staff_answer(qlsv_mock: respx.MockRouter) -> None:
+    question = {
+        **REQUEST,
+        "loai_don": "hoi_dap",
+        "noi_dung": {"cau_hoi": "Học bổng xét theo học kỳ nào ạ?", "phong_ban": "ctsv"},
+        "trang_thai": "hoan_tat",
+        "ghi_chu_xu_ly": "Theo học kỳ liền trước.",
+    }
+    qlsv_mock.get("/internal/students/SV22001/requests/DT-2026-0001").respond(200, json=question)
+    out = await call_tool(
+        ctsv.mcp, "get_request_status", {"ma_sv": "SV22001", "ma_don": "DT-2026-0001"}
+    )
+    assert out["loai_don"] == "Câu hỏi gửi cán bộ" and out["ma_loai_don"] == "hoi_dap"
+    assert out["thong_bao"].endswith("Trả lời của cán bộ: Theo học kỳ liền trước.")

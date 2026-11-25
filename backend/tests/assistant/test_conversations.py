@@ -13,14 +13,18 @@ def test_crud_and_auto_title(
     client: TestClient, student: NguoiDung, script: Callable[..., FakeLLM]
 ) -> None:
     headers = login(client, student.email)
+    existing_ids = [c["id"] for c in client.get("/api/conversations", headers=headers).json()]
     created = client.post("/api/conversations", json={}, headers=headers).json()
     assert created["tieu_de"] == "Cuộc trò chuyện mới"
     assert created["created_at"].endswith("+07:00")
 
     script(FakeResponse(text="Chào em!"))
     chat(client, headers, created["id"], "  Xin chào   trợ lý  ")
+    # Tài khoản SV22001 có thể đã có hội thoại thật trên CSDL dev -> chỉ xét các hội thoại mới
+    before = set(existing_ids)
     listed = client.get("/api/conversations", headers=headers).json()
-    assert [c["id"] for c in listed] == [created["id"]]
+    assert [c["id"] for c in listed if c["id"] not in before] == [created["id"]]
+    assert listed[0]["id"] == created["id"]  # mới nhất lên đầu
     assert listed[0]["tieu_de"] == "Xin chào trợ lý"  # tiêu đề tự đặt từ câu hỏi đầu
 
     r = client.patch(
@@ -28,7 +32,8 @@ def test_crud_and_auto_title(
     )
     assert r.json()["tieu_de"] == "Hỏi thăm"
     assert client.delete(f"/api/conversations/{created['id']}", headers=headers).status_code == 204
-    assert client.get("/api/conversations", headers=headers).json() == []
+    remaining = client.get("/api/conversations", headers=headers).json()
+    assert {c["id"] for c in remaining} == before
 
 
 def test_messages_hide_tool_steps_and_include_citations(

@@ -587,3 +587,19 @@ def test_sweep_loop_survives_db_errors(caplog: pytest.LogCaptureFixture) -> None
     asyncio.run(run())
     assert calls >= 2  # lỗi không làm dừng việc nền
     assert any(r.getMessage().startswith("Dọn thẻ xác nhận quá hạn") for r in caplog.records)
+
+
+def test_describe_ask_staff() -> None:
+    import anyio
+
+    from src.assistant_api.agent.actions import describe
+    from src.assistant_api.agent.prompts import tool_label
+
+    args = {"ma_sv": "SV22001", "cau_hoi": "Học bổng xét theo học kỳ nào?", "phong_ban": "ctsv"}
+    mo_ta = anyio.run(describe, "ask_staff", args, _no_lookup)
+    assert mo_ta == 'Gửi câu hỏi tới Phòng Công tác sinh viên: "Học bổng xét theo học kỳ nào?"'
+    no_dept = anyio.run(
+        describe, "ask_staff", {"ma_sv": "x", "cau_hoi": "Câu hỏi khác ạ"}, _no_lookup
+    )
+    assert no_dept.startswith("Gửi câu hỏi tới cán bộ phụ trách:")
+    assert tool_label("ask_staff") == "Đang gửi câu hỏi cho cán bộ"

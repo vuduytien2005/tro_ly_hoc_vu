@@ -62,7 +62,8 @@ def test_read_five_students(qlsv_db: Session) -> None:
 
 def test_read_seed_tools(assistant_db: Session) -> None:
     # 16 công cụ ban đầu + plan_next_semester, register_courses_bundle (ý tưởng 3, nâng cấp 07)
-    assert assistant_db.scalar(select(func.count()).select_from(CongCu)) == 18
+    # + ask_staff (nâng cấp 09)
+    assert assistant_db.scalar(select(func.count()).select_from(CongCu)) == 19
     assert assistant_db.scalar(select(func.count()).select_from(McpServer)) == 4
 
     register = assistant_db.scalar(select(CongCu).where(CongCu.ten == "register_course"))
@@ -144,5 +145,40 @@ def test_write_round_trip_rolls_back() -> None:
             assert conv is not None and conv.tieu_de == "Hỏi về học phí"
             conv.tieu_de = "Đổi tiêu đề"
             db.flush()  # trigger trg_hoi_thoai_updated_at chạy được với UPDATE của ORM
+        finally:
+            db.rollback()
+
+
+def test_knowledge_base_round_trip_rolls_back() -> None:
+    """Nâng cấp 10: văn bản loại hoi_dap (không tệp) + bảng kho_hoi_dap (liên kết tin nhắn)."""
+    from src.assistant_api.models import KhoHoiDap, VanBan
+
+    _connect_or_fail(get_assistant_engine(), "assistant")
+    with assistant_session_factory()() as db:
+        try:
+            user = db.scalar(select(NguoiDung).where(NguoiDung.vai_tro == "admin"))
+            assert user is not None, "Chạy scripts/seed_users.py trước"
+            db.add(
+                VanBan(
+                    ten="Hỏi đáp cán bộ (test)",
+                    loai="hoi_dap",
+                    phien_ban="kho-test",
+                    ten_tep="",
+                    duong_dan_tep="",
+                )
+            )
+            entry = KhoHoiDap(
+                cau_hoi="Ký túc xá mở cửa đến mấy giờ?",
+                tra_loi="Ký túc xá đóng cửa lúc 23 giờ.",
+                phong_ban="ctsv",
+                ma_don="DT-2026-9999",
+                nguoi_tao_id=user.id,
+            )
+            db.add(entry)
+            db.flush()
+            db.expire_all()
+            saved = db.get(KhoHoiDap, entry.id)
+            assert saved is not None and saved.phong_ban == "ctsv" and saved.tin_nhan_id is None
+            assert saved.created_at is not None and saved.updated_at is not None
         finally:
             db.rollback()

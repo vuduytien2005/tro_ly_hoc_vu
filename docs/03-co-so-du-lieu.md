@@ -14,7 +14,7 @@ Tiền tố `tlhv_` (trợ lý học vụ) tránh trùng với CSDL có sẵn tr
 ## Cài đặt
 1. Cài SQL Server (bản **Express** miễn phí là đủ) + **SQL Server Management Studio (SSMS)** + **ODBC Driver 18 for SQL Server**.
    Máy phát triển hiện có instance `localhost\SQLEXPRESS01` (SQL Server 2025 Express).
-2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
+2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `09` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
    - **SSMS:** File → Open → chọn file → Execute (F5), lần lượt từng file.
    - **Dòng lệnh** (PowerShell, tại thư mục gốc dự án):
      ```powershell
@@ -160,3 +160,27 @@ erDiagram
   viên điền thêm biểu mẫu.
 - `hanh_dong_cho_xac_nhan.yeu_cau_bo_sung NVARCHAR(MAX) NULL CHECK ISJSON`: `{khoa, thong_diep, schema,
   request_state, vong}` — yêu cầu của server, để gọi lại công cụ khi sinh viên gửi biểu mẫu.
+
+## Nâng cấp 09 — Kiểm chứng câu trả lời + câu hỏi gửi cán bộ (23/11/2026)
+`database/09_nang_cap_kiem_chung_hoi_dap.sql` (nâng cấp CẢ HAI CSDL; chạy lại nhiều lần vẫn an toàn; máy
+cài mới chạy 01, 02, 04 là có). Thiết kế: `docs/superpowers/specs/2026-11-23-kiem-chung-va-hoi-can-bo-design.md`.
+- `tlhv_qlsv.don_tu.loai_don` thêm `hoi_dap` — câu hỏi sinh viên gửi cán bộ (`noi_dung = {cau_hoi,
+  phong_ban}`, `phong_ban` ∈ `dao_tao | ctsv | tai_chinh | khac`). Máy trạng thái riêng:
+  `moi_tao → dang_xu_ly | hoan_tat | tu_choi`, `dang_xu_ly → hoan_tat | tu_choi`; `hoan_tat` = đã trả
+  lời, **bắt buộc** `ghi_chu_xu_ly` (nội dung trả lời, thiếu → 422 `CAN_NOI_DUNG_TRA_LOI`);
+  `tu_choi` = ngoài phạm vi, vẫn cần lý do. Không có bước `da_duyet`.
+- `tlhv_assistant.cong_cu` thêm `ask_staff` (server `ctsv`, `ghi`, `can_xac_nhan = 1`) → 19 công cụ mẫu.
+- `tlhv_assistant.tin_nhan.kiem_chung NVARCHAR(MAX) NULL CHECK ISJSON` — kết quả LLM giám khảo
+  `{tong, co_can_cu, y: [{cau, ket_luan, doan, ly_do}], mo_hinh, thoi_gian_ms}`; NULL = không kiểm
+  chứng (lượt không tra cứu quy chế, `ANSWER_VERIFY=false`, hoặc giám khảo lỗi).
+
+## Nâng cấp 10 — Kho hỏi đáp cán bộ (25/11/2026)
+Script `database/10_nang_cap_kho_hoi_dap.sql` (chạy lại an toàn; máy cài mới đã có trong `02`):
+- `van_ban.loai` thêm `hoi_dap`: văn bản **"Hỏi đáp cán bộ"** (phien_ban `kho`, áp dụng mọi khóa,
+  KHÔNG có tệp — `ten_tep`, `duong_dan_tep` rỗng). Chỉ có một văn bản loại này; quy_che dựng đoạn từ
+  bảng `kho_hoi_dap` (mỗi mục một đoạn: `chuong` = tên phòng ban, `dieu` = "Hỏi đáp: <câu hỏi>").
+- Bảng `kho_hoi_dap(id, cau_hoi NVARCHAR(1000), tra_loi NVARCHAR(MAX), phong_ban CHECK(dao_tao|ctsv|
+  tai_chinh|khac), ma_don NULL, tin_nhan_id NULL → tin_nhan ON DELETE SET NULL, nguoi_tao_id → nguoi_dung,
+  created_at, updated_at)` — nguồn sự thật để sửa/gỡ; `ma_don`/`tin_nhan_id` = nguồn gốc (câu hỏi gửi
+  cán bộ / câu trả lời thiếu căn cứ). Không có trigger: code tự ghi `updated_at` (theo `DEMO_NOW`).
+Thiết kế: `docs/superpowers/specs/2026-11-25-kho-hoi-dap-va-lo-hong-tri-thuc-design.md`.

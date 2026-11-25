@@ -79,6 +79,7 @@ class RetrievedChunk:
     vector_rank: int | None = None
     keyword_rank: int | None = None
     rerank_score: float | None = None
+    loai: str = "quy_che"  # hoi_dap = kho hỏi đáp cán bộ (không có tệp gốc)
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -273,7 +274,7 @@ class Retriever:
         if not ids:
             return {}
         rows = db.execute(
-            select(DoanVanBan, VanBan.ten, VanBan.phien_ban)
+            select(DoanVanBan, VanBan.ten, VanBan.phien_ban, VanBan.loai)
             .join(VanBan, VanBan.id == DoanVanBan.van_ban_id)
             .where(DoanVanBan.id.in_(ids))
         )
@@ -290,8 +291,9 @@ class Retriever:
                 trang=d.trang,
                 noi_dung=d.noi_dung,
                 score=0.0,
+                loai=loai,
             )
-            for d, ten, phien_ban in rows
+            for d, ten, phien_ban, loai in rows
         }
 
 

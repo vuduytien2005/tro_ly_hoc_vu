@@ -55,6 +55,7 @@ from src.assistant_api.agent.registry import (
     ToolRegistry,
     inject_context,
 )
+from src.assistant_api.agent.verifier import verify_answer
 from src.assistant_api.models import HanhDongChoXacNhan, HoiThoai, NguoiDung, TinNhan
 from src.shared.config import get_settings
 from src.shared.time import from_db, to_db, wall_clock
@@ -208,12 +209,29 @@ def collect_sources(result: Any) -> dict[int, dict[str, Any]]:
                 "van_ban_id": d.get("van_ban_id"),
                 "van_ban": d.get("van_ban"),
                 "phien_ban": d.get("phien_ban"),
+                "loai": d.get("loai") or "quy_che",
                 "dieu": d.get("dieu"),
                 "khoan": d.get("khoan"),
                 "trang": d.get("trang"),
                 "trich_doan": excerpt(d.get("noi_dung")),
             }
     return sources
+
+
+def collect_passages(result: Any) -> dict[int, str]:
+    """Kết quả search_regulations -> {so: TOÀN VĂN đoạn, đã bỏ thẻ <tai_lieu>} cho giám khảo
+    kiểm chứng (chỉ giữ trong bộ nhớ của lượt, không lưu vào trich_dan)."""
+    if not isinstance(result, dict):
+        return {}
+    passages = {}
+    for d in result.get("doan") or []:
+        if (
+            isinstance(d, dict)
+            and isinstance(d.get("so"), int)
+            and isinstance(d.get("noi_dung"), str)
+        ):
+            passages[d["so"]] = TAG_RE.sub("", d["noi_dung"]).strip()
+    return passages
 
 
 def check_citations(
@@ -238,10 +256,16 @@ def check_citations(
 
 # ----- vòng lặp ------------------------------------------------------------------
 class AgentRunner:
-    def __init__(self, registry: ToolRegistry, llm: LLM) -> None:
+    def __init__(self, registry: ToolRegistry, llm: LLM, verifier_llm: LLM | None = None) -> None:
+        """`verifier_llm`: LLM giám khảo kiểm chứng câu trả lời quy chế (None = không chạy)."""
         self.registry = registry
         self.llm = llm
+        self.verifier_llm = verifier_llm
         settings = get_settings()
+        self.verifier_model = (
+            settings.verifier_model or getattr(verifier_llm, "model", "") or settings.llm_model
+        )
+        self.verifier_timeout = settings.verifier_timeout_seconds
         self.max_steps = settings.agent_max_steps
         self.history_limit = settings.agent_history_messages
         self.expire_minutes = settings.action_expire_minutes
@@ -441,6 +465,7 @@ class AgentRunner:
             *load_history(db, conversation.id, self.history_limit),
         ]
         sources: dict[int, dict[str, Any]] = {}
+        passages: dict[int, str] = {}
         tokens_in = tokens_out = 0
 
         for _step in range(self.max_steps):
@@ -460,7 +485,7 @@ class AgentRunner:
                     text = REFUSED if turn.refused else EMPTY
                     yield AgentEvent("token", {"text": text})
                 async for event in self._finish(
-                    db, conversation, text, sources, tokens_in, tokens_out, started
+                    db, conversation, text, sources, tokens_in, tokens_out, started, passages
                 ):
                     yield event
                 return
@@ -487,6 +512,7 @@ class AgentRunner:
                 outcome = await self._execute(db, user, conversation, call, policy)
                 if call.name == "search_regulations" and outcome.status == "thanh_cong":
                     sources = collect_sources(outcome.result)
+                    passages = collect_passages(outcome.result)
                 if direct:
                     yield AgentEvent("tool_end", {"ten": call.name, "trang_thai": outcome.status})
                 if "pending" in outcome.extra:
@@ -518,6 +544,7 @@ class AgentRunner:
         tokens_in: int,
         tokens_out: int,
         started: float,
+        passages: dict[int, str] | None = None,
     ) -> AsyncIterator[AgentEvent]:
         text, citations = check_citations(text, sources)
         message = TinNhan(
@@ -533,6 +560,23 @@ class AgentRunner:
         db.commit()
         if citations:
             yield AgentEvent("citations", citations)
+        if self.verifier_llm is not None and passages and text not in (TOO_COMPLEX, REFUSED, EMPTY):
+            # Kiểm chứng SAU khi câu trả lời đã hiện và đã lưu: lỗi giám khảo không ảnh hưởng gì
+            yield AgentEvent("verifying", {})
+            result, extra_in, extra_out = await verify_answer(
+                self.verifier_llm,
+                text,
+                passages,
+                model_name=self.verifier_model,
+                timeout=self.verifier_timeout,
+            )
+            # Token giám khảo tính vào tin nhắn: thống kê chi phí phản ánh đúng thực tế
+            message.so_token_vao = (message.so_token_vao or 0) + extra_in or None
+            message.so_token_ra = (message.so_token_ra or 0) + extra_out or None
+            message.kiem_chung = dict(result) if result else None
+            db.commit()
+            if result:
+                yield AgentEvent("verification", result)
         yield AgentEvent("done", {"tin_nhan_id": message.id})
 
     async def _execute(

@@ -23,7 +23,7 @@ router = APIRouter(
 
 Directory = Annotated[QlsvDirectory, Depends(qlsv_directory)]
 TrangThaiDon = Literal["moi_tao", "dang_xu_ly", "da_duyet", "tu_choi", "hoan_tat"]
-LoaiDon = Literal["giay_xac_nhan_sv", "bao_luu", "phuc_khao"]
+LoaiDon = Literal["giay_xac_nhan_sv", "bao_luu", "phuc_khao", "hoi_dap"]
 
 
 class ReviewIn(BaseModel):

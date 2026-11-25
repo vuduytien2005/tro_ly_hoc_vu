@@ -1,0 +1,8 @@
+# TN5 — giám khảo cục bộ qua Ollama (ollama pull qwen2.5:7b). Chạy:
+#   python evaluation/run_verifier.py --config verifier_ollama
+ma: verifier_ollama
+ten: "Giám khảo Qwen2.5 7B cục bộ (Ollama)"
+du_lieu: evaluation/datasets/verifier_cases.jsonl
+verifier_model: ollama_chat/qwen2.5:7b
+timeout_giay: 600
+llm_num_ctx: 8192

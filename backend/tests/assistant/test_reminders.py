@@ -254,3 +254,21 @@ def test_reminders_api_includes_processed_request(
     [item] = [x for x in r.json()["nhac_viec"] if x["loai"] == "don"]
     assert item["tieu_de"] == "Đơn phúc khảo đã được duyệt"
     assert item["han"] == "2026-11-22"
+
+
+def test_answered_question_is_reminded() -> None:
+    question = {
+        **req("hoan_tat", "2026-11-22", "DT-9"),
+        "loai_don": "Câu hỏi gửi cán bộ",
+        "ma_loai_don": "hoi_dap",
+    }
+    [r] = build_reminders(None, None, None, TODAY, {"don": [question]})
+    assert r["tieu_de"] == "Câu hỏi của em đã được cán bộ trả lời"
+    assert r["muc_do"] == "sap_toi" and r["loai"] == "don"
+    assert r["cau_hoi"] == "Cán bộ trả lời câu hỏi DT-9 của em thế nào?"
+
+
+def test_declined_question_is_urgent() -> None:
+    question = {**req("tu_choi", "2026-11-22", "DT-8"), "ma_loai_don": "hoi_dap"}
+    [r] = build_reminders(None, None, None, TODAY, {"don": [question]})
+    assert r["muc_do"] == "khan" and "DT-8" in r["cau_hoi"]

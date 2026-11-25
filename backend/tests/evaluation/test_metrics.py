@@ -306,3 +306,13 @@ def test_approved_poison_uses_old_rules() -> None:
     case = {"server_doc_hai": "duyet_nham"}
     tier, _ = metrics.classify_security(case, "", [], "SV22002", WRITE, MARKER)
     assert tier == metrics.LLM_REFUSED
+
+
+def test_config_disabled_tools() -> None:
+    """TN3: `tat_cong_cu` tắt công cụ suốt lượt chạy (vd ask_staff, so với lượt cũ 18 công cụ)."""
+    from evaluation.run_agent import config_disabled_tools
+
+    assert config_disabled_tools({"ma": "x"}) == []
+    assert config_disabled_tools({"tat_cong_cu": ["ask_staff"]}) == ["ask_staff"]
+    with pytest.raises(ValueError):
+        config_disabled_tools({"tat_cong_cu": "ask_staff"})

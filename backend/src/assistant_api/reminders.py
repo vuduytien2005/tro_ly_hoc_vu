@@ -132,6 +132,17 @@ def _requests(data: dict[str, Any], today: date) -> Iterable[Reminder]:
             continue
         rejected = d["ma_trang_thai"] == "tu_choi"
         ma_don = d["ma_don"]
+        if d.get("ma_loai_don") == "hoi_dap" and d["ma_trang_thai"] == "hoan_tat":
+            yield Reminder(
+                loai="don",
+                muc_do="sap_toi",
+                tieu_de="Câu hỏi của em đã được cán bộ trả lời",
+                chi_tiet=f"Mã {ma_don}, trả lời {_ago(days)} ({_vn(changed)}).",
+                han=changed.isoformat(),
+                con_ngay=-days,
+                cau_hoi=f"Cán bộ trả lời câu hỏi {ma_don} của em thế nào?",
+            )
+            continue
         yield Reminder(
             loai="don",
             # bị từ chối: sinh viên cần làm lại / bổ sung -> khẩn; còn lại chỉ để biết

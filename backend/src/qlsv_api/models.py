@@ -243,7 +243,7 @@ class DonTu(QlsvBase):
     ma_don: Mapped[str] = mapped_column(Unicode(30), unique=True)
     sinh_vien_id: Mapped[int] = mapped_column(ForeignKey("sinh_vien.id"))
     loai_don: Mapped[str] = mapped_column(
-        Enum("giay_xac_nhan_sv", "bao_luu", "phuc_khao", name="loai_don")
+        Enum("giay_xac_nhan_sv", "bao_luu", "phuc_khao", "hoi_dap", name="loai_don")
     )
     noi_dung: Mapped[dict[str, Any]] = mapped_column(JSON(none_as_null=True))
     trang_thai: Mapped[str] = mapped_column(

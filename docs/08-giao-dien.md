@@ -31,6 +31,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 - **Trích dẫn:** `[1]` hiển thị dạng nút nhỏ; bên dưới câu trả lời có các thẻ "Nguồn tham khảo" (văn bản, Điều, trang). Bấm `[n]` mở popover: tên văn bản (phiên bản), Điều/Khoản/trang và trích đoạn (`trich_doan`, ≤ 300 ký tự).
 - **Thẻ xác nhận hành động:** viền xanh nhạt, tiêu đề "Đề xuất thực hiện", mô tả, đồng hồ "Hết hạn sau 09:41", hai nút "Hủy" / "Xác nhận". Sau khi xử lý: chuyển thành trạng thái "Đã xác nhận ✓" hoặc "Đã hủy" (không bấm lại được).
   - Cài đặt (GĐ7): sau khi bấm, thẻ biến mất và trong luồng chat hiện dòng trạng thái từ tin hệ thống lưu ở backend ("Đã xác nhận: <mô tả>" nền xanh lá / "Đã hủy: <mô tả>"), nên tải lại trang vẫn đúng. Hết giờ (theo `het_han_luc`) thì thẻ khóa nút, hiện "Đã hết hạn". Backend trả 409 (đã xử lý / hết hạn) thì thẻ hiện thông báo lỗi.
+- **Kiểm chứng câu trả lời** (23/11/2026, chỉ câu trả lời có tra cứu quy chế): sau khi chữ hiện xong, dòng nhỏ "Đang kiểm chứng với văn bản…", rồi nhãn "Đã kiểm chứng x/y ý với văn bản" (xanh khi đủ, vàng khi thiếu; rê chuột thấy mô hình giám khảo). Ý không có căn cứ được **gạch chân chấm vàng**, rê chuột thấy lý do. Có ý thiếu căn cứ → nút **"Hỏi cán bộ"** điền sẵn ô chat "Mình muốn gửi câu hỏi này cho cán bộ phòng ban phụ trách." (không tự gửi; trợ lý sẽ đề nghị `ask_staff` và hiện thẻ xác nhận). Lịch sử tải lại vẫn hiện đúng (đọc `kiem_chung`).
 - **Đánh giá:** nút 👍/👎 (dùng icon, không dùng emoji) dưới câu trả lời; 👎 mở ô góp ý.
 - **Ô nhập:** textarea tự giãn, Enter gửi, Shift+Enter xuống dòng; dòng nhắc "Câu trả lời do AI tạo, hãy đối chiếu văn bản gốc".
 - **Câu hỏi gợi ý** khi hội thoại trống: "Em còn thiếu gì để tốt nghiệp?", "Lịch thi của em", "Học lại môn bị F thế nào?", "Xin giấy xác nhận sinh viên".
@@ -39,7 +40,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
   - hàng nút **câu hỏi soạn sẵn** trên ô nhập (`web/src/lib/demoPrompts.ts`, nguyên văn `docs/kich-ban-demo.md`): bấm = điền vào ô, chưa gửi.
 
 ## Trang "Thủ tục của em"
-Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên / Trợ lý AI), trạng thái (badge màu). Bấm xem chi tiết nội dung đơn và ghi chú xử lý.
+Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên / Trợ lý AI), trạng thái (badge màu). Bấm xem chi tiết nội dung đơn và ghi chú xử lý. Câu hỏi gửi cán bộ (`hoi_dap`): chi tiết hiện "Câu hỏi", "Gửi tới" (tên phòng ban) và mục **"Trả lời của cán bộ"**.
 
 ## Trang quản trị
 - **Tài liệu:** vùng kéo thả, form khai báo phiên bản + khóa áp dụng, bảng trạng thái (Đang xử lý / Đã lập chỉ mục / Lỗi), số đoạn.
@@ -51,3 +52,24 @@ Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên /
 - **Nhật ký:** công tắc **"Tự cập nhật"** (3 giây/lần, dòng mới nổi bật ~1 giây — dùng khi demo, không phải F5); bảng thời gian, người dùng, server/tool, trạng thái, thời gian xử lý; bấm dòng mở ngăn chi tiết JSON. Nếu `tham_so_llm` khác `tham_so` → tô vàng "Đã tiêm ngữ cảnh".
 - **Đơn từ** (bổ sung 23/11/2026): quản trị viên đóng vai cán bộ phòng CTSV. Lọc trạng thái (mặc định "Mới tạo") và loại đơn; bảng mã đơn, sinh viên, loại (kèm "Trợ lý AI"/"Sinh viên" tạo), thời điểm nộp, trạng thái. Nút "Xử lý" mở ngăn chi tiết: nội dung đơn, ô ghi chú gửi sinh viên (bắt buộc khi từ chối), chỉ hiện các nút bước kế tiếp hợp lệ (Nhận xử lý / Duyệt / Từ chối / Hoàn tất). Kết quả hiện ngay ở "Thủ tục của em".
 - **Thống kê:** 4 thẻ số liệu, biểu đồ chủ đề/tool dùng nhiều, danh sách câu trả lời bị đánh giá "chưa đúng".
+
+### Trang "Đơn từ" — câu hỏi gửi cán bộ (bổ sung 23/11/2026)
+Bộ lọc loại có "Câu hỏi cán bộ". Mở một câu hỏi: hiện câu hỏi + phòng ban; ô nhập đổi thành
+"Nội dung trả lời"; nút: "Nhận xử lý", **"Trả lời"** (= `hoan_tat`, bắt buộc có nội dung), "Từ
+chối" (ngoài phạm vi, cần lý do). Không có nút "Duyệt".
+
+### Trang "Tri thức" (`/admin/tri-thuc`, bổ sung 25/11/2026)
+Hai thẻ:
+- **Lỗ hổng tri thức** — chọn khoảng thời gian (7/30/90/365 ngày), 4 nút lọc kèm số đếm: *Thiếu căn cứ*
+  (ý bị giám khảo gắn, gạch chân chấm vàng + lý do), *Không tìm thấy* (trợ lý đã tra cứu nhưng văn
+  bản không có), *Hỏi cán bộ* (câu hỏi `hoi_dap`, trạng thái, câu trả lời của cán bộ), *Đánh giá 👎*
+  (góp ý). Mỗi mục hiện câu hỏi của sinh viên (không có tên / mã SV), nhãn "Đã có trong kho" nếu đã
+  viết, nút **"Viết câu trả lời vào kho"** (mở form điền sẵn).
+- **Kho hỏi đáp** — dòng trạng thái ("Trợ lý đang dùng N mục" / đang lập chỉ mục (tự cập nhật mỗi 2 giây)
+  / lỗi), danh sách mục (phòng ban, nguồn gốc, câu hỏi, trả lời) với nút Sửa / Gỡ.
+Form thêm/sửa (ngăn kéo bên phải): khung cảnh báo "Kho trả cho MỌI sinh viên — bỏ tên, mã SV, số điện
+thoại, email, hoàn cảnh riêng", cảnh báo tức thì khi gõ phải thông tin cá nhân, nút "Lưu và cập nhật
+trợ lý". Trang "Đơn từ": câu hỏi `hoi_dap` đã trả lời có khung **"Đưa vào kho hỏi đáp"** → mở trang
+Tri thức với form điền sẵn. Trang "Tài liệu": văn bản kho ghi "Hỏi đáp cán bộ · không có tệp, quản lý
+ở trang Tri thức", nút xóa bị khóa. Chat: trích dẫn từ kho có nhãn xanh **"Cán bộ trả lời"**, không có
+nút mở văn bản gốc.

@@ -38,6 +38,7 @@ INSERT INTO cong_cu (mcp_server_id, ten, mo_ta, muc_rui_ro, can_xac_nhan, bat) V
 (2, N'submit_regrade_request',     N'Nộp đơn phúc khảo điểm thi',                          N'ghi',      1, 1),
 (2, N'list_my_requests',           N'Xem danh sách đơn đã gửi',                            N'doc',      0, 1),
 (2, N'get_request_status',         N'Xem trạng thái một đơn',                              N'doc',      0, 1),
+(2, N'ask_staff',                  N'Gửi câu hỏi cho cán bộ phòng ban',                    N'ghi',      1, 1),
 -- tai_chinh
 (3, N'get_tuition_status',         N'Xem tình trạng học phí',                              N'doc',      0, 1),
 -- quy_che

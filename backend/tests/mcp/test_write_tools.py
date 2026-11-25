@@ -161,3 +161,31 @@ async def test_write_tools_have_injected_ma_sv_first() -> None:
             schema = tools[name].input_schema
             assert next(iter(schema["properties"])) == "ma_sv"
             assert "ma_sv" not in (tools[name].description or "")
+
+
+QUESTION = "Học bổng khuyến khích học tập xét theo điểm học kỳ nào ạ?"
+
+
+async def test_ask_staff_creates_question(qlsv_mock: respx.MockRouter) -> None:
+    route = qlsv_mock.post("/internal/students/SV22001/requests").respond(
+        201, json=request_out("hoi_dap", {"cau_hoi": QUESTION, "phong_ban": "ctsv"})
+    )
+    out = await call_tool(
+        ctsv.mcp, "ask_staff", {"ma_sv": "SV22001", "cau_hoi": QUESTION, "phong_ban": "ctsv"}
+    )
+    assert json.loads(route.calls.last.request.content) == {
+        "loai_don": "hoi_dap",
+        "noi_dung": {"cau_hoi": QUESTION, "phong_ban": "ctsv"},
+        "tao_boi": "tro_ly_ai",
+    }
+    assert out["thanh_cong"] is True and out["loai_don"] == "Câu hỏi gửi cán bộ"
+
+
+async def test_ask_staff_schema_hides_ma_sv_and_limits_question() -> None:
+    from src.mcp_servers.common import INJECTED_NOTE
+
+    schema = (await list_tools(ctsv.mcp))["ask_staff"].input_schema
+    assert INJECTED_NOTE in schema["properties"]["ma_sv"]["description"]
+    assert schema["properties"]["cau_hoi"]["minLength"] == 10
+    assert schema["properties"]["cau_hoi"]["maxLength"] == 1000
+    assert "phong_ban" not in schema.get("required", [])

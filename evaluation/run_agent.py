@@ -96,6 +96,17 @@ def evaluate(case: dict[str, Any], harness: AgentHarness) -> dict[str, Any]:
     }
 
 
+def config_disabled_tools(config: dict[str, Any]) -> list[str]:
+    """Danh sách công cụ cần TẮT suốt lượt chạy (khóa `tat_cong_cu` trong cấu hình).
+
+    Vd `tat_cong_cu: [ask_staff]` để so sánh công bằng với lượt TN3 trước 23/11/2026
+    (18 công cụ)."""
+    names = config.get("tat_cong_cu") or []
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise ValueError("tat_cong_cu phải là danh sách tên công cụ")
+    return names
+
+
 def summarize(config: dict[str, Any], rows: list[dict[str, Any]], usage: dict[str, Any]) -> dict:
     seconds = [r["thoi_gian_s"] for r in rows]
     ttft = metrics.latency_summary([r.get("ttft_s") for r in rows])
@@ -193,7 +204,10 @@ def main() -> int:
     for c in configs:
         cases = read_jsonl(args.du_lieu or dataset_path(c, "agent_scenarios.jsonl"), args.limit)
         print(f"\n== {c['ma']}: {c.get('ten', '')} ({len(cases)} kịch bản)")
-        with AgentHarness(c, args.dry_run) as harness:
+        disabled = config_disabled_tools(c)
+        if disabled:
+            print(f"   (tắt công cụ: {', '.join(disabled)})")
+        with AgentHarness(c, args.dry_run) as harness, harness.tools_disabled(disabled):
             rows = []
             results_usage = []
             for i, case in enumerate(cases, start=1):

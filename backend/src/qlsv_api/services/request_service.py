@@ -37,6 +37,18 @@ NEXT_STATUSES: dict[str, set[str]] = {
     "dang_xu_ly": {"da_duyet", "tu_choi"},
     "da_duyet": {"hoan_tat"},
 }
+# Câu hỏi gửi cán bộ: không có bước "duyệt"; hoan_tat = đã trả lời (bắt buộc có nội dung trả lời),
+# tu_choi = không thuộc phạm vi (vẫn cần lý do).
+QUESTION_NEXT_STATUSES: dict[str, set[str]] = {
+    "moi_tao": {"dang_xu_ly", "hoan_tat", "tu_choi"},
+    "dang_xu_ly": {"hoan_tat", "tu_choi"},
+}
+
+
+def next_statuses(loai_don: str, current: str) -> set[str]:
+    """Các trạng thái kế tiếp hợp lệ của một đơn theo loại."""
+    machine = QUESTION_NEXT_STATUSES if loai_don == "hoi_dap" else NEXT_STATUSES
+    return machine.get(current, set())
 
 
 def _to_out(don: DonTu) -> RequestOut:
@@ -163,7 +175,7 @@ def get_request(db: Session, ma_sv: str, ma_don: str) -> RequestOut:
 def update_status(
     db: Session, ma_don: str, trang_thai: str, ghi_chu_xu_ly: str | None, now: datetime
 ) -> RequestOut:
-    """(Cán bộ) chuyển trạng thái đơn theo NEXT_STATUSES. Không commit."""
+    """(Cán bộ) chuyển trạng thái đơn theo next_statuses(loại đơn). Không commit."""
     don = request_repo.get_by_ma_don_for_update(db, ma_don)
     if don is None:
         raise not_found("DON_KHONG_TON_TAI", f"Không tìm thấy đơn {ma_don}.")
@@ -171,7 +183,7 @@ def update_status(
         raise conflict(
             "DON_DA_KET_THUC", f"Đơn {ma_don} đã ở trạng thái '{don.trang_thai}', không thể sửa."
         )
-    if trang_thai not in NEXT_STATUSES.get(don.trang_thai, set()):
+    if trang_thai not in next_statuses(don.loai_don, don.trang_thai):
         raise conflict(
             "CHUYEN_TRANG_THAI_KHONG_HOP_LE",
             f"Không thể chuyển đơn {ma_don} từ '{don.trang_thai}' sang '{trang_thai}'.",
@@ -179,6 +191,8 @@ def update_status(
     note = ghi_chu_xu_ly.strip() if ghi_chu_xu_ly else None
     if trang_thai == "tu_choi" and not note:
         raise invalid("CAN_LY_DO_TU_CHOI", "Từ chối đơn cần ghi rõ lý do cho sinh viên.")
+    if don.loai_don == "hoi_dap" and trang_thai == "hoan_tat" and not note:
+        raise invalid("CAN_NOI_DUNG_TRA_LOI", "Cần nhập nội dung trả lời cho sinh viên.")
     don.trang_thai = trang_thai
     if note:
         don.ghi_chu_xu_ly = note

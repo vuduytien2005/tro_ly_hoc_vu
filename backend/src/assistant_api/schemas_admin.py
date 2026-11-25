@@ -325,3 +325,51 @@ class StudentCreateAdminOut(BaseModel):
     sinh_vien: StudentAdminOut
     tai_khoan: AccountOut | None
     canh_bao: str | None = None  # hồ sơ đã thêm nhưng chưa cấp được tài khoản
+
+
+# ----- Kho hỏi đáp cán bộ (nâng cấp 10) -----------------------------------------
+PhongBan = Literal["dao_tao", "ctsv", "tai_chinh", "khac"]
+CauHoiKho = Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=1000)]
+TraLoiKho = Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=4000)]
+
+
+class KnowledgeIn(BaseModel):
+    cau_hoi: CauHoiKho
+    tra_loi: TraLoiKho
+    phong_ban: PhongBan = "khac"
+    ma_don: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=30)] = None
+    tin_nhan_id: int | None = None
+
+
+class KnowledgeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    cau_hoi: str
+    tra_loi: str
+    phong_ban: str
+    ma_don: str | None
+    tin_nhan_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+    _tz = field_validator("created_at", "updated_at", mode="after")(_aware)
+
+
+class KnowledgeDocOut(BaseModel):
+    """Trạng thái lập chỉ mục của văn bản kho ("Hỏi đáp cán bộ")."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    trang_thai: str
+    so_doan: int
+    loi: str | None
+    updated_at: datetime
+
+    _tz = field_validator("updated_at", mode="after")(_aware)
+
+
+class KnowledgeList(BaseModel):
+    van_ban: KnowledgeDocOut | None
+    muc: list[KnowledgeOut]

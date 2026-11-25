@@ -9,12 +9,12 @@ Khóa luận tốt nghiệp ngành Công nghệ phần mềm. Một người là
 1. **qlsv_api** – Hệ thống quản lý sinh viên GIẢ LẬP (FastAPI + SQL Server `tlhv_qlsv`). Đóng vai "hệ thống thật của trường" để Agent thao tác. Chỉ nhận request nội bộ có header `X-Internal-Token`.
 2. **mcp_servers** – 4 MCP server (Python SDK `mcp` 2.x, lớp `MCPServer`, transport streamable HTTP):
    - `dao_tao` (cổng 9101): hồ sơ, bảng điểm, lịch thi, tiến độ tốt nghiệp, đăng ký học phần, lập kế hoạch học kỳ tới, đăng ký cả gói (một thẻ xác nhận, nguyên khối — bổ sung 20/11/2026, nâng cấp CSDL `07`).
-   - `ctsv` (9102): giấy xác nhận sinh viên, đơn bảo lưu, đơn phúc khảo, tra cứu đơn.
+   - `ctsv` (9102): giấy xác nhận sinh viên, đơn bảo lưu, đơn phúc khảo, tra cứu đơn, gửi câu hỏi cho cán bộ (`ask_staff`, đơn loại `hoi_dap`, cần xác nhận — bổ sung 23/11/2026, nâng cấp CSDL `09`).
    - `tai_chinh` (9103): tình trạng học phí.
-   - `quy_che` (9104): tra cứu quy chế bằng RAG (nhánh RAG cũng là một MCP server).
+   - `quy_che` (9104): tra cứu quy chế bằng RAG (nhánh RAG cũng là một MCP server). Kho hỏi đáp cán bộ (văn bản loại `hoi_dap` dựng từ bảng `kho_hoi_dap`, quản lý ở trang "Tri thức") được tìm và trích dẫn như văn bản — bổ sung 25/11/2026, nâng cấp CSDL `10`.
    - `thu_vien` (9105, bổ sung 20/11/2026): sách đang mượn, tìm sách, gia hạn. KHÔNG có trong seed — quản trị viên thêm trên trang "MCP & quyền" (AD-11), công cụ mới mặc định tắt, bật = duyệt (mã băm `cong_cu.ban_duyet`).
 3. **rag** – Thư viện dùng chung: đọc PDF/DOCX → chia đoạn theo Chương/Điều/Khoản → embedding → ChromaDB + BM25 (Python, `rank-bm25`) → hybrid search (RRF) → (tuỳ chọn) rerank.
-4. **assistant_api** – Backend trợ lý (FastAPI + SQL Server `tlhv_assistant`, cổng 8000): đăng nhập JWT, hội thoại, **vòng lặp Agent** (LLM qua LiteLLM + MCP client), cơ chế **xác nhận hành động**, **nhật ký** gọi công cụ, API quản trị.
+4. **assistant_api** – Backend trợ lý (FastAPI + SQL Server `tlhv_assistant`, cổng 8000): đăng nhập JWT, hội thoại, **vòng lặp Agent** (LLM qua LiteLLM + MCP client), cơ chế **xác nhận hành động**, **nhật ký** gọi công cụ, API quản trị, **kiểm chứng câu trả lời** quy chế bằng LLM giám khảo (`agent/verifier.py`, `ANSWER_VERIFY`).
 5. **web** – React + Vite + TypeScript + TailwindCSS (cổng 5173): giao diện sinh viên (chat, "Thủ tục của em") và quản trị (tài liệu, MCP & quyền, nhật ký, thống kê).
 6. **evaluation** – Script thực nghiệm cho Chương 4 (RAG, Agent, an toàn).
 

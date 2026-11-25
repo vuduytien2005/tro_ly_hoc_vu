@@ -288,4 +288,13 @@ export const REQUEST_KIND: Record<string, string> = {
   giay_xac_nhan_sv: 'Giấy xác nhận sinh viên',
   bao_luu: 'Bảo lưu',
   phuc_khao: 'Phúc khảo',
+  hoi_dap: 'Câu hỏi cán bộ',
+}
+
+/** Phòng ban nhận câu hỏi (noi_dung.phong_ban của đơn hoi_dap). */
+export const DEPARTMENTS: Record<string, string> = {
+  dao_tao: 'Phòng Đào tạo',
+  ctsv: 'Phòng Công tác sinh viên',
+  tai_chinh: 'Phòng Kế hoạch – Tài chính',
+  khac: 'Chưa rõ (cán bộ phụ trách)',
 }

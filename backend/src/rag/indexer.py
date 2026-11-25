@@ -19,7 +19,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from src.assistant_api.models import DoanVanBan, VanBan
 from src.rag import cleaner, loader
-from src.rag.chunker import DocumentInfo, chunk_document
+from src.rag.chunker import Chunk, DocumentInfo, chunk_document
 from src.rag.embedder import Embedder
 from src.rag.store import OPEN_FROM, OPEN_TO, VectorStore
 from src.shared.time import now, to_db
@@ -110,6 +110,29 @@ def index_document(
         raise ValueError("Không trích được nội dung nào từ tệp.")
     t2 = time.perf_counter()
 
+    van_ban_id = index_chunks(db, store, embedder, chunks, meta)
+    t3 = time.perf_counter()
+
+    return IndexResult(
+        van_ban_id=van_ban_id,
+        so_trang=len(pages),
+        so_doan=len(chunks),
+        chien_luoc=used_strategy,
+        giay_doc=t1 - t0,
+        giay_chia=t2 - t1,
+        giay_embedding=t3 - t2,
+        giay_tong=t3 - t0,
+    )
+
+
+def index_chunks(
+    db: Session, store: VectorStore, embedder: Embedder, chunks: list[Chunk], meta: DocumentMeta
+) -> int:
+    """Ghi các đoạn đã chia sẵn (thay toàn bộ đoạn + vector cũ) -> `da_lap_chi_muc`. Dùng chung cho
+    tệp (`index_document`) và kho hỏi đáp (đoạn dựng từ CSDL, không có tệp). Không commit.
+    Trả van_ban_id."""
+    if not chunks:
+        raise ValueError("Không có đoạn nào để lập chỉ mục.")
     van_ban = _upsert_document(db, meta)
     db.execute(delete(DoanVanBan).where(DoanVanBan.van_ban_id == van_ban.id))
     store.delete_document(van_ban.id)
@@ -154,22 +177,12 @@ def index_document(
             for r in rows
         ],
     )
-    t3 = time.perf_counter()
 
     van_ban.trang_thai = "da_lap_chi_muc"
     van_ban.so_doan = len(rows)
     _touch(van_ban)
     db.flush()
-    return IndexResult(
-        van_ban_id=van_ban.id,
-        so_trang=len(pages),
-        so_doan=len(rows),
-        chien_luoc=used_strategy,
-        giay_doc=t1 - t0,
-        giay_chia=t2 - t1,
-        giay_embedding=t3 - t2,
-        giay_tong=t3 - t0,
-    )
+    return van_ban.id
 
 
 def mark_failed(db: Session, meta: DocumentMeta, message: str) -> None:

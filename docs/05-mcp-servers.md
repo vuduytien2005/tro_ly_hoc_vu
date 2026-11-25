@@ -53,7 +53,8 @@ async def register_course(
 | `submit_deferral_request` | `ly_do: str`, `so_hoc_ky: int = 1` (1–2), `tu_hoc_ky: str`; `lien_he` do resolver điền qua **MCP elicitation** (không có trong schema) | {ma_don} hoặc lỗi (NO_HOC_PHI...) | **nhạy cảm, xác nhận** |
 | `submit_regrade_request` | `ma_hp: str`, `ly_do: str` | {ma_don} hoặc lỗi | **ghi, xác nhận** |
 | `list_my_requests` | `trang_thai: str \| None` | [{ma_don, loai_don, trang_thai, created_at}] | đọc |
-| `get_request_status` | `ma_don: str` | chi tiết đơn | đọc |
+| `get_request_status` | `ma_don: str` | chi tiết đơn (+ `ma_loai_don`; với `hoi_dap` ghi chú là "Trả lời của cán bộ") | đọc |
+| `ask_staff` *(23/11/2026)* | `cau_hoi: str` (10–1000), `phong_ban: dao_tao\|ctsv\|tai_chinh\|khac = khac` | {ma_don} — đơn loại `hoi_dap`, cán bộ trả lời ở trang "Đơn từ" | **ghi, xác nhận** |
 
 - Tool ghi (cả `dao_tao`) **không tự kiểm tra xác nhận**: việc chặn thuộc assistant_api (bảng `cong_cu.can_xac_nhan`). MCP server chỉ thực thi khi được gọi, nên có thể dùng lại với ứng dụng MCP khác — khi đó ứng dụng đó phải tự xin xác nhận người dùng.
 - Đơn do trợ lý tạo gửi `tao_boi = "tro_ly_ai"` sang qlsv_api (phân biệt với đơn sinh viên tự nộp).
@@ -67,7 +68,7 @@ async def register_course(
 ## 4. Server `quy_che` (:9104) — nhánh RAG
 | Tool | Tham số | Trả về | Rủi ro |
 |---|---|---|---|
-| `search_regulations` | `ma_khoa: str` [INJECTED], `cau_hoi: str`, `top_k: int = 5` (≤ 8) | `{"doan": [{"so", "doan_id", "van_ban_id", "van_ban", "phien_ban", "dieu", "khoan", "trang", "noi_dung"}], "ghi_chu": "..."}` — `noi_dung` bọc trong `<tai_lieu>...</tai_lieu>` | đọc |
+| `search_regulations` | `ma_khoa: str` [INJECTED], `cau_hoi: str`, `top_k: int = 5` (≤ 8) | `{"doan": [{"so", "doan_id", "van_ban_id", "van_ban", "phien_ban", "loai", "dieu", "khoan", "trang", "noi_dung"}], "ghi_chu": "..."}` (`loai` thêm 25/11/2026: `hoi_dap` = kho hỏi đáp cán bộ; chỉ đổi dữ liệu trả về, không đổi docstring/schema → mã băm duyệt giữ nguyên) — `noi_dung` bọc trong `<tai_lieu>...</tai_lieu>` | đọc |
 | `get_article` | `van_ban_id: int`, `dieu: str` | toàn văn các đoạn thuộc Điều đó | đọc |
 
 - `search_regulations` không cần `ma_sv`, chỉ cần `ma_khoa` để lọc phiên bản.
@@ -119,3 +120,13 @@ Lỗi: `KHONG_TIM_THAY_LUOT_MUON`, `DA_TRA_SACH`, `SACH_QUA_HAN`, `HET_LUOT_GIA_
 - Kết quả công cụ và `get_request_status` KHÔNG trả lại SĐT/email (thay bằng "Đã cung cấp qua biểu
   mẫu (ẩn với trợ lý AI)") vì kết quả đi vào prompt LLM.
 - Luồng ở assistant_api, CSDL, giao diện: `docs/superpowers/specs/2026-11-23-mcp-elicitation-resources-design.md`.
+
+## 8. Chuyển câu hỏi cho cán bộ — `ctsv.ask_staff` (bổ sung 23/11/2026)
+Khi văn bản không có căn cứ (hoặc kiểm chứng thấy câu trả lời thiếu căn cứ) hay sinh viên muốn hỏi
+người thật, trợ lý đề nghị gửi câu hỏi; sinh viên đồng ý thì LLM gọi `ask_staff` với câu hỏi viết
+lại đầy đủ (cán bộ không xem được cuộc trò chuyện). Công cụ ghi → thẻ xác nhận ("Gửi câu hỏi tới
+Phòng Công tác sinh viên: …"), nhật ký như mọi công cụ. Câu hỏi là đơn `hoi_dap` trong `don_tu`
+(máy trạng thái riêng, docs/03 nâng cấp 09); cán bộ trả lời ở trang "Đơn từ", sinh viên thấy
+trả lời ở "Thủ tục của em", chuông nhắc việc, hoặc hỏi trợ lý (`get_request_status`).
+`list_my_requests` / `get_request_status` trả thêm `ma_loai_don` (chỉ đổi dữ liệu trả về, KHÔNG đổi
+docstring/schema → mã băm duyệt của hai công cụ giữ nguyên). Thiết kế: `docs/superpowers/specs/2026-11-23-kiem-chung-va-hoi-can-bo-design.md`.

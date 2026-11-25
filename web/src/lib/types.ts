@@ -34,10 +34,28 @@ export interface Citation {
   van_ban_id: number | null
   van_ban: string | null
   phien_ban: string | null
+  /** hoi_dap = kho hỏi đáp cán bộ (không có tệp gốc); tin nhắn cũ không có trường này. */
+  loai?: string | null
   dieu: string | null
   khoan: string | null
   trang: number | null
   trich_doan: string | null
+}
+
+/** Kết quả LLM giám khảo kiểm chứng câu trả lời quy chế (agent/verifier.py). */
+export interface VerifiedClaim {
+  cau: string
+  ket_luan: 'co_can_cu' | 'khong_co_can_cu'
+  doan: number[]
+  ly_do: string
+}
+
+export interface Verification {
+  tong: number
+  co_can_cu: number
+  y: VerifiedClaim[]
+  mo_hinh: string
+  thoi_gian_ms: number
 }
 
 export interface Message {
@@ -45,6 +63,7 @@ export interface Message {
   vai_tro: 'user' | 'assistant'
   noi_dung: string
   trich_dan: Citation[] | null
+  kiem_chung?: Verification | null
   danh_gia: 1 | -1 | null
   created_at: string
 }
@@ -69,6 +88,8 @@ export type AgentEvent =
   | { event: 'tool_start'; data: { ten: string; nhan: string } }
   | { event: 'tool_end'; data: { ten: string; trang_thai: string } }
   | { event: 'citations'; data: Citation[] }
+  | { event: 'verifying'; data: Record<string, never> }
+  | { event: 'verification'; data: Verification }
   | { event: 'pending_action'; data: PendingAction }
   | { event: 'done'; data: { tin_nhan_id: number } }
   | { event: 'error'; data: { detail: string; code: string } }
@@ -97,6 +118,8 @@ export interface RequestDetail {
   ma_trang_thai: string
   tao_boi: string
   ghi_chu_xu_ly: string | null
+  /** Mã loại đơn (vd 'hoi_dap' = câu hỏi gửi cán bộ). */
+  ma_loai_don?: string
   ngay_tao: string
   cap_nhat_luc: string
   thong_bao: string

@@ -225,7 +225,7 @@ CREATE TABLE don_tu (
   sinh_vien_id    INT           NOT NULL,
   loai_don        NVARCHAR(30)  NOT NULL
                   CONSTRAINT chk_don_loai
-                  CHECK (loai_don IN (N'giay_xac_nhan_sv', N'bao_luu', N'phuc_khao')),
+                  CHECK (loai_don IN (N'giay_xac_nhan_sv', N'bao_luu', N'phuc_khao', N'hoi_dap')),
   noi_dung        NVARCHAR(MAX) NOT NULL CONSTRAINT chk_don_json CHECK (ISJSON(noi_dung) = 1),
   trang_thai      NVARCHAR(20)  NOT NULL CONSTRAINT df_don_trang_thai DEFAULT N'moi_tao'
                   CONSTRAINT chk_don_trang_thai

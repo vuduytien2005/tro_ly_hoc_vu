@@ -3,6 +3,7 @@ import { Bot, ChevronRight, ClipboardList, LoaderCircle, User, X } from 'lucide-
 import { useState } from 'react'
 import { ApiError, api } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
+import { DEPARTMENTS } from '../lib/adminTypes'
 import type { RequestDetail, RequestListResponse } from '../lib/types'
 
 const FILTERS: { value: string; label: string }[] = [
@@ -143,6 +144,8 @@ const FIELD_LABELS: Record<string, string> = {
   diem_hien_tai: 'Điểm hiện tại',
   tu_hoc_ky: 'Từ học kỳ',
   lien_he: 'Liên hệ',
+  cau_hoi: 'Câu hỏi',
+  phong_ban: 'Gửi tới',
 }
 
 function fieldLabel(key: string): string {
@@ -201,7 +204,11 @@ function RequestDetailPanel({ maDon, onClose }: { maDon: string; onClose: () => 
                   <div key={k} className="contents">
                     <dt className="text-slate-500">{fieldLabel(k)}</dt>
                     <dd className="break-words">
-                      {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                      {k === 'phong_ban'
+                        ? (DEPARTMENTS[String(v)] ?? String(v))
+                        : typeof v === 'object'
+                          ? JSON.stringify(v)
+                          : String(v)}
                     </dd>
                   </div>
                 ))}
@@ -210,7 +217,9 @@ function RequestDetailPanel({ maDon, onClose }: { maDon: string; onClose: () => 
 
             {d.ghi_chu_xu_ly && (
               <section>
-                <h3 className="mb-2 font-medium text-navy">Ghi chú của phòng ban</h3>
+                <h3 className="mb-2 font-medium text-navy">
+                  {d.ma_loai_don === 'hoi_dap' ? 'Trả lời của cán bộ' : 'Ghi chú của phòng ban'}
+                </h3>
                 <p className="rounded-xl bg-page p-3">{d.ghi_chu_xu_ly}</p>
               </section>
             )}

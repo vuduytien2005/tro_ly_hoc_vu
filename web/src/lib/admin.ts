@@ -70,19 +70,31 @@ export function reviewBadge(
 
 /**
  * Các bước kế tiếp hợp lệ của một đơn — bản sao máy trạng thái ở qlsv_api
- * (request_service.NEXT_STATUSES) chỉ để hiện đúng nút; qlsv_api vẫn là nơi kiểm tra.
+ * (request_service.next_statuses) chỉ để hiện đúng nút; qlsv_api vẫn là nơi kiểm tra.
  */
 const NEXT_STATUSES: Record<string, string[]> = {
   moi_tao: ['dang_xu_ly', 'da_duyet', 'tu_choi'],
   dang_xu_ly: ['da_duyet', 'tu_choi'],
   da_duyet: ['hoan_tat'],
 }
-
-export function nextStatuses(current: string): string[] {
-  return NEXT_STATUSES[current] ?? []
+/** Câu hỏi gửi cán bộ: không có bước duyệt; hoan_tat = đã trả lời. */
+const QUESTION_NEXT_STATUSES: Record<string, string[]> = {
+  moi_tao: ['dang_xu_ly', 'hoan_tat', 'tu_choi'],
+  dang_xu_ly: ['hoan_tat', 'tu_choi'],
 }
 
-/** Từ chối phải có lý do (qlsv_api trả 422 CAN_LY_DO_TU_CHOI nếu thiếu). */
-export function reviewNoteProblem(target: string, note: string): string | null {
-  return target === 'tu_choi' && !note.trim() ? 'Cần ghi lý do từ chối để sinh viên biết.' : null
+export function nextStatuses(current: string, loai?: string): string[] {
+  const machine = loai === 'hoi_dap' ? QUESTION_NEXT_STATUSES : NEXT_STATUSES
+  return machine[current] ?? []
+}
+
+/**
+ * Từ chối phải có lý do (422 CAN_LY_DO_TU_CHOI); trả lời câu hỏi phải có nội dung
+ * (422 CAN_NOI_DUNG_TRA_LOI).
+ */
+export function reviewNoteProblem(target: string, note: string, loai?: string): string | null {
+  if (note.trim()) return null
+  if (target === 'tu_choi') return 'Cần ghi lý do từ chối để sinh viên biết.'
+  if (target === 'hoan_tat' && loai === 'hoi_dap') return 'Cần nhập nội dung trả lời cho sinh viên.'
+  return null
 }

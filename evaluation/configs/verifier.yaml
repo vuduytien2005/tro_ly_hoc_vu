@@ -1,0 +1,6 @@
+# TN5 — kiểm chứng câu trả lời bằng LLM giám khảo. Chạy: python evaluation/run_verifier.py
+ma: verifier
+ten: "Giám khảo Opus 5.5"
+du_lieu: evaluation/datasets/verifier_cases.jsonl
+verifier_model: anthropic/claude-opus-5-5
+timeout_giay: 60

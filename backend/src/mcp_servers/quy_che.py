@@ -36,10 +36,17 @@ from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from src.assistant_api.models import DoanVanBan, VanBan
+from src.assistant_api.models import DoanVanBan, KhoHoiDap, VanBan
 from src.mcp_servers.common import MaKhoa, ToolFailure, run, token_allows, tool_errors
 from src.rag import retriever as rag
-from src.rag.indexer import DocumentMeta, delete_document, index_document, mark_failed
+from src.rag.indexer import (
+    DocumentMeta,
+    delete_document,
+    index_chunks,
+    index_document,
+    mark_failed,
+)
+from src.rag.knowledge import KNOWLEDGE_KIND, build_knowledge_chunks
 from src.shared.config import get_settings
 from src.shared.db import assistant_session_factory
 from src.shared.oauth import SCOPE_RESOURCES
@@ -85,6 +92,7 @@ def _search(ma_khoa: str, cau_hoi: str, top_k: int) -> dict[str, Any]:
             "van_ban_id": c.van_ban_id,
             "van_ban": c.van_ban,
             "phien_ban": c.phien_ban,
+            "loai": c.loai,
             "dieu": c.dieu,
             "khoan": c.khoan,
             "trang": c.trang,
@@ -282,6 +290,18 @@ def _meta(van_ban: VanBan) -> DocumentMeta:
     )
 
 
+def _index_knowledge(db: Any, meta: DocumentMeta, van_ban_id: int) -> None:
+    """Văn bản kho hỏi đáp (không có tệp): đoạn dựng từ bảng kho_hoi_dap (nâng cấp 10)."""
+    entries = list(db.scalars(select(KhoHoiDap)))
+    if not entries:
+        raise ValueError("Kho hỏi đáp chưa có mục nào.")
+    retriever = rag.get_retriever()
+    chunks = build_knowledge_chunks(entries, retriever.embedder.count_tokens)
+    index_chunks(db, retriever.store, retriever.embedder, chunks, meta)
+    db.commit()
+    logger.info("Lập chỉ mục kho hỏi đáp (văn bản %d): %d mục", van_ban_id, len(chunks))
+
+
 def index_van_ban(van_ban_id: int) -> None:
     """Lập chỉ mục văn bản đã có bản ghi (assistant_api tạo, trạng thái dang_xu_ly).
     Thành công -> da_lap_chi_muc; lỗi -> loi + thông báo (quản trị viên thấy trên giao diện)."""
@@ -292,6 +312,9 @@ def index_van_ban(van_ban_id: int) -> None:
         meta = _meta(van_ban)
         path = Path(van_ban.duong_dan_tep)
         try:
+            if van_ban.loai == KNOWLEDGE_KIND:
+                _index_knowledge(db, meta, van_ban_id)
+                return
             if not path.is_file():
                 raise FileNotFoundError(f"Không tìm thấy tệp gốc '{meta.ten_tep}'.")
             retriever = rag.get_retriever()
@@ -389,6 +412,7 @@ def _debug_search(body: RagSearchIn) -> dict[str, Any]:
                 "van_ban_id": c.van_ban_id,
                 "van_ban": c.van_ban,
                 "phien_ban": c.phien_ban,
+                "loai": c.loai,
                 "chuong": c.chuong,
                 "dieu": c.dieu,
                 "khoan": c.khoan,

@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 TrangThaiDon = Literal["moi_tao", "dang_xu_ly", "da_duyet", "tu_choi", "hoan_tat"]
-LoaiDon = Literal["giay_xac_nhan_sv", "bao_luu", "phuc_khao"]
+LoaiDon = Literal["giay_xac_nhan_sv", "bao_luu", "phuc_khao", "hoi_dap"]
 
 
 class Schema(BaseModel):
@@ -273,10 +273,19 @@ class RegradeContent(Schema):
     ly_do: NonEmptyStr
 
 
+class QuestionContent(Schema):
+    """hoi_dap — câu hỏi sinh viên gửi cán bộ (qua công cụ ask_staff); câu trả lời của cán bộ
+    nằm ở ghi_chu_xu_ly."""
+
+    cau_hoi: NonEmptyStr = Field(max_length=1000)
+    phong_ban: Literal["dao_tao", "ctsv", "tai_chinh", "khac"] = "khac"
+
+
 REQUEST_CONTENT_SCHEMAS: dict[str, type[Schema]] = {
     "giay_xac_nhan_sv": CertificateContent,
     "bao_luu": DeferralContent,
     "phuc_khao": RegradeContent,
+    "hoi_dap": QuestionContent,
 }
 
 

@@ -1,0 +1,8 @@
+# TN5 — giám khảo Gemini (gói miễn phí: giãn nhịp gọi). Chạy:
+#   python evaluation/run_verifier.py --config verifier_gemini
+ma: verifier_gemini
+ten: "Giám khảo Gemini 3.5 Flash-Lite"
+du_lieu: evaluation/datasets/verifier_cases.jsonl
+verifier_model: gemini/gemini-3.5-flash-lite
+timeout_giay: 60
+cho_giua_luot_goi_giay: 4.5  # gói miễn phí 15 lượt/phút

@@ -92,6 +92,11 @@ class Settings(BaseSettings):
     # Gặp 429/503 thì chờ đúng thời gian nhà cung cấp yêu cầu rồi gọi lại, tổng tối đa bấy
     # nhiêu giây cho một lượt (0 = báo lỗi ngay). Gemini miễn phí (5 lượt/phút): đặt 90.
     llm_rate_limit_wait_seconds: float = 0.0
+    # Kiểm chứng câu trả lời quy chế bằng một lượt LLM "giám khảo" (agent/verifier.py): chỉ chạy
+    # ở lượt có search_regulations; tắt khi cần đo/so sánh. VERIFIER_MODEL trống = dùng LLM_MODEL.
+    answer_verify: bool = True
+    verifier_model: str = ""
+    verifier_timeout_seconds: float = 20.0
 
     # ---------- RAG ----------
     embedding_model: str = "intfloat/multilingual-e5-base"

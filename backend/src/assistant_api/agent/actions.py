@@ -25,6 +25,7 @@ from src.assistant_api.agent.executor import Outcome
 from src.assistant_api.errors import ApiError, forbidden, not_found
 from src.assistant_api.models import HanhDongChoXacNhan, HoiThoai, LuotGoiCongCu, NguoiDung
 from src.shared.config import get_settings
+from src.shared.departments import PHONG_BAN
 from src.shared.locking import lock_for_update, lock_skip_locked
 from src.shared.time import to_db, wall_clock
 
@@ -159,6 +160,9 @@ async def describe(
             f"Nộp đơn phúc khảo điểm thi học phần {_short(args['ma_hp'])} – "
             f"lý do: {_short(args['ly_do'])}"
         )
+    if tool == "ask_staff":
+        phong_ban = PHONG_BAN.get(str(args.get("phong_ban", "khac")), PHONG_BAN["khac"])
+        return f'Gửi câu hỏi tới {phong_ban}: "{_short(args["cau_hoi"])}"'
     # Tool mới do quản trị viên bật: title server khai báo (nếu có) + tham số, trừ tham số
     # do hệ thống điền (ma_sv, ma_khoa, chi_kiem_tra)
     hidden = ("ma_sv", "ma_khoa", "chi_kiem_tra")

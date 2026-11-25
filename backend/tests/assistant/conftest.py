@@ -196,17 +196,22 @@ def script(fake_llm: FakeLLM) -> Callable[..., FakeLLM]:
     return load
 
 
-@pytest.fixture
-def client(
+def _make_client(
     session_factory: Callable[[], Session],
     registry: ToolRegistry,
     fake_llm: FakeLLM,
     db: Session,
+    verifier_llm: FakeLLM | None = None,
 ) -> Iterator[TestClient]:
     import anyio
 
     anyio.run(registry.sync, db)  # đồng bộ danh mục tool (như lúc khởi động thật)
-    app = create_app(registry=registry, llm=fake_llm, session_factory=session_factory)
+    app = create_app(
+        registry=registry,
+        llm=fake_llm,
+        session_factory=session_factory,
+        verifier_llm=verifier_llm,
+    )
 
     def override_db() -> Iterator[Session]:
         # SQL Server không có RELEASE SAVEPOINT: nếu phiên request kết thúc bằng rollback (về
@@ -219,6 +224,35 @@ def client(
     app.dependency_overrides[get_db] = override_db
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture
+def client(
+    session_factory: Callable[[], Session],
+    registry: ToolRegistry,
+    fake_llm: FakeLLM,
+    db: Session,
+) -> Iterator[TestClient]:
+    """App KHÔNG có giám khảo kiểm chứng (kịch bản FakeLLM của test cũ giữ nguyên)."""
+    yield from _make_client(session_factory, registry, fake_llm, db)
+
+
+@pytest.fixture
+def verifier_llm() -> FakeLLM:
+    """LLM giám khảo riêng: test nạp kết quả bằng verifier_llm._responses.append(...)."""
+    return FakeLLM([])
+
+
+@pytest.fixture
+def verified_client(
+    session_factory: Callable[[], Session],
+    registry: ToolRegistry,
+    fake_llm: FakeLLM,
+    db: Session,
+    verifier_llm: FakeLLM,
+) -> Iterator[TestClient]:
+    """App có giám khảo kiểm chứng câu trả lời quy chế."""
+    yield from _make_client(session_factory, registry, fake_llm, db, verifier_llm)
 
 
 def login(client: TestClient, email: str, password: str = PASSWORD) -> dict[str, str]:

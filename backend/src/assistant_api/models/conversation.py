@@ -59,6 +59,8 @@ class TinNhan(AssistantBase):
     tool_call_id: Mapped[str | None] = mapped_column(UnicodeText)
     tool_calls: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON(none_as_null=True))
     trich_dan: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON(none_as_null=True))
+    # Kết quả LLM giám khảo kiểm chứng câu trả lời quy chế (agent/verifier.py), None = không chạy
+    kiem_chung: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
     so_token_vao: Mapped[int | None] = mapped_column(Integer)
     so_token_ra: Mapped[int | None] = mapped_column(Integer)
     thoi_gian_ms: Mapped[int | None] = mapped_column(Integer)

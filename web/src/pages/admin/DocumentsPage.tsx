@@ -104,7 +104,9 @@ export default function DocumentsPage() {
                 <td className="px-4 py-3">
                   <p className="font-medium text-navy">{d.ten}</p>
                   <p className="text-xs text-slate-500">
-                    {DOC_TYPES[d.loai] ?? d.loai} · phiên bản {d.phien_ban} · {d.ten_tep}
+                    {d.loai === 'hoi_dap'
+                      ? 'Hỏi đáp cán bộ · không có tệp, quản lý ở trang Tri thức'
+                      : `${DOC_TYPES[d.loai] ?? d.loai} · phiên bản ${d.phien_ban} · ${d.ten_tep}`}
                   </p>
                   {d.loi && <p className="mt-1 text-xs text-err">{d.loi}</p>}
                 </td>
@@ -140,8 +142,10 @@ export default function DocumentsPage() {
                       <RefreshCw size={16} />
                     </IconButton>
                     <IconButton
-                      label="Xóa"
-                      disabled={d.trang_thai === 'dang_xu_ly' || remove.isPending}
+                      label={d.loai === 'hoi_dap' ? 'Gỡ từng mục ở trang Tri thức' : 'Xóa'}
+                      disabled={
+                        d.loai === 'hoi_dap' || d.trang_thai === 'dang_xu_ly' || remove.isPending
+                      }
                       onClick={() => {
                         if (window.confirm(`Xóa "${d.ten}" (${d.phien_ban}) và toàn bộ vector?`))
                           remove.mutate(d.id)

@@ -2,7 +2,7 @@
 
 from src.assistant_api.models.base import AssistantBase
 from src.assistant_api.models.conversation import DanhGiaCauTraLoi, HoiThoai, TinNhan
-from src.assistant_api.models.document import DoanVanBan, VanBan
+from src.assistant_api.models.document import DoanVanBan, KhoHoiDap, VanBan
 from src.assistant_api.models.tooling import (
     TRANG_THAI_LUOT_GOI,
     CongCu,
@@ -20,6 +20,7 @@ __all__ = [
     "DoanVanBan",
     "HanhDongChoXacNhan",
     "HoiThoai",
+    "KhoHoiDap",
     "LuotGoiCongCu",
     "McpServer",
     "NguoiDung",

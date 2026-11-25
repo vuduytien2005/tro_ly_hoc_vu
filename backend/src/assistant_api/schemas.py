@@ -70,6 +70,8 @@ class MessageOut(BaseModel):
     vai_tro: Literal["user", "assistant"]
     noi_dung: str
     trich_dan: list[dict[str, Any]] | None = None
+    # Kết quả LLM giám khảo kiểm chứng (agent/verifier.Verification); None = không kiểm chứng
+    kiem_chung: dict[str, Any] | None = None
     danh_gia: int | None = None  # điểm người dùng đã đánh giá tin này (1 / -1)
     created_at: datetime
 

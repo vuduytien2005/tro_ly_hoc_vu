@@ -144,3 +144,52 @@ def test_deferral_contact_is_validated() -> None:
     assert "lien_he" not in DeferralContent.model_validate(base).model_dump(exclude_none=True)
     with pytest.raises(ValidationError):
         DeferralContent.model_validate({**base, "lien_he": {"so_dien_thoai": "12"}})
+
+
+# ----- Câu hỏi gửi cán bộ (hoi_dap, bổ sung 23/11/2026) -----------------------------------------
+QUESTION = {"cau_hoi": "Học bổng KKHT xét theo điểm học kỳ nào ạ?", "phong_ban": "ctsv"}
+
+
+def test_create_question_request(db: Session) -> None:
+    out = create(db, "SV21001", "hoi_dap", QUESTION)
+    assert out.loai_don == "hoi_dap" and out.trang_thai == "moi_tao"
+    assert out.noi_dung == QUESTION
+
+
+def test_question_content_validated(db: Session) -> None:
+    with pytest.raises(BusinessError) as e:
+        create(db, "SV21001", "hoi_dap", {"cau_hoi": "  "})
+    assert e.value.code == "DU_LIEU_KHONG_HOP_LE"
+
+
+def test_question_can_be_answered_directly(db: Session) -> None:
+    out = create(db, "SV21001", "hoi_dap", QUESTION)
+    done = request_service.update_status(
+        db, out.ma_don, "hoan_tat", "Xét theo điểm HK gần nhất.", DEMO_NOW
+    )
+    assert done.trang_thai == "hoan_tat" and done.ghi_chu_xu_ly == "Xét theo điểm HK gần nhất."
+
+
+@pytest.mark.parametrize("note", [None, "   "])
+def test_answer_requires_text(db: Session, note: str | None) -> None:
+    out = create(db, "SV21001", "hoi_dap", QUESTION)
+    with pytest.raises(BusinessError) as e:
+        request_service.update_status(db, out.ma_don, "hoan_tat", note, DEMO_NOW)
+    assert (e.value.code, e.value.status) == ("CAN_NOI_DUNG_TRA_LOI", 422)
+
+
+@pytest.mark.parametrize("bad", ["da_duyet", "moi_tao"])
+def test_question_cannot_be_approved(db: Session, bad: str) -> None:
+    out = create(db, "SV21001", "hoi_dap", QUESTION)
+    with pytest.raises(BusinessError) as e:
+        request_service.update_status(db, out.ma_don, bad, "x", DEMO_NOW)
+    assert (e.value.code, e.value.status) == ("CHUYEN_TRANG_THAI_KHONG_HOP_LE", 409)
+
+
+def test_question_next_statuses() -> None:
+    assert request_service.next_statuses("hoi_dap", "dang_xu_ly") == {"hoan_tat", "tu_choi"}
+    assert request_service.next_statuses("bao_luu", "moi_tao") == {
+        "dang_xu_ly",
+        "da_duyet",
+        "tu_choi",
+    }

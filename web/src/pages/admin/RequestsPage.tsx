@@ -3,8 +3,9 @@
 // "Thủ tục của em" hoặc hỏi trợ lý.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, Info, LoaderCircle, User } from 'lucide-react'
+import { BookPlus, Bot, Info, LoaderCircle, User } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import {
   Badge,
   Card,
@@ -17,6 +18,7 @@ import {
 } from '../../components/admin/ui'
 import { nextStatuses, reviewNoteProblem, toQuery } from '../../lib/admin'
 import {
+  DEPARTMENTS,
   REQUEST_KIND,
   REQUEST_STATUS,
   type StaffRequest,
@@ -24,6 +26,7 @@ import {
 } from '../../lib/adminTypes'
 import { ApiError, api } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
+import { requestToDraft } from '../../lib/knowledge'
 
 const PAGE_SIZE = 20
 const KEY = ['admin', 'requests']
@@ -42,6 +45,8 @@ const CONTENT_LABELS: Record<string, string> = {
   lien_he: 'Liên hệ khi bảo lưu',
   so_dien_thoai: 'Số điện thoại',
   email_ca_nhan: 'Email cá nhân',
+  cau_hoi: 'Câu hỏi',
+  phong_ban: 'Phòng ban',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -161,7 +166,7 @@ export default function RequestsPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button className={secondaryButton} onClick={() => setOpen(d)}>
-                    {nextStatuses(d.trang_thai).length ? 'Xử lý' : 'Xem'}
+                    {nextStatuses(d.trang_thai, d.loai_don).length ? 'Xử lý' : 'Xem'}
                   </button>
                 </td>
               </tr>
@@ -206,10 +211,12 @@ export default function RequestsPage() {
 
 function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: () => void }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [current, setCurrent] = useState(request)
   const [note, setNote] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
-  const steps = nextStatuses(current.trang_thai)
+  const isQuestion = current.loai_don === 'hoi_dap'
+  const steps = nextStatuses(current.trang_thai, current.loai_don)
 
   const review = useMutation({
     mutationFn: (trang_thai: string) =>
@@ -225,7 +232,7 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
   })
 
   const act = (target: string) => {
-    const p = reviewNoteProblem(target, note)
+    const p = reviewNoteProblem(target, note, current.loai_don)
     setProblem(p)
     if (!p) review.mutate(target)
   }
@@ -248,22 +255,41 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
         <dd>{formatDateTime(current.created_at)}</dd>
         {Object.entries(current.noi_dung).map(([k, v]) =>
           v == null || v === '' ? null : (
-            <Row key={k} label={CONTENT_LABELS[k] ?? k} value={contentText(v)} />
+            <Row
+              key={k}
+              label={CONTENT_LABELS[k] ?? k}
+              value={k === 'phong_ban' ? (DEPARTMENTS[String(v)] ?? String(v)) : contentText(v)}
+            />
           ),
         )}
-        {current.ghi_chu_xu_ly && <Row label="Ghi chú xử lý" value={current.ghi_chu_xu_ly} />}
+        {current.ghi_chu_xu_ly && (
+          <Row
+            label={isQuestion ? 'Trả lời của cán bộ' : 'Ghi chú xử lý'}
+            value={current.ghi_chu_xu_ly}
+          />
+        )}
       </dl>
 
       {steps.length > 0 ? (
         <div className="space-y-3 border-t border-line pt-4">
-          <Field label="Ghi chú gửi sinh viên (bắt buộc khi từ chối)">
+          <Field
+            label={
+              isQuestion
+                ? 'Nội dung trả lời (bắt buộc khi trả lời hoặc từ chối)'
+                : 'Ghi chú gửi sinh viên (bắt buộc khi từ chối)'
+            }
+          >
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               maxLength={2000}
               className={`${inputClass} h-auto w-full py-2`}
-              placeholder="Vd: Nhận giấy tại phòng CTSV từ thứ Hai."
+              placeholder={
+                isQuestion
+                  ? 'Vd: Học bổng KKHT xét theo điểm học kỳ liền trước, tối thiểu 15 tín chỉ.'
+                  : 'Vd: Nhận giấy tại phòng CTSV từ thứ Hai.'
+              }
             />
           </Field>
           {(problem || review.isError) && (
@@ -288,7 +314,7 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
                 {review.isPending && review.variables === s && (
                   <LoaderCircle size={15} className="animate-spin" />
                 )}
-                {ACTION_LABELS[s] ?? s}
+                {isQuestion && s === 'hoan_tat' ? 'Trả lời' : (ACTION_LABELS[s] ?? s)}
               </button>
             ))}
           </div>
@@ -297,6 +323,22 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
         <p className="border-t border-line pt-4 text-sm text-slate-500">
           Đơn đã kết thúc, không còn bước xử lý nào.
         </p>
+      )}
+      {isQuestion && current.trang_thai === 'hoan_tat' && current.ghi_chu_xu_ly && (
+        <div className="mt-4 rounded-xl bg-primary/5 p-3 text-sm">
+          <p className="mb-2 text-slate-600">
+            Câu hỏi này có thể giúp sinh viên khác? Đưa vào kho để trợ lý trả lời được lần sau (sẽ
+            mở form để bỏ thông tin cá nhân trước khi lưu).
+          </p>
+          <button
+            className={secondaryButton}
+            onClick={() =>
+              navigate('/admin/tri-thuc', { state: { draft: requestToDraft(current) } })
+            }
+          >
+            <BookPlus size={15} /> Đưa vào kho hỏi đáp
+          </button>
+        </div>
       )}
     </Drawer>
   )

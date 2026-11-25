@@ -287,7 +287,8 @@ async def reindex_document(
     van_ban = _get_document(db, van_ban_id)
     if van_ban.trang_thai == "dang_xu_ly":
         raise conflict("VAN_BAN_DANG_XU_LY", "Văn bản này đang được lập chỉ mục, thử lại sau.")
-    if not Path(van_ban.duong_dan_tep).is_file():
+    # Kho hỏi đáp (loai hoi_dap) không có tệp: quy_che dựng đoạn từ bảng kho_hoi_dap
+    if van_ban.loai != "hoi_dap" and not Path(van_ban.duong_dan_tep).is_file():
         raise conflict(
             "TEP_GOC_KHONG_CON", "Không còn tệp gốc trên máy chủ, hãy tải văn bản lên lại."
         )
@@ -306,6 +307,11 @@ async def delete_document(
     van_ban = _get_document(db, van_ban_id)
     if van_ban.trang_thai == "dang_xu_ly":
         raise conflict("VAN_BAN_DANG_XU_LY", "Văn bản đang được lập chỉ mục, chưa xóa được.")
+    if van_ban.loai == "hoi_dap":
+        raise conflict(
+            "VAN_BAN_KHO_HOI_DAP",
+            "Đây là kho hỏi đáp cán bộ — gỡ từng mục ở trang Tri thức (hết mục thì tự xóa).",
+        )
     path = van_ban.duong_dan_tep
     db.rollback()  # quy_che xóa bản ghi trong phiên của nó; tránh giữ khóa đọc ở phiên này
     if not await client.delete(van_ban_id):

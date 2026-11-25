@@ -1,7 +1,8 @@
 """MCP server `ctsv` (:9102) — Công tác sinh viên: đơn từ.
 
 Tool ĐỌC: list_my_requests, get_request_status.
-Tool GHI (request_student_certificate, submit_deferral_request, submit_regrade_request): chỉ được
+Tool GHI (request_student_certificate, submit_deferral_request, submit_regrade_request,
+ask_staff — câu hỏi gửi cán bộ, loại đơn hoi_dap): chỉ được
 assistant_api gọi sau khi sinh viên bấm "Xác nhận"; đơn ghi nhận tao_boi = "tro_ly_ai".
 Chạy: python -m src.mcp_servers.ctsv
 """
@@ -20,15 +21,17 @@ mcp = MCPServer(
     title="Phòng Công tác sinh viên",
     instructions=(
         "Nộp và tra cứu các đơn của sinh viên (giấy xác nhận sinh viên, bảo lưu, phúc khảo) "
-        "cùng trạng thái xử lý. Nộp đơn cần sinh viên xác nhận."
+        "cùng trạng thái xử lý; gửi câu hỏi cho cán bộ phòng ban. Nộp đơn, gửi câu hỏi cần "
+        "sinh viên xác nhận."
     ),
-    version="0.6.0",
+    version="0.7.0",
 )
 
 LOAI_DON = {
     "giay_xac_nhan_sv": "Giấy xác nhận sinh viên",
     "bao_luu": "Đơn bảo lưu",
     "phuc_khao": "Đơn phúc khảo",
+    "hoi_dap": "Câu hỏi gửi cán bộ",
 }
 TRANG_THAI_DON = {
     "moi_tao": "mới tạo",
@@ -61,6 +64,7 @@ async def list_my_requests(
         {
             "ma_don": d["ma_don"],
             "loai_don": LOAI_DON.get(d["loai_don"], d["loai_don"]),
+            "ma_loai_don": d["loai_don"],
             "trang_thai": TRANG_THAI_DON.get(d["trang_thai"], d["trang_thai"]),
             "ma_trang_thai": d["trang_thai"],
             "tao_boi": TAO_BOI.get(d.get("tao_boi", ""), d.get("tao_boi")),
@@ -89,10 +93,12 @@ async def get_request_status(
     trang_thai = TRANG_THAI_DON.get(d["trang_thai"], d["trang_thai"])
     note = f"{loai} {d['ma_don']} đang ở trạng thái {trang_thai}."
     if d.get("ghi_chu_xu_ly"):
-        note += f" Ghi chú: {d['ghi_chu_xu_ly']}"
+        label = "Trả lời của cán bộ" if d["loai_don"] == "hoi_dap" else "Ghi chú"
+        note += f" {label}: {d['ghi_chu_xu_ly']}"
     return {
         "ma_don": d["ma_don"],
         "loai_don": loai,
+        "ma_loai_don": d["loai_don"],
         "noi_dung": _hide_contact(d["noi_dung"]),
         "trang_thai": trang_thai,
         "ma_trang_thai": d["trang_thai"],
@@ -228,6 +234,37 @@ async def submit_regrade_request(
     Thao tác này cần sinh viên xác nhận.
     """
     return await _create_request(ma_sv, "phuc_khao", {"ma_hp": ma_hp, "ly_do": ly_do})
+
+
+@mcp.tool()
+@tool_errors
+async def ask_staff(
+    ma_sv: MaSv,
+    cau_hoi: Annotated[
+        str,
+        Field(
+            min_length=10,
+            max_length=1000,
+            description="Câu hỏi gửi cán bộ, viết lại đầy đủ để người đọc hiểu được ngay.",
+        ),
+    ],
+    phong_ban: Annotated[
+        Literal["dao_tao", "ctsv", "tai_chinh", "khac"],
+        Field(
+            description=(
+                "Phòng ban phụ trách: dao_tao (học tập, đăng ký, tốt nghiệp), ctsv (học bổng, "
+                "rèn luyện, giấy tờ), tai_chinh (học phí), khac (chưa rõ)."
+            )
+        ),
+    ] = "khac",
+) -> dict[str, Any]:
+    """Gửi câu hỏi của sinh viên cho cán bộ phòng ban trả lời sau (xem ở "Thủ tục của em").
+
+    Dùng khi văn bản quy chế không có căn cứ để trả lời, hoặc sinh viên muốn hỏi trực tiếp cán bộ,
+    và sinh viên đã đồng ý gửi. Cán bộ KHÔNG xem được cuộc trò chuyện: viết lại câu hỏi đầy đủ,
+    tự hiểu được. Thao tác này cần sinh viên xác nhận.
+    """
+    return await _create_request(ma_sv, "hoi_dap", {"cau_hoi": cau_hoi, "phong_ban": phong_ban})
 
 
 def main() -> None:
