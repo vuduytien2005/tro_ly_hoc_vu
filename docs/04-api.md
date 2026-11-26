@@ -5,6 +5,8 @@ Lỗi chung: `{"detail": "thông báo tiếng Việt", "code": "MA_LOI"}`. Thờ
 ## A. qlsv_api (nội bộ, :8001, chỉ 127.0.0.1)
 Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swagger tại `/docs` để demo duyệt đơn.
 
+**Bảng 4.1.** API nội bộ của qlsv_api
+
 | Method | Đường dẫn | Mô tả |
 |---|---|---|
 | GET | `/internal/students/{ma_sv}` | Hồ sơ: họ tên, lớp, ngành, khóa, trạng thái |
@@ -38,6 +40,9 @@ Mọi request cần header `X-Internal-Token`. Tiền tố `/internal`. Có Swag
 Xác thực (trừ login): web dùng **cookie HttpOnly** `tlhv_phien` (Path=/api, SameSite=Strict, Secure theo `AUTH_COOKIE_SECURE`) do login đặt; yêu cầu thay đổi dữ liệu (POST/PUT/PATCH/DELETE) qua cookie phải kèm header `X-CSRF-Token` = giá trị cookie `tlhv_csrf` (trùng claim `csrf` ký trong JWT), sai/thiếu → 403 `CSRF_KHONG_HOP_LE`. API / thực nghiệm dùng header `Authorization: Bearer <JWT>` (không cần CSRF; ưu tiên hơn cookie). Quyền: `SV` = sinh viên, `AD` = admin.
 
 ### Xác thực
+
+**Bảng 4.2.** API xác thực
+
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | POST | `/api/auth/login` | – | `{email, mat_khau}` → `{access_token, token_type, het_han_luc, nguoi_dung}` + đặt cookie `tlhv_phien` (HttpOnly) và `tlhv_csrf` (web KHÔNG lưu `access_token`). Sai email hoặc mật khẩu đều trả 401 `SAI_THONG_TIN_DANG_NHAP` (không dò được email); tài khoản khóa 403 `TAI_KHOAN_BI_KHOA` |
@@ -45,6 +50,9 @@ Xác thực (trừ login): web dùng **cookie HttpOnly** `tlhv_phien` (Path=/api
 | GET | `/api/auth/me` | SV, AD | Thông tin tài khoản |
 
 ### Hội thoại
+
+**Bảng 4.3.** API hội thoại
+
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | GET | `/api/conversations` | SV | Danh sách, mới nhất trước |
@@ -59,6 +67,9 @@ Xác thực (trừ login): web dùng **cookie HttpOnly** `tlhv_phien` (Path=/api
 Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (401), `KHONG_DU_QUYEN`, `TAI_KHOAN_BI_KHOA` (403). Hội thoại của người khác trả 404 `KHONG_TIM_THAY_HOI_THOAI` (không lộ việc id tồn tại). `GET /health` (không cần đăng nhập) trả `mcp_server` (trạng thái từng MCP server), `gian_doan` (server đang không kết nối được — dò lại tối đa 15 giây/lần), `llm_da_cau_hinh`, `llm_co_khoa` (đã điền khóa API chưa; `null` = không xác định), `che_do_trinh_bay` (web hiện công tắc "Chế độ trình bày" khi `true`). Web đọc mỗi 30 giây để hiện banner; tool của server gián đoạn không đưa cho LLM và system prompt báo "đang gián đoạn" (khác "tạm dừng" do quản trị viên tắt).
 
 ### Hành động chờ xác nhận
+
+**Bảng 4.4.** API hành động chờ xác nhận
+
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | POST | `/api/actions/{ma}/confirm` | SV (chủ sở hữu) | Thực thi → **SSE** (`tool_start`, `tool_end`, `token`, `done`). Lỗi trước khi mở luồng (JSON): 404 `KHONG_TIM_THAY_HANH_DONG`, 403 `KHONG_DU_QUYEN`, 409 `HANH_DONG_DA_XU_LY`, 409 `HANH_DONG_HET_HAN` |
@@ -66,6 +77,9 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | POST | `/api/actions/{ma}/cancel` | SV (chủ sở hữu) | Hủy (thẻ `cho` hoặc `cho_bo_sung`), log `da_huy` → JSON `{ma, trang_thai, tin_nhan}` (câu trả lời cố định "Đã hủy...", không gọi LLM). Lỗi như confirm |
 
 ### Thủ tục của em
+
+**Bảng 4.5.** API "Thủ tục của em"
+
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | GET | `/api/my/requests?trang_thai=` | SV | Gọi tool `list_my_requests` trực tiếp (không qua LLM), tiêm ma_sv, ghi nhật ký (`hoi_thoai_id = NULL`). Trả `{don: [{ma_don, loai_don, trang_thai (nhãn tiếng Việt), ma_trang_thai (mã gốc, để tô màu nhãn), tao_boi ("Sinh viên"/"Trợ lý AI"), ngay_tao}], thong_bao}`. Tool tắt → 503 `CHUC_NANG_TAM_DUNG` |
@@ -76,6 +90,9 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | GET | `/api/documents/{van_ban_id}/articles/{so_dieu}` | Đăng nhập | Nguyên văn một Điều (bổ sung 23/11/2026) → `{van_ban_id, so_dieu, noi_dung}`. Đọc **MCP resource** `quy-che://van-ban/{id}/dieu/{so}` (không qua LLM, không ghi `luot_goi_cong_cu` vì không phải gọi công cụ). Không có / số Điều sai → 404 `DIEU_KHONG_TON_TAI`; quy_che không chạy → 503 `DICH_VU_KHONG_KHA_DUNG` |
 
 ### Quản trị
+
+**Bảng 4.6.** API quản trị
+
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | GET | `/api/admin/documents` | AD | Danh sách văn bản `[{id, ten, loai, phien_ban, ap_dung_tu_khoa, ap_dung_den_khoa, ngay_hieu_luc, ten_tep, trang_thai, chien_luoc_chunk, so_doan, loi, created_at, updated_at}]` |
@@ -110,6 +127,9 @@ Mã lỗi xác thực: `CHUA_DANG_NHAP`, `TOKEN_KHONG_HOP_LE`, `PHIEN_HET_HAN` (
 | GET | `/api/admin/stats?tu=&den=` | AD | Mặc định 30 ngày gần nhất. `{tu, den, so_hoi_thoai, so_cau_hoi (không tính tin "Xác nhận:/Hủy:" do hệ thống lưu), so_danh_gia, so_huu_ich, ti_le_huu_ich, thoi_gian_phan_hoi_tb_ms, so_luot_goi_cong_cu, top_cong_cu: [{ten_cong_cu, so_lan, so_loi}], theo_ngay: [{ngay, so_cau_hoi}], cau_bi_che: [{tin_nhan_id, hoi_thoai_id, nguoi_dung, cau_hoi, cau_tra_loi, gop_y, created_at}], an_toan: {trang_thai_goi: {thanh_cong, loi, bi_tu_choi, cho_xac_nhan, da_huy}, hanh_dong: {cho, cho_bo_sung, da_xac_nhan, da_huy, het_han}, so_lan_chan_ma_sv, so_cau_kiem_chung, so_menh_de, so_co_can_cu, ti_le_co_can_cu}}`. `an_toan` (bổ sung 26/11/2026): `so_lan_chan_ma_sv` = lượt gọi mà LLM tự gửi `ma_sv`/`ma_khoa` (đã bị ghi đè, quy tắc 1); kiểm chứng cộng `tin_nhan.kiem_chung.tong`/`co_can_cu` của các câu trả lời có ít nhất một ý được chấm; `ti_le_co_can_cu` = null khi chưa có ý nào. |
 
 ### OAuth cho MCP (23/11/2026, công khai, không tiền tố `/api`)
+
+**Bảng 4.7.** API OAuth cho MCP
+
 | Method | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | GET | `/.well-known/oauth-authorization-server` | – | Metadata authorization server (RFC 8414): `issuer`, `jwks_uri`, `scopes_supported`, `token_endpoint_auth_methods_supported` |
