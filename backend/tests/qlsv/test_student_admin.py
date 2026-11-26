@@ -28,9 +28,10 @@ def test_requires_internal_token(client: TestClient) -> None:
 
 def test_list_and_search(client: TestClient) -> None:
     body = client.get("/internal/students").json()
-    assert body["tong"] >= 5  # 5 SV của 03_qlsv_seed.sql (+ 9 SV nếu đã chạy 11)
+    # 5 SV của 03_qlsv_seed.sql (+ 9 SV nếu đã chạy 11, + 5 SV mã 10 chữ số nếu đã chạy 12)
+    assert body["tong"] >= 5
     codes = [s["ma_sv"] for s in body["sinh_vien"]]
-    assert codes == sorted(codes) and codes[0] == "SV21001"
+    assert codes == sorted(codes)  # sắp theo mã SV (không cố định mã đứng đầu)
 
     found = client.get("/internal/students", params={"q": "Bình"}).json()
     assert [s["ma_sv"] for s in found["sinh_vien"]] == ["SV22002"]

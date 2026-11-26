@@ -14,11 +14,11 @@ Tiền tố `tlhv_` (trợ lý học vụ) tránh trùng với CSDL có sẵn tr
 ## Cài đặt
 1. Cài SQL Server (bản **Express** miễn phí là đủ) + **SQL Server Management Studio (SSMS)** + **ODBC Driver 18 for SQL Server**.
    Máy phát triển hiện có instance `localhost\SQLEXPRESS01` (SQL Server 2025 Express).
-2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `10` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Sau đó chạy `11_bo_sung_du_lieu_demo.sql` (dữ liệu demo bổ sung, mục cuối tài liệu). Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
+2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `10` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Sau đó chạy `11_bo_sung_du_lieu_demo.sql` (dữ liệu demo bổ sung) và `12_du_lieu_mo_phong_hunre.sql` (dữ liệu mô phỏng theo HUNRE) — hai mục cuối tài liệu. Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
    - **SSMS:** File → Open → chọn file → Execute (F5), lần lượt từng file.
    - **Dòng lệnh** (PowerShell, tại thư mục gốc dự án):
      ```powershell
-     foreach ($f in '01_qlsv_schema','02_assistant_schema','03_qlsv_seed','04_assistant_seed','11_bo_sung_du_lieu_demo') {
+     foreach ($f in '01_qlsv_schema','02_assistant_schema','03_qlsv_seed','04_assistant_seed','11_bo_sung_du_lieu_demo','12_du_lieu_mo_phong_hunre') {
        sqlcmd -S ".\SQLEXPRESS01" -E -C -f 65001 -b -i "database\$f.sql"
      }
      ```
@@ -154,7 +154,7 @@ erDiagram
 | sv22003@truong.example | `Sv@123456` | sinh_vien | SV22003 | K22 |
 | admin@truong.example   | `Admin@123456` | admin | – | – |
 
-Đã chạy `11_bo_sung_du_lieu_demo.sql` thì `seed_users.py` tạo thêm 9 tài khoản sinh viên (email `<ma_sv viết thường>@truong.example`, mật khẩu `Sv@123456`), xem bảng ở mục "Dữ liệu demo bổ sung".
+Đã chạy `11_bo_sung_du_lieu_demo.sql` thì `seed_users.py` tạo thêm 9 tài khoản sinh viên (email `<ma_sv viết thường>@truong.example`, mật khẩu `Sv@123456`), xem bảng ở mục "Dữ liệu demo bổ sung". Đã chạy `12_du_lieu_mo_phong_hunre.sql` thì tạo thêm 5 tài khoản (email `<mã SV 10 chữ số>@truong.example`, cùng mật khẩu), xem mục "Dữ liệu mô phỏng HUNRE".
 
 ## Nâng cấp 08 — MCP elicitation (23/11/2026)
 `database/08_nang_cap_elicitation.sql` (chạy lại nhiều lần vẫn an toàn; máy cài mới chạy 02 là có):
@@ -214,3 +214,44 @@ Ràng buộc khi thêm: KHÔNG thêm lớp cho học phần cũ ở học kỳ �
 sửa 5 sinh viên cũ, để các kịch bản thực nghiệm TN3/TN4 vẫn đúng. Các test đếm số sinh viên / số đơn
 so với trạng thái CSDL lúc chạy (không đếm cứng), nên chạy được cả khi chưa chạy `11`.
 
+## Dữ liệu mô phỏng HUNRE — 12 (26/11/2026)
+Script `database/12_du_lieu_mo_phong_hunre.sql` (CSDL `tlhv_qlsv`, chạy sau `03` và `11`; chạy lại an
+toàn — đã có ngành `7850101` thì bỏ qua). `setup.ps1` và `reset_demo.ps1` đã chạy script này. Mục đích:
+dữ liệu demo bám theo **văn bản công khai** của Trường Đại học Tài nguyên và Môi trường Hà Nội (HUNRE)
+thay vì hoàn toàn tự đặt. Sinh viên vẫn là **hư cấu** — khi viết khóa luận ghi rõ "dữ liệu mô phỏng
+theo thông tin công khai", không phải dữ liệu thật của sinh viên.
+
+**Lấy theo văn bản thật** (tải từ hunre.edu.vn, 26/11/2026):
+
+| Nội dung | Giá trị trong CSDL | Nguồn |
+|---|---|---|
+| Ngành | `7850101` Quản lý tài nguyên và môi trường | Thông tin tuyển sinh 2026 |
+| Chương trình | 122 tín chỉ (75 bắt buộc), K24 và K26; 61 học phần với mã, tên, số tín chỉ, học kỳ gợi ý 1–8, bắt buộc/tự chọn đúng bản CTĐT; 8 cặp tiên quyết (vd NNTA165 ← NNTA164, MTQM186 ← MTQM185) | Bản mô tả CTĐT ngành QLTN&MT (ký 09/9/2024) |
+| Cách tính điểm | 40% quá trình + 60% thi kết thúc (trùng quy ước sẵn có của hệ thống) | Bản mô tả CTĐT |
+| Học kỳ đầu | Trường đăng ký mặc định thời khóa biểu (K26 có sẵn 8 lớp HK1); từ HK2 sinh viên tự đăng ký | Bản mô tả CTĐT, mục 3.11 |
+| Mã SV, lớp | 10 chữ số, 2 số đầu = năm nhập học; lớp `ĐH<khóa><ngành><số>` (nhập học 2024 → `ĐH14QM1`) | Quy trình đăng ký môn học theo tín chỉ (ví dụ `16110620xx`, lớp `ĐH6C1`) |
+| Tân sinh viên | Học phí HK1 2026-2027 tạm thu **9.026.000 đ**, hạn 15/9/2026 | Hướng dẫn nhập học ĐHCQ 2026 (đợt bổ sung) |
+
+**Mô phỏng** (không có văn bản công khai): họ tên, ngày sinh, email, 5 số cuối mã SV; giảng viên, phòng,
+tiết học (đánh số 1–10, giờ từng tiết trường không công bố); lịch thi; điểm; đơn giá **475.000 đ/tín chỉ**
+cho K24 (nằm trong khoảng 435.600–548.100 đ/tín chỉ mà báo chí đưa tin, chưa đối chiếu văn bản gốc).
+Thang điểm chữ vẫn dùng thang của hệ thống giả lập (A ≥ 8,5 … F < 4,0).
+
+Ngoài CSDL (hướng dẫn trợ lý có thể trả lời nếu thêm vào văn bản quy chế): khi nhập học, ngoài học phí
+còn thu hộ khám sức khỏe 120.000 đ, BHYT 854.000 đ, bảo hiểm thân thể 400.000 đ (tổng 10.400.000 đ);
+nộp trực tuyến bằng **mã QR** trên trang tra cứu & thanh toán phí nhập học (tra theo số CCCD), sau đó kiểm
+tra mục "khoản đã nộp". Đăng ký học trên cổng đăng ký: xem chương trình học → chọn lớp học phần (có nút
+lọc lớp không trùng giờ; học cải thiện điểm có nút riêng) → in phiếu nộp khoa qua cố vấn học tập.
+
+| Sinh viên | Lớp, khóa | Tình huống demo |
+|---|---|---|
+| 2411100101 Nguyễn Thị Thu Hà | ĐH14QM1, K24 | Học đều (GPA 3,23, 64 TC); đã đăng ký trước 2 lớp HK2; gợi ý kế hoạch tránh MTQM186.01 vì trùng giờ MTCM117.01 |
+| 2411100102 Trần Đức Long | ĐH14QM1, K24 | F Ngoại ngữ 1 → Ngoại ngữ 2 bị chặn (tiên quyết), được gợi ý lớp học lại NNTA164.02; HK1 2026-2027 nộp 4.000.000/8.550.000 đ; đơn phúc khảo MTQT106 đã xử lý |
+| 2411100103 Lê Phương Anh | ĐH14QM2, K24 | Học giỏi (GPA 3,95), có IELTS 6.5 |
+| 2611100105 Phạm Minh Khôi | ĐH16QM1, K26 | Tân sinh viên, đã nộp 9.026.000 đ tạm thu, 8 lớp HK1 do trường xếp, có lịch thi; đơn xin giấy xác nhận đang xử lý |
+| 2611100117 Hoàng Bảo Ngọc | ĐH16QM1, K26 | Tân sinh viên, như trên |
+
+Thêm 29 lớp học phần (15 lớp HK1, 14 lớp HK2 2026-2027 — chỉ của học phần mới), 15 lịch thi (28/12/2026–
+08/01/2027), 11 dòng học phí, 4 chứng chỉ, 2 đơn. Ràng buộc như script 11: không thêm lớp cho học phần
+cũ, không sửa sinh viên cũ. HK2 2026-2027 có 24 lớp, dưới giới hạn 50 lớp của `search_sections` (sắp theo
+mã lớp), nên danh sách lớp mà TN3 dùng (IT004.02, SE…) không bị đẩy ra ngoài.

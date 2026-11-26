@@ -3,7 +3,8 @@
 #   .\scripts\reset_demo.ps1 -ChiQlsv   # chỉ dữ liệu QLSV (đăng ký, đơn từ...)
 #
 # Đầy đủ gồm:
-#   1. tlhv_qlsv      : chạy lại database/01_qlsv_schema.sql + 03_qlsv_seed.sql + 11_bo_sung_du_lieu_demo.sql.
+#   1. tlhv_qlsv      : chạy lại database/01_qlsv_schema.sql + 03_qlsv_seed.sql + 11_bo_sung_du_lieu_demo.sql
+#                       + 12_du_lieu_mo_phong_hunre.sql.
 #   2. tlhv_assistant : database/90_reset_demo_assistant.sql — xóa hội thoại, nhật ký, thẻ xác nhận,
 #                       đánh giá; bật lại MCP server + công cụ theo seed (sau demo 7). GIỮ văn bản đã
 #                       lập chỉ mục và tài khoản.
@@ -67,6 +68,7 @@ Write-Step "1/3 Dữ liệu QLSV (tlhv_qlsv)..."
 Invoke-SqlFile "01_qlsv_schema.sql" | Out-Null
 Invoke-SqlFile "03_qlsv_seed.sql" | Out-Null
 Invoke-SqlFile "11_bo_sung_du_lieu_demo.sql" | Out-Null
+Invoke-SqlFile "12_du_lieu_mo_phong_hunre.sql" | Out-Null
 
 if (-not $ChiQlsv) {
     Write-Step "2/3 Hội thoại, nhật ký, cấu hình công cụ (tlhv_assistant)..."

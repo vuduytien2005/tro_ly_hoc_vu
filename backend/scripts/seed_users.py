@@ -1,7 +1,8 @@
 """Tạo tài khoản mẫu (docs/03-co-so-du-lieu.md) trong CSDL `tlhv_assistant`.
 
 - 5 sinh viên của 03_qlsv_seed.sql + admin; thêm 9 sinh viên nếu đã chạy
-  database/11_bo_sung_du_lieu_demo.sql.
+  database/11_bo_sung_du_lieu_demo.sql, thêm 5 sinh viên nếu đã chạy
+  database/12_du_lieu_mo_phong_hunre.sql.
 - Họ tên và ma_khoa của sinh viên lấy từ CSDL `tlhv_qlsv` (nguồn sự thật của trường).
 - Chạy lại nhiều lần không bị trùng: đã có email thì chỉ cập nhật thông tin,
   GIỮ NGUYÊN mật khẩu (trừ khi dùng --reset-password).
@@ -36,6 +37,12 @@ EXTRA_STUDENT_IDS = [
     "SV26001",
     "SV22101",
     "SV23101",
+    # database/12_du_lieu_mo_phong_hunre.sql (mô phỏng theo HUNRE, mã SV 10 chữ số)
+    "2411100101",
+    "2411100102",
+    "2411100103",
+    "2611100105",
+    "2611100117",
 ]
 ADMIN_EMAIL = "admin@truong.example"
 ADMIN_NAME = "Quản trị viên"
