@@ -47,6 +47,8 @@ flowchart TB
     Assistant --> DBA
 ```
 
+**Bảng 2.1.** Trách nhiệm từng thành phần
+
 | Thành phần | Trách nhiệm | Không làm |
 |---|---|---|
 | web | Giao diện, hiển thị streaming, thẻ xác nhận, trích dẫn | Không gọi MCP/LLM trực tiếp |
@@ -156,6 +158,9 @@ Nguyên tắc:
 ```
 
 ## 5. Sự kiện SSE gửi về web
+
+**Bảng 2.2.** Sự kiện SSE gửi về web
+
 | event | data |
 |---|---|
 | `token` | `{"text": "..."}` |
@@ -226,6 +231,8 @@ tiến trình. Đã kiểm chứng với chromadb 1.5.9: tiến trình B ghi vec
 thấy `count()` tăng nhưng **truy vấn vector không trả về dữ liệu mới** cho tới khi khởi động lại. Nếu
 assistant_api ghi Chroma, PDF mới chỉ tìm được bằng BM25 → trượt yêu cầu "tải lên là hỏi được ngay".
 Giải pháp: chỉ `quy_che` đọc/ghi Chroma; assistant_api gọi API nội bộ của nó:
+
+**Bảng 2.3.** API nội bộ lập chỉ mục của `quy_che`
 
 | Đường dẫn (quy_che, chỉ 127.0.0.1) | Việc |
 |---|---|
