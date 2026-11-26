@@ -66,6 +66,9 @@ Mục tiêu: ngay trong lúc Agent chạy, hội đồng **nhìn thấy** các v
 │                          │ ─ Bảng này đọc từ nhật ký hệ thống │
 └──────────────────────────┴────────────────────────────────────┘
 ```
+
+*Hình 1. Phác thảo panel "Bên trong Agent" cạnh khung chat.*
+
 - Cột phải, rộng khoảng 360 px, chỉ hiện khi bật chế độ trình bày. Màn hẹp thì xếp xuống dưới chat.
 - Mỗi lượt là một thẻ đánh số:
   - nhãn tiếng Việt và tên kỹ thuật (chữ nhỏ);
