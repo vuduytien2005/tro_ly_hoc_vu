@@ -26,6 +26,8 @@ const stats: Stats = {
     so_menh_de: 8,
     so_co_can_cu: 7,
     ti_le_co_can_cu: 0.875,
+    cau_tra_loi_theo_mo_hinh: { 'gemini/x': 3, 'ollama_chat/qwen2.5:7b': 1 },
+    mo_hinh_du_phong: 'ollama_chat/qwen2.5:7b',
   },
 }
 
@@ -55,6 +57,8 @@ describe('statsToCsv', () => {
     expect(lines).toContain('Tỉ lệ ý có căn cứ (%),87.5')
     expect(lines).toContain('get_transcript,5,1')
     expect(lines).toContain('2026-11-02,6')
+    expect(lines).toContain('Câu trả lời dùng mô hình dự phòng (%),25')
+    expect(lines).toContain('ollama_chat/qwen2.5:7b (dự phòng),1')
   })
 
   it('tỉ lệ chưa có dữ liệu để trống', () => {

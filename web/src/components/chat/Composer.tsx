@@ -1,7 +1,16 @@
 import { SendHorizontal } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { charCounter } from '../../lib/conversations'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 
 const MAX_HEIGHT = 200
+const MAX_LENGTH = 2000 // khớp giới hạn backend (schemas.py)
 
 /** Câu điền sẵn từ ngoài (chế độ trình bày); `n` tăng mỗi lần bấm để điền lại cùng một câu. */
 export interface Draft {
@@ -68,7 +77,7 @@ export function Composer({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
-            maxLength={2000}
+            maxLength={MAX_LENGTH}
             placeholder="Hỏi về quy chế, điểm, lịch thi, thủ tục…"
             aria-label="Nội dung tin nhắn"
             className="max-h-[200px] min-h-11 flex-1 resize-none bg-transparent px-2 py-2.5 outline-none"
@@ -82,8 +91,18 @@ export function Composer({
             <SendHorizontal size={20} />
           </button>
         </div>
-        <p className="mt-2 text-center text-xs text-slate-400">
-          Câu trả lời do AI tạo, hãy đối chiếu văn bản gốc.
+        <p className="mt-2 flex text-xs text-slate-400">
+          <span className="flex-1 text-center">
+            Câu trả lời do AI tạo, hãy đối chiếu văn bản gốc.
+          </span>
+          {charCounter(text.length, MAX_LENGTH) && (
+            <span
+              aria-live="polite"
+              className={text.length >= MAX_LENGTH ? 'font-medium text-err' : 'text-warn'}
+            >
+              {charCounter(text.length, MAX_LENGTH)}
+            </span>
+          )}
         </p>
       </div>
     </div>

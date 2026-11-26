@@ -9,13 +9,15 @@ import {
   GraduationCap,
   LoaderCircle,
   MessageCircle,
+  Printer,
   Wallet,
   XCircle,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { ApiError } from '../lib/api'
-import { formatDate } from '../lib/format'
+import { formatDate, formatDateTime } from '../lib/format'
 import {
   CERTIFICATE_LABELS,
   OVERVIEW_QUERY,
@@ -44,12 +46,31 @@ function useAsk(): (question: string) => void {
     })
 }
 
+/**
+ * Đang in (Ctrl+P hoặc nút "In / Lưu PDF") -> mở hết bảng điểm. flushSync: trình duyệt chụp trang
+ * ngay sau sự kiện beforeprint, nên phải vẽ lại đồng bộ.
+ */
+function usePrinting(): boolean {
+  const [printing, setPrinting] = useState(false)
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true))
+    const after = () => setPrinting(false)
+    window.addEventListener('beforeprint', before)
+    window.addEventListener('afterprint', after)
+    return () => {
+      window.removeEventListener('beforeprint', before)
+      window.removeEventListener('afterprint', after)
+    }
+  }, [])
+  return printing
+}
+
 function AskButton({ question, label = 'Hỏi trợ lý' }: { question: string; label?: string }) {
   const ask = useAsk()
   return (
     <button
       onClick={() => ask(question)}
-      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs font-medium text-primary hover:border-primary"
+      className="inline-flex h-8 shrink-0 print:hidden items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs font-medium text-primary hover:border-primary"
     >
       <MessageCircle size={14} /> {label}
     </button>
@@ -154,13 +175,13 @@ export default function StudyPage() {
   )
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-5xl space-y-4 px-3 py-6 sm:px-6">
+    <div className="h-full overflow-y-auto print:h-auto print:overflow-visible">
+      <div className="mx-auto max-w-5xl space-y-4 px-3 py-6 sm:px-6 print:max-w-none print:p-0">
         <div className="flex items-center gap-3">
           <GraduationCap className="text-primary" />
           <h1 className="flex-1 text-xl font-semibold text-navy">Học tập của em</h1>
           {base.data && (
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-2 text-sm text-slate-600 print:hidden">
               <span className="hidden sm:inline">Học kỳ</span>
               <select
                 value={semester}
@@ -180,7 +201,24 @@ export default function StudyPage() {
               )}
             </label>
           )}
+          {base.data && (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              title='In hoặc chọn máy in "Lưu thành PDF"'
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 text-sm text-slate-700 hover:bg-page print:hidden"
+            >
+              <Printer size={16} /> <span className="hidden sm:inline">In / Lưu PDF</span>
+            </button>
+          )}
         </div>
+        {query.dataUpdatedAt > 0 && (
+          <p className="hidden text-xs text-slate-500 print:block">
+            Số liệu từ Trợ lý học vụ lúc{' '}
+            {formatDateTime(new Date(query.dataUpdatedAt).toISOString())} — bản tham khảo, không
+            thay giấy xác nhận chính thức của nhà trường.
+          </p>
+        )}
         {query.isPending && (
           <p className="flex items-center gap-2 text-sm text-slate-500">
             <LoaderCircle size={16} className="animate-spin" /> Đang tải…
@@ -434,6 +472,7 @@ function OverviewBody({ data }: { data: Overview }) {
 function Transcript({ data }: { data: TranscriptRow[] }) {
   const groups = groupBySemester(data)
   const [open, setOpen] = useState<string | null>(groups[0]?.hoc_ky ?? null)
+  const printing = usePrinting()
   return (
     <div className="divide-y divide-line">
       {groups.map((grp) => (
@@ -447,7 +486,7 @@ function Transcript({ data }: { data: TranscriptRow[] }) {
               {grp.rows.length} học phần · {grp.tin_chi} TC {open === grp.hoc_ky ? '▲' : '▼'}
             </span>
           </button>
-          {open === grp.hoc_ky && (
+          {(printing || open === grp.hoc_ky) && (
             <table className="mb-2 w-full text-sm">
               <tbody>
                 {grp.rows.map((r) => (

@@ -1,5 +1,5 @@
 import { citationLocation, formatDateTime } from './format'
-import type { Conversation, Message } from './types'
+import type { Citation, Conversation, Message } from './types'
 
 /** Chuẩn hóa để tìm kiếm: bỏ dấu tiếng Việt (đ -> d), chữ thường, gộp khoảng trắng. */
 export function normalizeSearch(text: string): string {
@@ -64,11 +64,7 @@ export function conversationText(
     if (!text) continue
     const who = m.vai_tro === 'user' ? 'Em' : 'Trợ lý'
     lines.push(`[${formatDateTime(m.created_at)}] ${who}: ${text}`)
-    for (const c of m.trich_dan ?? []) {
-      const source = [c.van_ban, c.phien_ban ? `(${c.phien_ban})` : null].filter(Boolean).join(' ')
-      const where = citationLocation(c)
-      lines.push(`    [${c.so}] ${source || 'Tài liệu'}${where ? ` — ${where}` : ''}`)
-    }
+    for (const c of m.trich_dan ?? []) lines.push(`    ${citationLine(c)}`)
     lines.push('')
   }
   lines.push(
@@ -84,4 +80,33 @@ export function exportFileName(title: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 60)
   return `tro-chuyen-${slug || 'hoi-thoai'}.txt`
+}
+
+/** "[1] Quy chế đào tạo (2021) — Điều 8, Khoản 2, trang 3" */
+export function citationLine(c: Citation): string {
+  const source = [c.van_ban, c.phien_ban ? `(${c.phien_ban})` : null].filter(Boolean).join(' ')
+  const where = citationLocation(c)
+  return `[${c.so}] ${source || 'Tài liệu'}${where ? ` — ${where}` : ''}`
+}
+
+/** Bỏ ký hiệu Markdown thường gặp trong câu trả lời (đậm, nghiêng, tiêu đề, liên kết). */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1$2')
+    .replace(/`([^`]+)`/g, '$1')
+}
+
+/** Nội dung nút "Sao chép": chữ thường (dán vào Zalo / email) + danh sách nguồn ở cuối. */
+export function answerCopyText(text: string, citations: Citation[] | null | undefined): string {
+  const body = stripMarkdown(text.trim())
+  if (!citations?.length) return body
+  return `${body}\n\nNguồn:\n${citations.map(citationLine).join('\n')}`
+}
+
+/** Bộ đếm ký tự ô nhập: chỉ hiện khi đã dùng từ 90% giới hạn. */
+export function charCounter(length: number, max: number): string | null {
+  return length >= max * 0.9 ? `${length}/${max}` : null
 }

@@ -553,6 +553,39 @@ def test_stats_safety_empty_range(admin_client: TestClient, ad: dict[str, str]) 
     s = admin_client.get("/api/admin/stats?tu=2032-01-01&den=2032-01-01", headers=ad).json()
     assert s["an_toan"]["ti_le_co_can_cu"] is None
     assert sum(s["an_toan"]["trang_thai_goi"].values()) == 0
+    assert s["an_toan"]["cau_tra_loi_theo_mo_hinh"] == {}
+
+
+def test_stats_answers_by_model(
+    admin_client: TestClient,
+    ad: dict[str, str],
+    db: Session,
+    student: NguoiDung,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Câu trả lời theo mô hình đã viết (nâng cấp 13): biết bao nhiêu câu phải dùng dự phòng."""
+    monkeypatch.setattr(get_settings(), "llm_fallback_model", "ollama_chat/qwen2.5:7b")
+    day = datetime(2031, 4, 2, 9, 0)
+    conv = HoiThoai(nguoi_dung_id=student.id, tieu_de="Mô hình", created_at=day, updated_at=day)
+    db.add(conv)
+    db.flush()
+    for model in ("gemini/x", "gemini/x", "ollama_chat/qwen2.5:7b", None):
+        db.add(
+            TinNhan(
+                hoi_thoai_id=conv.id,
+                vai_tro="assistant",
+                noi_dung="ok",
+                mo_hinh=model,
+                created_at=day,
+            )
+        )
+    db.add(TinNhan(hoi_thoai_id=conv.id, vai_tro="user", noi_dung="hỏi", created_at=day))
+    db.commit()
+    s = admin_client.get("/api/admin/stats?tu=2031-04-02&den=2031-04-02", headers=ad).json()
+    safety = s["an_toan"]
+    # Tin cũ (trước nâng cấp, mo_hinh NULL) và tin của sinh viên không tính
+    assert safety["cau_tra_loi_theo_mo_hinh"] == {"gemini/x": 2, "ollama_chat/qwen2.5:7b": 1}
+    assert safety["mo_hinh_du_phong"] == "ollama_chat/qwen2.5:7b"
 
 
 def test_settings_paths_unchanged() -> None:

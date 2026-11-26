@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  answerCopyText,
+  charCounter,
   conversationText,
   exportFileName,
   groupConversations,
@@ -99,5 +101,39 @@ describe('exportFileName', () => {
   it('tiêu đề tiếng Việt -> tên tệp không dấu, an toàn', () => {
     expect(exportFileName('Học phí / kỳ này?')).toBe('tro-chuyen-hoc-phi-ky-nay.txt')
     expect(exportFileName('???')).toBe('tro-chuyen-hoi-thoai.txt')
+  })
+})
+
+describe('answerCopyText', () => {
+  const cite: Citation = {
+    so: 1,
+    doan_id: 1,
+    van_ban_id: 612,
+    van_ban: 'Quy chế đào tạo',
+    phien_ban: '2021',
+    dieu: 'Điều 8',
+    khoan: null,
+    trang: null,
+    trich_doan: null,
+  }
+
+  it('bỏ ký hiệu Markdown, giữ gạch đầu dòng, thêm nguồn ở cuối', () => {
+    const md =
+      '## Kết luận\n**Em chưa đủ** điều kiện [1].\n- Thiếu *3 tín chỉ*\n- Xem [cổng](https://x.vn)'
+    expect(answerCopyText(md, [cite])).toBe(
+      'Kết luận\nEm chưa đủ điều kiện [1].\n- Thiếu 3 tín chỉ\n- Xem cổng\n\nNguồn:\n[1] Quy chế đào tạo (2021) — Điều 8',
+    )
+  })
+
+  it('không có trích dẫn -> chỉ nội dung', () => {
+    expect(answerCopyText('Chào em', null)).toBe('Chào em')
+  })
+})
+
+describe('charCounter', () => {
+  it('chỉ hiện khi đã dùng từ 90% giới hạn', () => {
+    expect(charCounter(100, 2000)).toBeNull()
+    expect(charCounter(1800, 2000)).toBe('1800/2000')
+    expect(charCounter(2000, 2000)).toBe('2000/2000')
   })
 })

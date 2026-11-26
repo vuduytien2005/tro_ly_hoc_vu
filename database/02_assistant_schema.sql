@@ -82,6 +82,7 @@ CREATE TABLE tin_nhan (
   so_token_vao  INT           NULL,
   so_token_ra   INT           NULL,
   thoi_gian_ms  INT           NULL,
+  mo_hinh       NVARCHAR(100) NULL,      -- mô hình đã viết câu trả lời (nâng cấp 13)
   created_at    DATETIME2(3)  NOT NULL CONSTRAINT df_tn_created DEFAULT SYSDATETIME(),
   CONSTRAINT fk_tn_ht FOREIGN KEY (hoi_thoai_id) REFERENCES hoi_thoai(id) ON DELETE CASCADE
 );

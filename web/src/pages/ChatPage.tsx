@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowDown,
   CircleAlert,
   CircleCheck,
   GraduationCap,
@@ -23,7 +24,8 @@ import { ApiError, api } from '../lib/api'
 import { DEMO_PROMPTS } from '../lib/demoPrompts'
 import { OVERVIEW_QUERY } from '../lib/overview'
 import { suggestionsFor } from '../lib/suggestions'
-import { CANCEL_PREFIX, CONFIRM_PREFIX, unansweredQuestion } from '../lib/format'
+import { answerCopyText } from '../lib/conversations'
+import { CANCEL_PREFIX, CONFIRM_PREFIX, isNearBottom, unansweredQuestion } from '../lib/format'
 import { fetchHealth, isRetryable } from '../lib/health'
 import { readPrefill } from '../lib/reminders'
 import { traceKey, useFontScale, usePresentationMode, type FontScale } from '../lib/presentation'
@@ -78,6 +80,16 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null)
   const justCreatedRef = useRef<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  // Chỉ tự cuộn theo chữ mới khi đang ở cuối; cuộn lên đọc lại thì giữ nguyên + hiện nút xuống cuối
+  const stickRef = useRef(true)
+  // Nút hiện cho hội thoại nào (đổi hội thoại -> tự ẩn, không cần effect)
+  const [jumpFor, setJumpFor] = useState<number | null | undefined>(undefined)
+  const showJump = jumpFor === conversationId
+  const jumpToBottom = useCallback(() => {
+    stickRef.current = true
+    setJumpFor(undefined)
+    bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+  }, [])
   const [draft, setDraft] = useState<Draft | null>(null)
 
   // Chuông nhắc việc chuyển sang /chat kèm câu hỏi soạn sẵn: đặt vào ô nhập (không tự gửi),
@@ -137,8 +149,12 @@ export default function ChatPage() {
   useEffect(() => () => abortRef.current?.abort(), [])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' })
+    if (stickRef.current) bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages.data, live?.text, live?.chips.length, liveCards.length])
+  // Đổi hội thoại -> về cuối
+  useEffect(() => {
+    stickRef.current = true
+  }, [conversationId])
 
   const busy = live != null && !live.finished
   /** Nút "Hỏi cán bộ" dưới câu trả lời chưa đủ căn cứ: điền sẵn ô chat, sinh viên tự gửi. */
@@ -251,6 +267,8 @@ export default function ChatPage() {
 
   async function send(text: string) {
     let convId = conversationId
+    stickRef.current = true // vừa gửi câu hỏi -> theo dõi câu trả lời
+    setJumpFor(undefined)
     lastTextRef.current = text
     try {
       if (convId == null) {
@@ -394,7 +412,14 @@ export default function ChatPage() {
       )}
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        onScroll={(e) => {
+          const near = isNearBottom(e.currentTarget)
+          stickRef.current = near
+          setJumpFor(near ? undefined : conversationId)
+        }}
+      >
         <div className="mx-auto max-w-3xl px-3 py-6 sm:px-6">
           {empty && !live && <Welcome onPick={send} disabled={busy} />}
 
@@ -472,6 +497,17 @@ export default function ChatPage() {
             </div>
           )}
           <div ref={bottomRef} />
+          {showJump && (
+            <div className="pointer-events-none sticky bottom-3 flex justify-center">
+              <button
+                type="button"
+                onClick={jumpToBottom}
+                className="pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-sm text-slate-700 shadow-md hover:bg-page"
+              >
+                <ArrowDown size={16} /> Cuộn xuống cuối
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <Composer disabled={busy} onSend={send} draft={draft} toolbar={presenterToolbar} />
@@ -522,7 +558,11 @@ function MessageView({ message, onAskStaff }: { message: Message; onAskStaff: ()
       <AnswerText text={message.noi_dung} citations={message.trich_dan} verification={message.kiem_chung} />
       <SourceList citations={message.trich_dan} />
       <VerificationBadge verification={message.kiem_chung} onAskStaff={onAskStaff} />
-      <Feedback messageId={message.id} initial={message.danh_gia} />
+      <Feedback
+        messageId={message.id}
+        initial={message.danh_gia}
+        copyText={answerCopyText(message.noi_dung, message.trich_dan)}
+      />
     </AssistantBubble>
   )
 }

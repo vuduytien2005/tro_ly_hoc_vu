@@ -212,6 +212,9 @@ class SafetyStats(BaseModel):
     so_menh_de: int
     so_co_can_cu: int
     ti_le_co_can_cu: float | None  # None khi chưa có ý nào được chấm
+    # Câu trả lời theo mô hình đã viết (nâng cấp 13; tin cũ không có -> không tính)
+    cau_tra_loi_theo_mo_hinh: dict[str, int]
+    mo_hinh_du_phong: str | None  # LLM_FALLBACK_MODEL hiện tại (giao diện đánh dấu "dự phòng")
 
 
 class StatsOut(BaseModel):

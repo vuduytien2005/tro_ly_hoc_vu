@@ -497,7 +497,15 @@ class AgentRunner:
                     text = REFUSED if turn.refused else EMPTY
                     yield AgentEvent("token", {"text": text})
                 async for event in self._finish(
-                    db, conversation, text, sources, tokens_in, tokens_out, started, passages
+                    db,
+                    conversation,
+                    text,
+                    sources,
+                    tokens_in,
+                    tokens_out,
+                    started,
+                    passages,
+                    model=turn.model or None,
                 ):
                     yield event
                 return
@@ -557,7 +565,9 @@ class AgentRunner:
         tokens_out: int,
         started: float,
         passages: dict[int, str] | None = None,
+        model: str | None = None,
     ) -> AsyncIterator[AgentEvent]:
+        """`model`: mô hình đã viết câu trả lời (None = câu hệ thống tự sinh, vd TOO_COMPLEX)."""
         text, citations = check_citations(text, sources)
         message = TinNhan(
             hoi_thoai_id=conversation.id,
@@ -567,6 +577,7 @@ class AgentRunner:
             so_token_vao=tokens_in or None,
             so_token_ra=tokens_out or None,
             thoi_gian_ms=int((time.perf_counter() - started) * 1000),
+            mo_hinh=model[:100] if model else None,
         )
         db.add(message)
         db.commit()

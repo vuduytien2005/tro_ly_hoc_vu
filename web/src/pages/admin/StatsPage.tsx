@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Ban,
   Clock,
+  Cpu,
   Download,
   FileCheck2,
   MessageSquare,
@@ -34,6 +35,7 @@ import {
   confirmRate,
   toSegments,
   type SegmentDef,
+  modelUsage,
 } from '../../lib/safety'
 
 const PRIMARY = '#1D4ED8'
@@ -90,7 +92,11 @@ export default function StatsPage() {
       {s && (
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={<MessagesSquare size={20} />} label="Cuộc trò chuyện" value={s.so_hoi_thoai} />
+            <Metric
+              icon={<MessagesSquare size={20} />}
+              label="Cuộc trò chuyện"
+              value={s.so_hoi_thoai}
+            />
             <Metric icon={<MessageSquare size={20} />} label="Câu hỏi" value={s.so_cau_hoi} />
             <Metric
               icon={<ThumbsUp size={20} />}
@@ -126,7 +132,13 @@ export default function StatsPage() {
                       labelFormatter={(v) => formatDate(String(v))}
                       formatter={(v) => [v, 'Câu hỏi']}
                     />
-                    <Line type="monotone" dataKey="so_cau_hoi" stroke={PRIMARY} strokeWidth={2} dot={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="so_cau_hoi"
+                      stroke={PRIMARY}
+                      strokeWidth={2}
+                      dot={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -139,7 +151,11 @@ export default function StatsPage() {
               ) : (
                 <div style={{ height: Math.max(160, s.top_cong_cu.length * 34) }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={s.top_cong_cu} layout="vertical" margin={{ left: 10, right: 16 }}>
+                    <BarChart
+                      data={s.top_cong_cu}
+                      layout="vertical"
+                      margin={{ left: 10, right: 16 }}
+                    >
                       <CartesianGrid stroke="#E3E8F0" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
                       <YAxis
@@ -264,7 +280,67 @@ function SafetySection({ safety }: { safety: SafetyStats }) {
           empty="Chưa có hành động nào cần sinh viên xác nhận trong khoảng này."
         />
       </div>
+      <ModelUsage
+        byModel={safety.cau_tra_loi_theo_mo_hinh ?? {}}
+        fallbackModel={safety.mo_hinh_du_phong}
+      />
     </Card>
+  )
+}
+
+/** Câu trả lời theo mô hình đã viết: bao nhiêu câu phải dùng mô hình dự phòng (nâng cấp CSDL 13). */
+function ModelUsage({
+  byModel,
+  fallbackModel,
+}: {
+  byModel: Record<string, number>
+  fallbackModel: string | null
+}) {
+  const { rows, total, fallbackRate } = modelUsage(byModel, fallbackModel)
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Cpu size={18} className="text-primary" />
+        <h3 className="flex-1 text-sm font-medium text-navy">Mô hình viết câu trả lời</h3>
+        {fallbackRate != null && (
+          <span className="text-xs text-slate-500">
+            Dùng mô hình dự phòng: <b className="text-navy">{formatPercent(fallbackRate)}</b> ·{' '}
+            {total} câu trả lời
+          </span>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-500">
+          Chưa có câu trả lời nào ghi mô hình trong khoảng này (tin nhắn trước nâng cấp không có).
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((r) => (
+            <li key={r.model} className="text-sm">
+              <div className="mb-1 flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs" title={r.model}>
+                  {r.model}
+                </span>
+                {r.fallback && (
+                  <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">
+                    dự phòng
+                  </span>
+                )}
+                <span className="w-24 text-right text-xs text-slate-500">
+                  {r.count} · {formatPercent(r.share)}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-page">
+                <div
+                  className={`h-full rounded-full ${r.fallback ? 'bg-accent' : 'bg-primary'}`}
+                  style={{ width: `${Math.max(2, r.share * 100)}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 

@@ -77,3 +77,11 @@ export function unansweredQuestion(messages: Message[]): string | null {
     return null
   return last.noi_dung
 }
+
+/** Khung chat đang ở (gần) cuối -> tiếp tục tự cuộn theo chữ mới; đã cuộn lên đọc lại thì thôi. */
+export function isNearBottom(
+  el: { scrollTop: number; clientHeight: number; scrollHeight: number },
+  threshold = 80,
+): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold
+}

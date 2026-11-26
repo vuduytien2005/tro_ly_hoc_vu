@@ -16,7 +16,7 @@ Tiền tố `tlhv_` (trợ lý học vụ) tránh trùng với CSDL có sẵn tr
 ## Cài đặt
 1. Cài SQL Server (bản **Express** miễn phí là đủ) + **SQL Server Management Studio (SSMS)** + **ODBC Driver 18 for SQL Server**.
    Máy phát triển hiện có instance `localhost\SQLEXPRESS01` (SQL Server 2025 Express).
-2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `10` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Sau đó chạy `11_bo_sung_du_lieu_demo.sql` (dữ liệu demo bổ sung) và `12_du_lieu_mo_phong_hunre.sql` (dữ liệu mô phỏng theo HUNRE) — hai mục cuối tài liệu. Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
+2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `10` và `13` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Sau đó chạy `11_bo_sung_du_lieu_demo.sql` (dữ liệu demo bổ sung) và `12_du_lieu_mo_phong_hunre.sql` (dữ liệu mô phỏng theo HUNRE) — hai mục cuối tài liệu. Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
    - **SSMS:** File → Open → chọn file → Execute (F5), lần lượt từng file.
    - **Dòng lệnh** (PowerShell, tại thư mục gốc dự án):
      ```powershell
@@ -190,6 +190,13 @@ cài mới chạy 01, 02, 04 là có). Thiết kế: `docs/superpowers/specs/202
 - `tlhv_assistant.tin_nhan.kiem_chung NVARCHAR(MAX) NULL CHECK ISJSON` — kết quả LLM giám khảo
   `{tong, co_can_cu, y: [{cau, ket_luan, doan, ly_do}], mo_hinh, thoi_gian_ms}`; NULL = không kiểm
   chứng (lượt không tra cứu quy chế, `ANSWER_VERIFY=false`, hoặc giám khảo lỗi).
+
+## Nâng cấp 13 — Mô hình viết câu trả lời (26/11/2026)
+Script `database/13_nang_cap_mo_hinh_tra_loi.sql` (chạy lại an toàn; `02` đã có sẵn cho máy cài mới):
+- `tlhv_assistant.tin_nhan.mo_hinh NVARCHAR(100) NULL` — mô hình đã viết **câu trả lời cuối** của lượt
+  (`LLM_MODEL`, hoặc `LLM_FALLBACK_MODEL` khi mô hình chính hết hạn mức / quá tải). NULL = tin cũ trước
+  nâng cấp, tin hệ thống tự sinh ("câu hỏi quá phức tạp", tin ghi lại công cụ sau khi xác nhận), tin
+  trung gian có `tool_calls`. Dùng cho Thống kê → An toàn & độ tin cậy (tỉ lệ dùng mô hình dự phòng).
 
 ## Nâng cấp 10 — Kho hỏi đáp cán bộ (25/11/2026)
 Script `database/10_nang_cap_kho_hoi_dap.sql` (chạy lại an toàn; máy cài mới đã có trong `02`):

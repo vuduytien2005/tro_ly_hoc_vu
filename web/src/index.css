@@ -24,6 +24,19 @@ body,
   height: 100%;
 }
 
+/* In / Lưu PDF (trang Học tập): bỏ khung cuộn cố định để in đủ mọi trang, giữ màu nền */
+@media print {
+  html,
+  body,
+  #root {
+    height: auto;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 body {
   @apply bg-page font-sans text-slate-800 antialiased;
 }

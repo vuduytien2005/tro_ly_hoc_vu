@@ -1,10 +1,20 @@
 import { useMutation } from '@tanstack/react-query'
-import { ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Check, Copy, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../../lib/api'
 
 /** 👍 / 👎 (icon) dưới câu trả lời; 👎 mở ô góp ý. Gửi lại thì backend ghi đè. */
-export function Feedback({ messageId, initial }: { messageId: number; initial: 1 | -1 | null }) {
+export function Feedback({
+  messageId,
+  initial,
+  copyText,
+}: {
+  messageId: number
+  initial: 1 | -1 | null
+  /** Nội dung nút "Sao chép" (đã bỏ Markdown, kèm nguồn) */
+  copyText?: string
+}) {
+  const [copied, setCopied] = useState(false)
   const [score, setScore] = useState<1 | -1 | null>(initial)
   const [asking, setAsking] = useState(false)
   const [note, setNote] = useState('')
@@ -27,6 +37,25 @@ export function Feedback({ messageId, initial }: { messageId: number; initial: 1
   return (
     <div className="mt-2">
       <div className="flex items-center gap-1">
+        {copyText && (
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-page"
+            aria-label={copied ? 'Đã sao chép' : 'Sao chép câu trả lời'}
+            title={copied ? 'Đã sao chép' : 'Sao chép câu trả lời (kèm nguồn)'}
+            onClick={() => {
+              const failed = () =>
+                window.alert('Trình duyệt không cho sao chép, em bôi đen rồi sao chép nhé.')
+              // Không phải localhost / https -> trình duyệt không cấp clipboard
+              if (!navigator.clipboard) return failed()
+              navigator.clipboard.writeText(copyText).then(() => {
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 2000)
+              }, failed)
+            }}
+          >
+            {copied ? <Check size={16} className="text-ok" /> : <Copy size={16} />}
+          </button>
+        )}
         <button
           className={button(1)}
           aria-label="Hữu ích"

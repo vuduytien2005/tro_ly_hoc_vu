@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACTION_SEGMENTS, CALL_SEGMENTS, confirmRate, toSegments } from './safety'
+import { ACTION_SEGMENTS, CALL_SEGMENTS, confirmRate, modelUsage, toSegments } from './safety'
 
 describe('toSegments', () => {
   it('bỏ trạng thái bằng 0, tính phần trăm theo tổng, giữ thứ tự định nghĩa', () => {
@@ -23,5 +23,22 @@ describe('confirmRate', () => {
     expect(
       confirmRate({ cho: 2, cho_bo_sung: 0, da_xac_nhan: 0, da_huy: 0, het_han: 0 }),
     ).toBeNull()
+  })
+})
+
+describe('modelUsage', () => {
+  it('nhiều câu nhất trước, đánh dấu dự phòng, tỉ lệ dùng dự phòng', () => {
+    const u = modelUsage({ 'ollama_chat/qwen2.5:7b': 1, 'gemini/x': 3 }, 'ollama_chat/qwen2.5:7b')
+    expect(u.rows).toEqual([
+      { model: 'gemini/x', count: 3, share: 0.75, fallback: false },
+      { model: 'ollama_chat/qwen2.5:7b', count: 1, share: 0.25, fallback: true },
+    ])
+    expect(u.total).toBe(4)
+    expect(u.fallbackRate).toBe(0.25)
+  })
+
+  it('chưa có dữ liệu -> tỉ lệ null; không cấu hình dự phòng -> 0', () => {
+    expect(modelUsage({}, 'x').fallbackRate).toBeNull()
+    expect(modelUsage({ 'gemini/x': 2 }, null).fallbackRate).toBe(0)
   })
 })

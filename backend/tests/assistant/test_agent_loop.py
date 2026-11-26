@@ -227,6 +227,7 @@ def test_llm_error_emits_error_event(client: TestClient, student: NguoiDung, db:
 def test_fallback_model_emits_notice_once(
     client: TestClient,
     student: NguoiDung,
+    db: Session,
     script: Callable[..., FakeLLM],
     qlsv_mock: respx.MockRouter,
 ) -> None:
@@ -243,6 +244,19 @@ def test_fallback_model_emits_notice_once(
     assert len(notices) == 1 and notices[0]["code"] == "MO_HINH_DU_PHONG"
     assert "dự phòng" in notices[0]["text"]
     assert events[-1][0] == "done"
+    # Lưu mô hình thực sự đã viết câu trả lời (thống kê tỉ lệ dùng dự phòng)
+    saved = db.get(TinNhan, dict(events)["done"]["tin_nhan_id"])
+    assert saved.mo_hinh == FakeLLM.FALLBACK_MODEL
+
+
+def test_answer_records_primary_model(
+    client: TestClient, student: NguoiDung, db: Session, script: Callable[..., FakeLLM]
+) -> None:
+    script(FakeResponse(text="Chào em."))
+    headers = login(client, student.email)
+    cid = new_conversation(client, headers)
+    events = chat(client, headers, cid, "xin chào")
+    assert db.get(TinNhan, dict(events)["done"]["tin_nhan_id"]).mo_hinh == FakeLLM.MODEL
 
 
 def test_history_sent_on_second_turn(

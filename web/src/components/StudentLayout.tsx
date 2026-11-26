@@ -32,13 +32,16 @@ export default function StudentLayout() {
   const setOpen = (value: boolean) => setOpenOn(value ? location.pathname : null)
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full print:block print:h-auto">
       {/* Màn hình nhỏ: sidebar thành menu trượt */}
       {open && (
-        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setOpen(false)} />
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden print:hidden"
+          onClick={() => setOpen(false)}
+        />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 transform transition-transform md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-72 transform transition-transform md:static md:translate-x-0 print:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -46,7 +49,7 @@ export default function StudentLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-3 border-b border-line bg-white px-3 md:hidden">
+        <header className="flex h-14 items-center gap-3 border-b border-line bg-white px-3 md:hidden print:hidden">
           <button
             onClick={() => setOpen(true)}
             aria-label="Mở menu"
@@ -56,7 +59,7 @@ export default function StudentLayout() {
           </button>
           <span className="font-semibold text-navy">Trợ lý học vụ</span>
         </header>
-        <main className="min-h-0 flex-1">
+        <main className="min-h-0 flex-1 print:overflow-visible">
           <ErrorBoundary resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>

@@ -64,6 +64,9 @@ class TinNhan(AssistantBase):
     so_token_vao: Mapped[int | None] = mapped_column(Integer)
     so_token_ra: Mapped[int | None] = mapped_column(Integer)
     thoi_gian_ms: Mapped[int | None] = mapped_column(Integer)
+    # Mô hình đã viết câu trả lời (LLM_MODEL / LLM_FALLBACK_MODEL; nâng cấp 13). None = tin cũ,
+    # tin hệ thống tự sinh, hoặc không phải câu trả lời cuối
+    mo_hinh: Mapped[str | None] = mapped_column(Unicode(100))
     created_at: Mapped[datetime] = mapped_column(
         DATETIME2(precision=3), server_default=text("SYSDATETIME()")
     )

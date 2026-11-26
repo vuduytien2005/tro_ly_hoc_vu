@@ -2,7 +2,7 @@
 // BOM UTF-8 để Excel nhận đúng tiếng Việt; xuống dòng CRLF; ô bắt đầu bằng = + - @ được thêm ' để
 // Excel không coi là công thức.
 import type { Stats } from './adminTypes'
-import { ACTION_SEGMENTS, CALL_SEGMENTS } from './safety'
+import { ACTION_SEGMENTS, CALL_SEGMENTS, modelUsage } from './safety'
 
 type Cell = string | number | null | undefined
 
@@ -18,6 +18,7 @@ function percent(ratio: number | null): Cell {
 }
 
 export function statsToCsv(s: Stats): string {
+  const usage = modelUsage(s.an_toan.cau_tra_loi_theo_mo_hinh ?? {}, s.an_toan.mo_hinh_du_phong)
   const rows: Cell[][] = [
     ['Thống kê trợ lý học vụ'],
     ['Từ ngày', s.tu],
@@ -38,6 +39,10 @@ export function statsToCsv(s: Stats): string {
     ['Số ý được chấm', s.an_toan.so_menh_de],
     ['Số ý có căn cứ', s.an_toan.so_co_can_cu],
     ['Tỉ lệ ý có căn cứ (%)', percent(s.an_toan.ti_le_co_can_cu)],
+    ['Câu trả lời dùng mô hình dự phòng (%)', percent(usage.fallbackRate)],
+    [],
+    ['Mô hình viết câu trả lời', 'Số câu trả lời'],
+    ...usage.rows.map((r) => [r.fallback ? `${r.model} (dự phòng)` : r.model, r.count]),
     [],
     ['Lượt gọi theo kết quả', 'Số lượt'],
     ...CALL_SEGMENTS.map((d) => [d.label, s.an_toan.trang_thai_goi[d.key] ?? 0]),

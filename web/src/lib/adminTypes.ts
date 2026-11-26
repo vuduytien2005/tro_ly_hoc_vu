@@ -134,6 +134,9 @@ export interface SafetyStats {
   so_menh_de: number
   so_co_can_cu: number
   ti_le_co_can_cu: number | null
+  /** Câu trả lời theo mô hình đã viết (nâng cấp CSDL 13) */
+  cau_tra_loi_theo_mo_hinh: Record<string, number>
+  mo_hinh_du_phong: string | null
 }
 
 export interface Stats {

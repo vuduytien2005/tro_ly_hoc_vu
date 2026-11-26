@@ -3,6 +3,7 @@ import {
   citationLocation,
   citationNumber,
   formatRemaining,
+  isNearBottom,
   linkCitations,
   unansweredQuestion,
 } from './format'
@@ -78,5 +79,16 @@ describe('unansweredQuestion', () => {
     expect(unansweredQuestion([msg('user', 'Hỏi'), msg('assistant', 'Đáp')])).toBeNull()
     expect(unansweredQuestion([msg('user', 'Xác nhận: Nộp đơn')])).toBeNull()
     expect(unansweredQuestion([msg('user', 'Hủy: Nộp đơn')])).toBeNull()
+  })
+})
+
+describe('isNearBottom', () => {
+  it('cách đáy dưới ngưỡng (mặc định 80px) -> đang ở cuối, tiếp tục tự cuộn', () => {
+    expect(isNearBottom({ scrollTop: 920, clientHeight: 500, scrollHeight: 1480 })).toBe(true)
+    expect(isNearBottom({ scrollTop: 0, clientHeight: 500, scrollHeight: 500 })).toBe(true)
+  })
+
+  it('đã cuộn lên đọc lại -> không tự cuộn (hiện nút "Cuộn xuống cuối")', () => {
+    expect(isNearBottom({ scrollTop: 200, clientHeight: 500, scrollHeight: 1480 })).toBe(false)
   })
 })

@@ -738,6 +738,18 @@ def _safety(db: Session, start: datetime | None, end: datetime | None) -> Safety
         )
     ).one()
     claims, ok = claims or 0, ok or 0
+    by_model = dict(
+        db.execute(
+            select(TinNhan.mo_hinh, func.count(TinNhan.id))
+            .where(
+                TinNhan.created_at >= start,
+                TinNhan.created_at < end,
+                TinNhan.vai_tro == "assistant",
+                TinNhan.mo_hinh.is_not(None),
+            )
+            .group_by(TinNhan.mo_hinh)
+        ).all()
+    )
     return SafetyStats(
         trang_thai_goi={s: calls.get(s, 0) for s in CALL_STATUSES},
         hanh_dong={s: actions.get(s, 0) for s in ACTION_STATUSES},
@@ -746,6 +758,8 @@ def _safety(db: Session, start: datetime | None, end: datetime | None) -> Safety
         so_menh_de=claims,
         so_co_can_cu=ok,
         ti_le_co_can_cu=round(ok / claims, 4) if claims else None,
+        cau_tra_loi_theo_mo_hinh=by_model,
+        mo_hinh_du_phong=get_settings().llm_fallback_model or None,
     )
 
 

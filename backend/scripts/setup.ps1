@@ -115,7 +115,7 @@ if ($exists -and -not $TaoLaiCsdl) {
     foreach ($name in "05_nang_cap_tool_call_id.sql", "06_nang_cap_ban_duyet.sql", "07_nang_cap_ke_hoach_hoc_ky.sql",
                      "08_nang_cap_elicitation.sql", "09_nang_cap_kiem_chung_hoi_dap.sql",
                      "10_nang_cap_kho_hoi_dap.sql", "11_bo_sung_du_lieu_demo.sql",
-                     "12_du_lieu_mo_phong_hunre.sql") {
+                     "12_du_lieu_mo_phong_hunre.sql", "13_nang_cap_mo_hinh_tra_loi.sql") {
         Invoke-Sql @("-i", (Join-Path $Root "database\$name")) | Out-Null
         Write-Ok $name
     }
