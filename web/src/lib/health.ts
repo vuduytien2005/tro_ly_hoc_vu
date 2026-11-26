@@ -21,6 +21,7 @@ export const SERVER_LABELS: Record<string, string> = {
   ctsv: 'Công tác sinh viên (giấy xác nhận, đơn từ)',
   tai_chinh: 'Học phí',
   quy_che: 'Tra cứu quy chế',
+  thu_vien: 'Thư viện (sách đang mượn, gia hạn)',
 }
 
 export function serverLabel(name: string): string {

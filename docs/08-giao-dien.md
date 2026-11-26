@@ -19,7 +19,8 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 /chat/:id               → cuộc trò chuyện
 /hoc-tap                → Học tập của em (bổ sung 26/11/2026)
 /thu-tuc                → Thủ tục của em
-/admin                  → Thống kê
+/admin                  → chuyển tới /admin/tong-quan
+/admin/tong-quan        → Tổng quan (bổ sung 26/11/2026)
 /admin/tai-lieu
 /admin/tai-lieu/:id     → xem các đoạn
 /admin/thu-truy-xuat
@@ -58,6 +59,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên / Trợ lý AI), trạng thái (badge màu). Bấm xem chi tiết nội dung đơn và ghi chú xử lý. Câu hỏi gửi cán bộ (`hoi_dap`): chi tiết hiện "Câu hỏi", "Gửi tới" (tên phòng ban) và mục **"Trả lời của cán bộ"**.
 
 ## Trang quản trị
+- **Tổng quan** (`/admin/tong-quan`, trang đầu sau khi đăng nhập quản trị, bổ sung 26/11/2026; `web/src/lib/adminOverview.ts`): chỉ gọi API sẵn có, dùng chung khóa truy vấn với huy hiệu menu / khung "Cần chú ý" / trang Tri thức. (1) **Việc cần xử lý** — 3 ô bấm được: đơn mới chưa xử lý → Đơn từ; sinh viên cần chú ý → Sinh viên; lỗ hổng tri thức 7 ngày chưa vào kho → Tri thức. (2) **Tình trạng hệ thống** — mô hình ngôn ngữ + từng MCP server (biểu tượng + chữ "Hoạt động / Đang tắt / Gián đoạn", gián đoạn lên đầu; `/health` tải lại mỗi 30 giây). (3) **7 ngày gần nhất** — câu hỏi, tỉ lệ hữu ích, tỉ lệ ý có căn cứ, tỉ lệ dùng mô hình dự phòng, link sang Thống kê. API nào lỗi thì ô đó hiện "—", các ô khác vẫn hiện.
 - **Tài liệu:** vùng kéo thả, form khai báo phiên bản + khóa áp dụng, bảng trạng thái (Đang xử lý / Đã lập chỉ mục / Lỗi), số đoạn.
 - **Thử truy xuất:** ô câu hỏi + chọn khóa + bật/tắt từng thành phần (vector, từ khóa, lọc phiên bản, rerank) → danh sách đoạn kèm điểm. Rất hữu ích để minh họa trong khóa luận.
 - **MCP & quyền:** nhóm theo server (chấm xanh/đỏ trạng thái kết nối), mỗi tool một dòng: tên, mô tả, mức rủi ro (select), cần xác nhận (switch), bật (switch).

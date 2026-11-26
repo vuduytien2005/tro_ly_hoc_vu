@@ -4,6 +4,7 @@ import {
   FileText,
   GraduationCap,
   KeyRound,
+  LayoutDashboard,
   Lightbulb,
   LogOut,
   Menu,
@@ -37,6 +38,7 @@ function usePendingRequests(): number | undefined {
 }
 
 const LINKS = [
+  { to: '/admin/tong-quan', label: 'Tổng quan', icon: LayoutDashboard },
   { to: '/admin/tai-lieu', label: 'Tài liệu', icon: FileText },
   { to: '/admin/thu-truy-xuat', label: 'Thử truy xuất', icon: Search },
   { to: '/admin/mcp', label: 'MCP & quyền', icon: Wrench },

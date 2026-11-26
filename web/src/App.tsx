@@ -9,6 +9,7 @@ import StudyPage from './pages/StudyPage'
 
 // Trang quản trị tải riêng (có thư viện biểu đồ) -> sinh viên không phải tải phần này
 const AdminLayout = lazy(() => import('./components/AdminLayout'))
+const OverviewPage = lazy(() => import('./pages/admin/OverviewPage'))
 const DocumentsPage = lazy(() => import('./pages/admin/DocumentsPage'))
 const RetrievalPage = lazy(() => import('./pages/admin/RetrievalPage'))
 const McpPage = lazy(() => import('./pages/admin/McpPage'))
@@ -57,7 +58,8 @@ export default function App() {
           </RequireRole>
         }
       >
-        <Route index element={<Navigate to="/admin/tai-lieu" replace />} />
+        <Route index element={<Navigate to="/admin/tong-quan" replace />} />
+        <Route path="tong-quan" element={<OverviewPage />} />
         <Route path="tai-lieu" element={<DocumentsPage />} />
         <Route path="thu-truy-xuat" element={<RetrievalPage />} />
         <Route path="mcp" element={<McpPage />} />
@@ -67,7 +69,7 @@ export default function App() {
         <Route path="sinh-vien" element={<StudentsPage />} />
         <Route path="don-tu" element={<RequestsPage />} />
         <Route path="tri-thuc" element={<KnowledgePage />} />
-        <Route path="*" element={<Navigate to="/admin/tai-lieu" replace />} />
+        <Route path="*" element={<Navigate to="/admin/tong-quan" replace />} />
       </Route>
       <Route path="*" element={<Home />} />
     </Routes>
