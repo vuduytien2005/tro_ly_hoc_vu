@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Syringe } from 'lucide-react'
+import { Download, LoaderCircle, Syringe } from 'lucide-react'
 import { useState } from 'react'
 import {
   Badge,
@@ -21,6 +21,8 @@ import {
 } from '../../lib/adminTypes'
 import { ApiError, api } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
+import { EXPORT_LIMIT, auditFileName, auditToCsv, fetchAllAuditLogs } from '../../lib/auditCsv'
+import { downloadCsv } from '../../lib/statsCsv'
 
 const PAGE_SIZE = 20
 const AUTO_REFRESH_MS = 3000
@@ -44,6 +46,25 @@ export default function AuditPage() {
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<number | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportNote, setExportNote] = useState<string | null>(null)
+  const exportCsv = async () => {
+    setExporting(true)
+    setExportNote(null)
+    try {
+      const { rows, truncated, total } = await fetchAllAuditLogs(filters)
+      downloadCsv(auditToCsv(rows), auditFileName(filters))
+      setExportNote(
+        truncated
+          ? `Đã xuất ${EXPORT_LIMIT} lượt mới nhất trên ${total}. Thu hẹp khoảng ngày để xuất phần còn lại.`
+          : `Đã xuất ${rows.length} lượt.`,
+      )
+    } catch (err) {
+      setExportNote(err instanceof ApiError ? err.message : 'Chưa xuất được nhật ký, thử lại sau.')
+    } finally {
+      setExporting(false)
+    }
+  }
   const set = (key: keyof typeof filters) => (value: string) => {
     setFilters((f) => ({ ...f, [key]: value }))
     setPage(1)
@@ -79,13 +100,37 @@ export default function AuditPage() {
           <Switch checked={autoRefresh} onChange={setAutoRefresh} label="Tự cập nhật" />
           Tự cập nhật
         </label>
+        <button
+          className={secondaryButton}
+          disabled={exporting}
+          onClick={exportCsv}
+          title="Xuất các lượt gọi theo bộ lọc đang chọn ra tệp CSV (mở bằng Excel)"
+        >
+          {exporting ? <LoaderCircle size={15} className="animate-spin" /> : <Download size={15} />}
+          Xuất CSV
+        </button>
       </PageHeader>
+      {exportNote && (
+        <p role="status" className="-mt-3 mb-4 text-sm text-slate-500">
+          {exportNote}
+        </p>
+      )}
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
         <Filter label="Từ ngày">
-          <input type="date" value={filters.tu} onChange={(e) => set('tu')(e.target.value)} className={inputClass} />
+          <input
+            type="date"
+            value={filters.tu}
+            onChange={(e) => set('tu')(e.target.value)}
+            className={inputClass}
+          />
         </Filter>
         <Filter label="Đến ngày">
-          <input type="date" value={filters.den} onChange={(e) => set('den')(e.target.value)} className={inputClass} />
+          <input
+            type="date"
+            value={filters.den}
+            onChange={(e) => set('den')(e.target.value)}
+            className={inputClass}
+          />
         </Filter>
         <Filter label="Mã người dùng">
           <input
@@ -97,7 +142,11 @@ export default function AuditPage() {
           />
         </Filter>
         <Filter label="Công cụ">
-          <select value={filters.ten_cong_cu} onChange={(e) => set('ten_cong_cu')(e.target.value)} className={inputClass}>
+          <select
+            value={filters.ten_cong_cu}
+            onChange={(e) => set('ten_cong_cu')(e.target.value)}
+            className={inputClass}
+          >
             <option value="">Tất cả</option>
             {toolNames.map((n) => (
               <option key={n}>{n}</option>
@@ -105,7 +154,11 @@ export default function AuditPage() {
           </select>
         </Filter>
         <Filter label="Trạng thái">
-          <select value={filters.trang_thai} onChange={(e) => set('trang_thai')(e.target.value)} className={inputClass}>
+          <select
+            value={filters.trang_thai}
+            onChange={(e) => set('trang_thai')(e.target.value)}
+            className={inputClass}
+          >
             <option value="">Tất cả</option>
             {Object.entries(CALL_STATUS).map(([v, s]) => (
               <option key={v} value={v}>
@@ -182,7 +235,11 @@ export default function AuditPage() {
           {logs.data ? `${logs.data.tong} lượt gọi · trang ${page}/${totalPages}` : 'Đang tải…'}
         </span>
         <div className="flex gap-2">
-          <button className={secondaryButton} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          <button
+            className={secondaryButton}
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
             Trước
           </button>
           <button

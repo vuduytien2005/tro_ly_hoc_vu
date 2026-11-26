@@ -64,11 +64,15 @@ export function statsFileName(s: Stats): string {
 }
 
 /** Tải tệp CSV về máy (chỉ chạy trên trình duyệt). */
-export function downloadStatsCsv(s: Stats): void {
-  const url = URL.createObjectURL(new Blob([statsToCsv(s)], { type: 'text/csv;charset=utf-8' }))
+export function downloadCsv(text: string, fileName: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
   a.href = url
-  a.download = statsFileName(s)
+  a.download = fileName
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export function downloadStatsCsv(s: Stats): void {
+  downloadCsv(statsToCsv(s), statsFileName(s))
 }
