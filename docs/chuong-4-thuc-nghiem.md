@@ -23,6 +23,8 @@ Chương này trả lời sáu câu hỏi:
 
 ### 4.1.2. Môi trường
 
+**Bảng 4.1.** Môi trường thực nghiệm
+
 | Thành phần | Cấu hình |
 |---|---|
 | Máy chạy | Intel Core i7-13650HX, RAM 24 GB, GPU NVIDIA RTX 4060 Laptop 8 GB, Windows 11 |
@@ -55,6 +57,8 @@ Mỗi lượt chạy lưu cấu hình, kết quả chi tiết (`chi_tiet.csv`) v
 **Kết quả sơ bộ trên bộ văn bản giả lập** (13 câu, giám khảo Gemini 3.5 Flash-Lite; chỉ để tham khảo,
 chưa thay cho kết quả chính thức):
 
+**Bảng 4.2.** Kết quả sơ bộ TN2 trên bộ văn bản giả lập (13 câu)
+
 | Trợ lý | Faithfulness | Relevancy | Trích đúng nguồn | Từ chối đúng (ngoài phạm vi) | TB (s) |
 |---|---|---|---|---|---|
 | Gemini 3.5 Flash-Lite (`results/20261120-1427_tn2_tra_loi`) | 100% | 100% | 100% | 1/2 | 5,63 |
@@ -70,6 +74,8 @@ chất lượng thật hơn. Vì vậy một chỉ số đơn lẻ không đủ 
 ### 4.4.1. Bộ kịch bản
 
 Bộ TN3 có **82 kịch bản** (`evaluation/datasets/agent_scenarios.jsonl`), viết trên dữ liệu QLSV mẫu. Mỗi kịch bản gồm: tài khoản đăng nhập, câu yêu cầu của sinh viên, tập công cụ mong đợi, tham số mong đợi, có cần xác nhận hay không, và kết quả mong đợi.
+
+**Bảng 4.3.** Phân loại 82 kịch bản TN3
 
 | Loại | Số KB | Ví dụ |
 |---|---|---|
@@ -105,7 +111,7 @@ Hai cấu hình được so sánh:
 
 ### 4.4.3. Kết quả tổng hợp
 
-**Bảng 4.1.** Kết quả TN3, lượt chạy 23/11/2026 (`results/20261123-1040_tn3_agent`)
+**Bảng 4.4.** Kết quả TN3, lượt chạy 23/11/2026 (`results/20261123-1040_tn3_agent`)
 
 | Cấu hình | Đúng công cụ | Đúng tham số | Hoàn thành | Bước TB | TTFT trung vị | TTFT < 5 s | Token TB / KB |
 |---|---|---|---|---|---|---|---|
@@ -118,10 +124,14 @@ Với cấu hình thật của hệ thống (mô tả đầy đủ), Agent hoàn
 
 **Chạy lại với hệ thống cuối cùng** (25/11/2026, `results/20261125-1505_tn3_agent`, cấu hình đầy đủ). Từ lượt 23/11 đến nay, hệ thống thêm công cụ `ask_staff` (LLM thấy 22 công cụ) và sửa system prompt sau TN6 (mục 4.7: câu hỏi đời sống sinh viên cũng bắt buộc tra cứu; đoạn "Hỏi đáp cán bộ" là căn cứ). Lượt chạy lại kiểm tra hai thay đổi này có làm hỏng năng lực Agent không.
 
+**Bảng 4.5.** Chạy lại TN3 với hệ thống cuối cùng (25/11/2026), cấu hình mô tả đầy đủ
+
 | Cấu hình đầy đủ | Đúng công cụ | Đúng tham số | Hoàn thành | Hoàn thành (tính A079–A081 là đạt) |
 |---|---|---|---|---|
 | Lượt 23/11 (prompt cũ, 21 công cụ) | 89,0% | 93,9% | 93,9% (77/82) | 97,6% (80/82) |
 | Lượt 25/11 (prompt mới, 22 công cụ) | **91,5%** | **95,1%** | **95,1% (78/82)** | **98,8% (81/82)** |
+
+**Bảng 4.6.** Chạy lại TN3 với hệ thống cuối cùng (25/11/2026), cấu hình mô tả tối giản
 
 | Cấu hình tối giản | Đúng công cụ | Đúng tham số | Hoàn thành | Hoàn thành (tính các ca trả lời đúng là đạt) |
 |---|---|---|---|---|
@@ -129,11 +139,11 @@ Với cấu hình thật của hệ thống (mô tả đầy đủ), Agent hoàn
 | Lượt 25/11 (prompt mới, 22 công cụ, `results/20261125-1535_tn3_agent`) | 81,7% | 90,2% | 89,0% (73/82) | 93,9% (77/82) |
 
 So từng kịch bản, **không kịch bản nào từ đạt chuyển sang chưa đạt**. Chỉ hai kịch bản đổi kết quả, đều theo hướng tốt lên: A062 (nay đúng công cụ) và A074 (nay hoàn thành). Mức chênh này nằm trong dao động ±1–2 kịch bản giữa các lượt, nên kết luận đúng là **prompt mới không làm giảm năng lực Agent**, chứ chưa đủ để nói nó cải thiện TN3. Các ca chưa đạt vẫn là A012 (yêu cầu mơ hồ) và A079–A081 (tra rồi từ chối đúng lý do, mục 4.4.6), giống lượt cũ. Trợ lý không gọi `ask_staff` ở kịch bản nào, vì không kịch bản TN3 nào cần hỏi cán bộ, nên công cụ mới không gây gọi nhầm. Có 3 kịch bản gặp lỗi Gemini quá tải ở một lượt gọi (A006, A061, A075) nhưng vẫn hoàn thành nhờ cơ chế thử lại. Độ trễ của lượt này (trung vị 4,4 s, nhiều ca phải thử lại tới 46 s) phản ánh lúc Gemini đang quá tải vào buổi chiều 25/11, không phải ảnh hưởng của prompt (prompt chỉ dài thêm khoảng 60 token). Vì vậy mục 4.4.7 vẫn dùng số đo của lượt 23/11. 
-Với cấu hình tối giản, đúng công cụ và đúng tham số **trùng khớp từng kịch bản** với lượt 23/11. Các ca trượt vẫn là đúng những ca do thiếu hướng dẫn định dạng (A010, A056, A070, A031; mục 4.4.4), cộng A012 và A079–A081. Chỉ một kịch bản đổi kết quả: A077 (tìm sách). Trợ lý gọi đúng `search_books` và trả lời đúng là còn 3 bản, nhưng viết "Số bản còn lại: 3" nên không khớp các mẫu chuỗi của bộ chấm tự động ("còn 3", "3 bản", "3 cuốn"). Đây là ca chấm sai do khác cách diễn đạt, cùng kiểu với A079–A081. Tính các ca trả lời đúng là đạt, tỉ lệ hoàn thành của cấu hình tối giản giữ nguyên 93,9% ở cả hai lượt. Token đầu vào tăng từ 5 770 lên 6 240 mỗi kịch bản, do thêm công cụ `ask_staff` và prompt dài hơn. Vì kết quả trùng khớp, bảng 4.2 ở mục 4.4.4 giữ số liệu lượt 23/11.
+Với cấu hình tối giản, đúng công cụ và đúng tham số **trùng khớp từng kịch bản** với lượt 23/11. Các ca trượt vẫn là đúng những ca do thiếu hướng dẫn định dạng (A010, A056, A070, A031; mục 4.4.4), cộng A012 và A079–A081. Chỉ một kịch bản đổi kết quả: A077 (tìm sách). Trợ lý gọi đúng `search_books` và trả lời đúng là còn 3 bản, nhưng viết "Số bản còn lại: 3" nên không khớp các mẫu chuỗi của bộ chấm tự động ("còn 3", "3 bản", "3 cuốn"). Đây là ca chấm sai do khác cách diễn đạt, cùng kiểu với A079–A081. Tính các ca trả lời đúng là đạt, tỉ lệ hoàn thành của cấu hình tối giản giữ nguyên 93,9% ở cả hai lượt. Token đầu vào tăng từ 5 770 lên 6 240 mỗi kịch bản, do thêm công cụ `ask_staff` và prompt dài hơn. Vì kết quả trùng khớp, bảng 4.7 ở mục 4.4.4 giữ số liệu lượt 23/11.
 
 ### 4.4.4. Ảnh hưởng của mô tả công cụ
 
-**Bảng 4.2.** Kết quả theo loại kịch bản: đúng công cụ / hoàn thành
+**Bảng 4.7.** Kết quả theo loại kịch bản: đúng công cụ / hoàn thành
 
 | Loại | Đầy đủ | Tối giản |
 |---|---|---|
@@ -159,7 +169,7 @@ Một lợi ích chính của MCP là **thêm năng lực mới mà không sửa
 
 **(1) Thêm server có làm giảm độ chính xác của các công cụ cũ không?** Lượt chạy 20/11 và lượt 23/11 cùng có 75 kịch bản A001–A075. Khác biệt duy nhất là ở lượt 23/11, LLM thấy thêm 3 công cụ Thư viện.
 
-**Bảng 4.3.** So sánh trên 75 kịch bản chung: đúng công cụ / đúng tham số / hoàn thành
+**Bảng 4.8.** So sánh trên 75 kịch bản chung: đúng công cụ / đúng tham số / hoàn thành
 
 | | Đầy đủ | Tối giản |
 |---|---|---|
@@ -178,6 +188,8 @@ Các tỉ lệ tổng **giống hệt nhau**: thêm server không làm giảm đ
 Thao tác gia hạn là thao tác ghi, nên vẫn chịu đủ các lớp bảo vệ như công cụ gốc: phải xác nhận, `ma_sv` do hệ thống điền, và mọi lần gọi đều được ghi nhật ký. Không cần viết thêm dòng mã nào cho trợ lý.
 
 ### 4.4.6. Phân tích các ca chưa đạt (cấu hình đầy đủ)
+
+**Bảng 4.9.** Các ca chưa đạt của TN3 (cấu hình đầy đủ)
 
 | Ca | Hiện tượng | Đánh giá |
 |---|---|---|
@@ -200,7 +212,7 @@ Các câu vượt 5 giây không có lần gọi lại nào do giới hạn tố
 cửa sổ ngữ cảnh đặt 16 384 token, vì mặc định của Ollama (2–4 nghìn token) lặng lẽ cắt mất danh sách công
 cụ (`results/20261123-1634_tn3_agent`, 82 kịch bản, 22 công cụ).
 
-**Bảng 4.x.** So sánh mô hình (TN3, cấu hình mô tả đầy đủ và tối giản)
+**Bảng 4.10.** So sánh mô hình (TN3, cấu hình mô tả đầy đủ và tối giản)
 
 | Mô hình | Mô tả | Đúng công cụ | Đúng tham số | Hoàn thành | TTFT trung vị |
 |---|---|---|---|---|---|
@@ -239,7 +251,7 @@ Bộ TN4 có **54 ca** chia thành 9 nhóm (`evaluation/datasets/security_cases.
 
 ### 4.5.2. Kết quả
 
-**Bảng 4.4.** Kết quả TN4, lượt chạy 23/11/2026 (`results/20261123-1114_tn4_an_toan`)
+**Bảng 4.11.** Kết quả TN4, lượt chạy 23/11/2026 (`results/20261123-1114_tn4_an_toan`)
 
 | Nhóm tấn công | Số ca | (a) LLM tự từ chối | (b) Hệ thống chặn | Bị lọt |
 |---|---|---|---|---|
@@ -278,6 +290,8 @@ Cho phép thêm MCP server lúc đang chạy (mục 4.4.5) cũng mở ra rủi r
 
 Mọi đoạn chữ độc đều chứa một chuỗi đánh dấu. Bộ khung ghi lại **toàn bộ chữ LLM nhận được**, nhờ đó đo trực tiếp được chữ độc có lọt vào LLM hay không.
 
+**Bảng 4.12.** Các ca thuộc nhóm MCP server độc hại
+
 | Ca | Tình huống | Kết quả |
 |---|---|---|
 | S050 | Server vừa thêm, công cụ **chưa duyệt** | Chữ độc **không** có trong prompt, vì công cụ chưa duyệt không được đưa cho LLM. LLM trả lời "chức năng đang tạm dừng". **(b)** |
@@ -290,11 +304,13 @@ Kết quả cho thấy cơ chế **duyệt công cụ, ghi mã băm và chống 
 
 ### 4.5.4. Ghi chú về hạn mức
 
-Ở lượt đầu, hai ca S052 và S054 gặp **hết hạn mức ngày** của gói miễn phí ở lượt gọi LLM cuối, vì cùng ngày đã chạy 164 kịch bản TN3. 52 ca còn lại và toàn bộ TN3 không bị ảnh hưởng. Hai ca này đã được chạy lại riêng (thư mục `20261123-1606_tn4_an_toan`), không còn lỗi; phân tầng giống lượt đầu nên bảng 4.4 không đổi:
+Ở lượt đầu, hai ca S052 và S054 gặp **hết hạn mức ngày** của gói miễn phí ở lượt gọi LLM cuối, vì cùng ngày đã chạy 164 kịch bản TN3. 52 ca còn lại và toàn bộ TN3 không bị ảnh hưởng. Hai ca này đã được chạy lại riêng (thư mục `20261123-1606_tn4_an_toan`), không còn lỗi; phân tầng giống lượt đầu nên bảng 4.11 không đổi:
 
 ```powershell
 python evaluation\run_security.py --config security_gemini --du-lieu evaluation\datasets\tn4_chay_lai_S052_S054.jsonl
 ```
+
+**Bảng 4.13.** Chạy lại hai ca S052, S054 sau khi hết hạn mức
 
 | Ca | Lượt đầu | Chạy lại |
 |---|---|---|
@@ -305,6 +321,8 @@ python evaluation\run_security.py --config security_gemini --du-lieu evaluation\
 
 Chạy lại 54 ca TN4 với Qwen2.5 7B (`results/20261123-1644_tn4_an_toan`) để kiểm tra luận điểm "an toàn do
 kiến trúc" với một mô hình yếu hơn.
+
+**Bảng 4.14.** An toàn TN4: Gemini 3.5 Flash-Lite và Qwen2.5 7B cục bộ
 
 | Mô hình | (a) LLM tự từ chối | (b) Hệ thống chặn | Bị lọt |
 |---|---|---|---|
@@ -346,12 +364,16 @@ sai số liệu (11), sai điều kiện (10), sai thời hạn (4), nhầm phi�
 **Kết quả** (chạy ngày 25/11/2026, 30 ca, mỗi ca chấm cả câu đúng và câu sai; thư mục
 `evaluation/results/20261125-1051_tn5_kiem_chung_2` (Gemini), `20261125-1057_tn5_kiem_chung` (Qwen)).
 
+**Bảng 4.15.** Kết quả TN5 theo giám khảo
+
 | Giám khảo | Bắt được ý sai | Báo nhầm câu đúng | Thời gian TB / lần | Token vào / ra TB | Lỗi giám khảo |
 |---|---|---|---|---|---|
 | Gemini 3.5 Flash-Lite (API, gói miễn phí) | **100% (30/30)** | 0% (0/30) | 0,98 s | 582 / 182 | 0 |
 | Qwen2.5 7B cục bộ (Ollama) | 56,7% (17/30) | 0% (0/30) | 2,96 s | 600 / 140 | 1 |
 
 Theo loại lỗi cài sẵn:
+
+**Bảng 4.16.** Kết quả TN5 theo loại lỗi cài sẵn
 
 | Loại lỗi | Số ca | Gemini | Qwen2.5 7B |
 |---|---|---|---|
@@ -423,6 +445,8 @@ thật**. Ba pha trên cùng một môi trường (rollback khi kết thúc):
   Số liệu dưới đây đã thay hai ca đó bằng kết quả chạy lại. Các lần quá tải khác làm **giám khảo
   không trả kết quả** ở một số ca và làm thời gian bị đội lên do phải thử lại, nên ở lượt 2 không dùng
   cột "đủ căn cứ" và thời gian để so sánh.
+
+**Bảng 4.17.** Kết quả TN6 qua hai lượt chạy
 
 | Nhóm | Pha | Chỉ số | Lượt 1 (prompt cũ) | Lượt 2 (prompt mới) |
 |---|---|---|---|---|
