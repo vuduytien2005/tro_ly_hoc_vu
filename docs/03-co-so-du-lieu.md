@@ -74,6 +74,8 @@ erDiagram
     sach ||--o{ muon_sach : ""
 ```
 
+*Hình 3.1. Sơ đồ quan hệ CSDL `tlhv_qlsv`.*
+
 **Thư viện (bổ sung 20/11/2026, SV-11):** `sach(ma_sach, ten_sach, tac_gia, nam_xb, tong_so_ban, so_ban_con, so_luot_dat_truoc)`, `muon_sach(id, sinh_vien_id, ma_sach, ngay_muon, han_tra, so_lan_gia_han, trang_thai: dang_muon | da_tra)`. Gia hạn: +14 ngày, tối đa 2 lần; lỗi theo thứ tự `KHONG_TIM_THAY_LUOT_MUON` (404), `DA_TRA_SACH`, `SACH_QUA_HAN` (hạn trả < hôm nay), `HET_LUOT_GIA_HAN`, `CO_NGUOI_DAT_TRUOC` (409). Khóa hàng `muon_sach` bằng `lock_for_update` khi gia hạn.
 
 ### Quy tắc nghiệp vụ cài trong qlsv_api
@@ -145,6 +147,8 @@ erDiagram
     mcp_server ||--o{ cong_cu : ""
     van_ban ||--o{ doan_van_ban : ""
 ```
+
+*Hình 3.2. Sơ đồ quan hệ CSDL `tlhv_assistant`.*
 
 ### Ghi chú
 - `nguoi_dung.ma_sv`, `ma_khoa` sao chép từ `tlhv_qlsv` khi tạo tài khoản (script `seed_users.py`).
