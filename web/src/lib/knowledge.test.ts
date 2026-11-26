@@ -4,6 +4,9 @@ import {
   GAP_SOURCES,
   type Gap,
   draftProblem,
+  filterEntries,
+  similarEntries,
+  type KnowledgeEntry,
   gapToDraft,
   isKnowledgeCitation,
   personalInfoProblem,
@@ -44,7 +47,11 @@ describe('personalInfoProblem (khớp backend knowledge.personal_info_problem)',
 })
 
 describe('draftProblem', () => {
-  const ok = { cau_hoi: 'Ký túc xá đóng cửa lúc mấy giờ?', tra_loi: 'Lúc 23 giờ.', phong_ban: 'ctsv' }
+  const ok = {
+    cau_hoi: 'Ký túc xá đóng cửa lúc mấy giờ?',
+    tra_loi: 'Lúc 23 giờ.',
+    phong_ban: 'ctsv',
+  }
   it('chấp nhận bản nháp hợp lệ', () => expect(draftProblem(ok)).toBeNull())
   it('câu hỏi quá ngắn / thiếu trả lời', () => {
     expect(draftProblem({ ...ok, cau_hoi: 'KTX?' })).toMatch(/Câu hỏi/)
@@ -120,4 +127,56 @@ it('GAP_SOURCES có đủ 4 nguồn của backend (thứ tự hiển thị)', ()
     'hoi_can_bo',
     'danh_gia_xau',
   ])
+})
+
+const entry = (
+  id: number,
+  cau_hoi: string,
+  phong_ban = 'dao_tao',
+  tra_loi = 'x',
+): KnowledgeEntry => ({
+  id,
+  cau_hoi,
+  tra_loi,
+  phong_ban,
+  ma_don: null,
+  tin_nhan_id: null,
+  created_at: '2026-11-25T08:00:00+07:00',
+  updated_at: '2026-11-25T08:00:00+07:00',
+})
+
+describe('filterEntries', () => {
+  const list = [
+    entry(1, 'Học bổng khuyến khích học tập xét thế nào?', 'ctsv'),
+    entry(2, 'Đăng ký học phần muộn được không?', 'dao_tao', 'Liên hệ phòng Đào tạo'),
+    entry(3, 'Nộp học phí qua ngân hàng nào?', 'tai_chinh'),
+  ]
+
+  it('tìm không dấu, trong cả câu hỏi và câu trả lời', () => {
+    expect(filterEntries(list, 'hoc bong', '').map((e) => e.id)).toEqual([1])
+    expect(filterEntries(list, 'PHÒNG ĐÀO TẠO', '').map((e) => e.id)).toEqual([2])
+  })
+
+  it('lọc theo phòng ban; ô tìm trống -> giữ hết', () => {
+    expect(filterEntries(list, '', 'tai_chinh').map((e) => e.id)).toEqual([3])
+    expect(filterEntries(list, '  ', '')).toHaveLength(3)
+  })
+})
+
+describe('similarEntries', () => {
+  const list = [
+    entry(1, 'Học bổng khuyến khích học tập xét theo điều kiện gì?'),
+    entry(2, 'Nộp học phí qua ngân hàng nào?'),
+  ]
+
+  it('câu hỏi gần giống mục đã có -> cảnh báo trùng', () => {
+    const hits = similarEntries('Điều kiện xét học bổng khuyến khích học tập là gì', list)
+    expect(hits.map((e) => e.id)).toEqual([1])
+  })
+
+  it('bỏ qua chính mục đang sửa, câu quá ngắn, câu khác hẳn', () => {
+    expect(similarEntries(list[0].cau_hoi, list, 1)).toEqual([])
+    expect(similarEntries('học bổng', list)).toEqual([])
+    expect(similarEntries('Lịch thi cuối kỳ xem ở đâu?', list)).toEqual([])
+  })
 })

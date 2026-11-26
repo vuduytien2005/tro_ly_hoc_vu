@@ -10,6 +10,7 @@ import {
   Info,
   LoaderCircle,
   Pencil,
+  Search,
   ShieldAlert,
   Trash2,
 } from 'lucide-react'
@@ -38,8 +39,10 @@ import {
   type KnowledgeEntry,
   type KnowledgeList,
   draftProblem,
+  filterEntries,
   gapToDraft,
   personalInfoProblem,
+  similarEntries,
 } from '../../lib/knowledge'
 
 const KB_KEY = ['admin', 'knowledge']
@@ -80,8 +83,8 @@ export default function KnowledgePage() {
       <p className="mb-4 flex items-start gap-2 rounded-xl bg-primary/5 px-3 py-2 text-sm text-slate-600">
         <Info size={16} className="mt-0.5 shrink-0 text-primary" />
         Những câu trợ lý chưa trả lời được có căn cứ, câu hỏi sinh viên gửi cán bộ và câu trả lời bị
-        đánh giá chưa đúng. Viết câu trả lời vào kho hỏi đáp để trợ lý trả lời được cho mọi sinh viên
-        lần sau (có trích dẫn "Hỏi đáp cán bộ").
+        đánh giá chưa đúng. Viết câu trả lời vào kho hỏi đáp để trợ lý trả lời được cho mọi sinh
+        viên lần sau (có trích dẫn "Hỏi đáp cán bộ").
       </p>
 
       <div role="tablist" className="mb-4 flex gap-1 border-b border-line">
@@ -171,8 +174,8 @@ function GapsTab({ onDraft }: { onDraft: (d: KnowledgeDraft) => void }) {
 
       {gaps.data?.nguon_loi.includes('hoi_can_bo') && (
         <p role="status" className="mb-3 rounded-[10px] bg-warn-bg px-3 py-2 text-sm text-warn">
-          Không lấy được câu hỏi gửi cán bộ (hệ thống quản lý sinh viên chưa chạy); hai nguồn còn lại
-          vẫn hiển thị.
+          Không lấy được câu hỏi gửi cán bộ (hệ thống quản lý sinh viên chưa chạy); hai nguồn còn
+          lại vẫn hiển thị.
         </p>
       )}
       {gaps.isError && (
@@ -228,7 +231,9 @@ function GapCard({ gap, onDraft }: { gap: Gap; onDraft: (d: KnowledgeDraft) => v
             {gap.nguon === 'khong_can_cu' ? 'Ý chưa có căn cứ: ' : 'Trợ lý đã trả lời: '}
           </span>
           <span
-            className={gap.nguon === 'khong_can_cu' ? 'underline decoration-warn decoration-dotted' : ''}
+            className={
+              gap.nguon === 'khong_can_cu' ? 'underline decoration-warn decoration-dotted' : ''
+            }
           >
             {gap.noi_dung}
           </span>
@@ -271,6 +276,10 @@ function KnowledgeTab({ onEdit }: { onEdit: (e: KnowledgeEntry) => void }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KB_KEY }),
   })
   const doc = kb.data?.van_ban
+  const [query, setQuery] = useState('')
+  const [department, setDepartment] = useState('')
+  const all = kb.data?.muc ?? []
+  const shown = filterEntries(all, query, department)
 
   return (
     <>
@@ -285,8 +294,8 @@ function KnowledgeTab({ onEdit }: { onEdit: (e: KnowledgeEntry) => void }) {
           </>
         ) : doc.trang_thai === 'loi' ? (
           <span className="flex items-center gap-2 text-err">
-            <AlertTriangle size={16} /> Lập chỉ mục lỗi: {doc.loi} — mở trang Tài liệu để lập chỉ mục
-            lại.
+            <AlertTriangle size={16} /> Lập chỉ mục lỗi: {doc.loi} — mở trang Tài liệu để lập chỉ
+            mục lại.
           </span>
         ) : (
           <span className="flex items-center gap-2 text-ok">
@@ -302,8 +311,48 @@ function KnowledgeTab({ onEdit }: { onEdit: (e: KnowledgeEntry) => void }) {
         </p>
       )}
 
+      {all.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <label className="relative min-w-60 flex-1">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm trong câu hỏi và câu trả lời (gõ không dấu cũng được)"
+              aria-label="Tìm trong kho hỏi đáp"
+              className={`${inputClass} w-full pl-9`}
+            />
+          </label>
+          <select
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            aria-label="Lọc theo phòng ban"
+            className={inputClass}
+          >
+            <option value="">Mọi phòng ban</option>
+            {Object.entries(DEPARTMENTS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+          <span className="text-sm text-slate-500">
+            {shown.length === all.length
+              ? `${all.length} mục`
+              : `${shown.length}/${all.length} mục`}
+          </span>
+        </div>
+      )}
+      {all.length > 0 && shown.length === 0 && (
+        <p className="mb-3 text-sm text-slate-500">Không có mục nào khớp bộ lọc.</p>
+      )}
+
       <div className="space-y-3">
-        {kb.data?.muc.map((e) => (
+        {shown.map((e) => (
           <Card key={e.id} className="p-4">
             <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
               <span>{DEPARTMENTS[e.phong_ban] ?? e.phong_ban}</span>
@@ -348,6 +397,12 @@ function EntryDrawer({
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<KnowledgeDraft>(editing.draft)
   const [problem, setProblem] = useState<string | null>(null)
+  // Dùng lại danh sách kho đã tải (cùng khóa) để báo câu hỏi trùng trước khi lưu
+  const kb = useQuery({
+    queryKey: KB_KEY,
+    queryFn: () => api<KnowledgeList>('/api/admin/knowledge'),
+  })
+  const duplicates = similarEntries(draft.cau_hoi, kb.data?.muc ?? [], editing.id)
   const set = (key: keyof KnowledgeDraft) => (value: string) =>
     setDraft((d) => ({ ...d, [key]: value }))
 
@@ -387,8 +442,8 @@ function EntryDrawer({
     >
       <p className="mb-4 flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm text-warn">
         <ShieldAlert size={16} className="mt-0.5 shrink-0" />
-        Kho trả cho MỌI sinh viên. Viết lại câu hỏi thành câu hỏi chung, bỏ tên, mã sinh viên, số điện
-        thoại, email, hoàn cảnh riêng.
+        Kho trả cho MỌI sinh viên. Viết lại câu hỏi thành câu hỏi chung, bỏ tên, mã sinh viên, số
+        điện thoại, email, hoàn cảnh riêng.
       </p>
       <div className="space-y-3">
         <Field label="Câu hỏi (viết chung cho mọi sinh viên)">
@@ -401,6 +456,21 @@ function EntryDrawer({
             placeholder="Vd: Ký túc xá đóng cửa lúc mấy giờ?"
           />
         </Field>
+        {duplicates.length > 0 && (
+          <div role="status" className="rounded-xl bg-warn-bg px-3 py-2 text-sm text-warn">
+            <p className="flex items-center gap-2 font-medium">
+              <AlertTriangle size={16} className="shrink-0" /> Kho đã có câu hỏi gần giống:
+            </p>
+            <ul className="mt-1 list-disc pl-6">
+              {duplicates.slice(0, 3).map((d) => (
+                <li key={d.id}>{d.cau_hoi}</li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs">
+              Nên sửa mục cũ thay vì thêm mục mới, để trợ lý không gặp hai câu trả lời khác nhau.
+            </p>
+          </div>
+        )}
         <Field label="Câu trả lời của cán bộ">
           <textarea
             value={draft.tra_loi}

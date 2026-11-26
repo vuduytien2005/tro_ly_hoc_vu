@@ -3,6 +3,7 @@
 // cuối bằng cùng các mẫu: knowledge.personal_info_problem).
 
 import type { StaffRequest } from './adminTypes'
+import { normalizeSearch } from './conversations'
 
 export type GapSource = 'khong_can_cu' | 'khong_tim_thay' | 'hoi_can_bo' | 'danh_gia_xau'
 
@@ -135,4 +136,70 @@ export function requestToDraft(req: StaffRequest): KnowledgeDraft {
 /** Trích dẫn từ kho hỏi đáp cán bộ (không có tệp gốc để mở). */
 export function isKnowledgeCitation(citation: { loai?: string | null }): boolean {
   return citation.loai === 'hoi_dap'
+}
+
+// ----- Tìm trong kho + cảnh báo câu hỏi trùng (bổ sung 26/11/2026) -----
+
+/** Lọc kho theo từ khóa (không dấu, trong câu hỏi lẫn câu trả lời) và phòng ban. */
+export function filterEntries(
+  entries: KnowledgeEntry[],
+  query: string,
+  department: string,
+): KnowledgeEntry[] {
+  const q = normalizeSearch(query)
+  return entries.filter(
+    (e) =>
+      (!department || e.phong_ban === department) &&
+      (!q || normalizeSearch(`${e.cau_hoi} ${e.tra_loi}`).includes(q)),
+  )
+}
+
+/** Từ hỏi chung chung: cặp hai từ toàn từ loại này ("là gì", "thế nào") không tính khi so. */
+const FILLER_WORDS = new Set(
+  (
+    'la gi the nao nhu co khong duoc o dau va cho em minh thi theo cua nay do ve bao nhieu ' +
+    'khi sao lam phai muon may'
+  ).split(' '),
+)
+
+/**
+ * Cặp hai từ liền nhau của dòng đầu câu hỏi (dòng sau thường là "Cách hỏi khác: ..."). So cặp từ
+ * thay vì từng từ: tiếng Việt ghép từ hai âm tiết, so từng âm tiết thì mọi câu có "điểm rèn
+ * luyện" đều bị coi là giống nhau.
+ */
+function wordPairs(question: string): Set<string> {
+  const words = normalizeSearch(question.split('\n')[0])
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+  const pairs = new Set<string>()
+  for (let i = 0; i + 1 < words.length; i++) {
+    if (!(FILLER_WORDS.has(words[i]) && FILLER_WORDS.has(words[i + 1]))) {
+      pairs.add(`${words[i]} ${words[i + 1]}`)
+    }
+  }
+  return pairs
+}
+
+/**
+ * Ngưỡng Jaccard trên cặp từ. Thử trên 54 mục thật của kho (26/11/2026): 0,3 bắt được các câu hỏi
+ * lại cùng ý ("Quên đăng ký học phần thì làm sao?") mà không cặp mục cũ nào bị coi là trùng.
+ */
+const SIMILAR_RATIO = 0.3
+
+/** Các mục đã có trong kho hỏi gần giống câu `question` (bỏ qua mục đang sửa `excludeId`). */
+export function similarEntries(
+  question: string,
+  entries: KnowledgeEntry[],
+  excludeId?: number,
+): KnowledgeEntry[] {
+  const mine = wordPairs(question)
+  if (mine.size < 2) return []
+  return entries.filter((e) => {
+    if (e.id === excludeId) return false
+    const other = wordPairs(e.cau_hoi)
+    let shared = 0
+    for (const w of mine) if (other.has(w)) shared++
+    const union = mine.size + other.size - shared
+    return union > 0 && shared / union >= SIMILAR_RATIO
+  })
 }

@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   MessageCircle,
   Printer,
+  Target,
   Wallet,
   XCircle,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { ApiError } from '../lib/api'
+import { GPA_CLASSES, classify, gpaGoal } from '../lib/gpaGoal'
 import { formatDate, formatDateTime } from '../lib/format'
 import {
   CERTIFICATE_LABELS,
@@ -368,6 +370,14 @@ function OverviewBody({ data }: { data: Overview }) {
         </Card>
       </div>
 
+      {t && t.tin_chi_tich_luy > 0 && (
+        <GpaGoalCard
+          gpa={t.gpa_tich_luy}
+          credits={t.tin_chi_tich_luy}
+          nextCredits={data.thoi_khoa_bieu?.tong_tin_chi || 15}
+        />
+      )}
+
       <Card
         icon={<GraduationCap size={18} />}
         title="Tiến độ tốt nghiệp"
@@ -578,5 +588,106 @@ function WeekTimetable({ classes }: { classes: Schedule['lop'] }) {
         </div>
       ))}
     </div>
+  )
+}
+
+/** Điểm trung bình cần đạt kỳ tới để lên / giữ một mức xếp loại (ước tính, chạy trên trình duyệt). */
+function GpaGoalCard({
+  gpa,
+  credits,
+  nextCredits,
+}: {
+  gpa: number
+  credits: number
+  nextCredits: number
+}) {
+  const current = classify(gpa)
+  // Mặc định: mức cao hơn liền kề mức hiện tại (đang Xuất sắc thì giữ Xuất sắc)
+  const higher = [...GPA_CLASSES].reverse().find((c) => c.min > gpa) ?? GPA_CLASSES[0]
+  const [target, setTarget] = useState<number>(higher.min)
+  const [next, setNext] = useState(String(nextCredits))
+  const goal = gpaGoal(gpa, credits, target, Number(next))
+  const label = GPA_CLASSES.find((c) => c.min === target)?.label ?? ''
+
+  return (
+    <Card
+      icon={<Target size={18} />}
+      title="Mục tiêu điểm học kỳ tới"
+      action={
+        <AskButton
+          question="Xếp loại học lực theo điểm trung bình như thế nào?"
+          label="Hỏi quy chế"
+        />
+      }
+    >
+      <p className="mb-3 text-sm text-slate-600">
+        Hiện tại: điểm trung bình tích lũy <b className="tabular-nums">{gpa.toFixed(2)}</b> (
+        {current}) trên {credits} tín chỉ.
+      </p>
+      <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
+        <span className="text-sm text-slate-500">Muốn đạt:</span>
+        {GPA_CLASSES.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            aria-pressed={target === c.min}
+            onClick={() => setTarget(c.min)}
+            className={`rounded-full border px-3 py-1 text-sm ${
+              target === c.min
+                ? 'border-primary bg-primary text-white'
+                : 'border-line text-slate-600 hover:border-primary'
+            }`}
+          >
+            {c.label} ({c.min.toFixed(2)})
+          </button>
+        ))}
+        <label className="ml-auto flex items-center gap-2 text-sm text-slate-500">
+          Kỳ tới học
+          <input
+            type="number"
+            min={1}
+            max={40}
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            className="h-9 w-16 rounded-[10px] border border-line px-2 text-right tabular-nums text-slate-800 outline-none focus:border-primary"
+          />
+          tín chỉ
+        </label>
+      </div>
+      <div aria-live="polite" className="rounded-xl bg-page px-4 py-3 text-sm">
+        {!goal ? (
+          <span className="text-slate-500">Nhập số tín chỉ kỳ tới (lớn hơn 0).</span>
+        ) : goal.kind === 'can_dat' ? (
+          <>
+            Để lên <b>{label}</b>, học kỳ tới em cần điểm trung bình ít nhất{' '}
+            <b className="text-lg tabular-nums text-navy">{goal.needed.toFixed(2)}</b>.
+          </>
+        ) : goal.kind === 'giu' ? (
+          goal.needed === 0 ? (
+            <>
+              Em đang ở mức <b>{label}</b> trở lên và học kỳ tới không thể làm tụt xuống dưới mức
+              này.
+            </>
+          ) : (
+            <>
+              Em đã đạt <b>{label}</b>. Để giữ, học kỳ tới cần điểm trung bình ít nhất{' '}
+              <b className="text-lg tabular-nums text-navy">{goal.needed.toFixed(2)}</b>.
+            </>
+          )
+        ) : goal.semesters == null ? (
+          <>Không thể đạt điểm tích lũy 4,00 khi đã có điểm dưới 4,00.</>
+        ) : (
+          <>
+            Một học kỳ chưa đủ để lên <b>{label}</b> (cần trên 4,00). Nếu mỗi kỳ học {next} tín chỉ
+            và đều đạt 4,00, em cần khoảng <b>{goal.semesters} học kỳ</b>.
+          </>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-slate-400">
+        Ước tính theo cách tính trung bình có trọng số tín chỉ; chưa tính học lại / cải thiện điểm
+        (điểm cũ được thay thế). Xếp loại tốt nghiệp còn có thể bị giảm một mức nếu học lại quá 5%
+        số tín chỉ.
+      </p>
+    </Card>
   )
 }
