@@ -193,6 +193,25 @@ if ($indexed -gt 0) {
     }
 }
 
+# Kho hỏi đáp mẫu (database/kho_hoi_dap_mau.json): chỉ thêm mục còn thiếu, chạy lại an toàn
+if ($KhongNapVanBan) {
+    Write-Note "Bỏ qua kho hỏi đáp mẫu (-KhongNapVanBan): chạy scripts\seed_knowledge.py khi cần."
+} else {
+    Push-Location $Backend
+    try {
+        & $Python scripts\seed_knowledge.py
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok "Kho hỏi đáp mẫu sẵn sàng."
+        } elseif ($LASTEXITCODE -eq 2) {
+            Write-Note "Đã thêm mục kho nhưng chưa lập chỉ mục (quy_che đang chạy): trang Tri thức -> Lập chỉ mục lại."
+        } else {
+            Stop-Setup "seed_knowledge.py lỗi."
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
 Write-Host "`nCài đặt xong." -ForegroundColor Green
 Write-Host "  Chạy backend : cd backend; .\scripts\run_all.ps1"
 Write-Host "  Chạy web     : cd web; npm run dev   -> http://localhost:5173"

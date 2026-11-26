@@ -20,6 +20,8 @@ import { TracePanel } from '../components/chat/TracePanel'
 import { FontButtons } from '../components/FontButtons'
 import { ApiError, api } from '../lib/api'
 import { DEMO_PROMPTS } from '../lib/demoPrompts'
+import { OVERVIEW_QUERY } from '../lib/overview'
+import { suggestionsFor } from '../lib/suggestions'
 import { CANCEL_PREFIX, CONFIRM_PREFIX } from '../lib/format'
 import { fetchHealth, isRetryable } from '../lib/health'
 import { readPrefill } from '../lib/reminders'
@@ -36,12 +38,6 @@ import type {
 } from '../lib/types'
 import { ASK_STAFF_PROMPT } from '../lib/verification'
 
-const SUGGESTIONS = [
-  'Em còn thiếu gì để tốt nghiệp?',
-  'Lịch thi của em',
-  'Học lại môn bị F thế nào?',
-  'Xin giấy xác nhận sinh viên',
-]
 
 /** Lượt đang chạy (đang stream) — hiển thị tạm cho tới khi tải lại tin nhắn từ server. */
 interface LiveTurn {
@@ -559,6 +555,9 @@ function TypingDots() {
 }
 
 function Welcome({ onPick, disabled }: { onPick: (text: string) => void; disabled: boolean }) {
+  // Cùng khóa cache với trang "Học tập của em"; lỗi / đang tải -> gợi ý mặc định
+  const overview = useQuery({ ...OVERVIEW_QUERY, retry: false })
+  const suggestions = suggestionsFor(overview.data)
   return (
     <div className="flex flex-col items-center py-10 text-center">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy text-accent">
@@ -569,14 +568,21 @@ function Welcome({ onPick, disabled }: { onPick: (text: string) => void; disable
         Hỏi về quy chế đào tạo, điểm, lịch thi, học phí hoặc nhờ mình làm thủ tục học vụ.
       </p>
       <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
-        {SUGGESTIONS.map((s) => (
+        {suggestions.map((s) => (
           <button
-            key={s}
+            key={s.text}
             disabled={disabled}
-            onClick={() => onPick(s)}
-            className="min-h-11 rounded-[10px] border border-line bg-white px-4 py-2 text-left text-sm hover:border-primary hover:text-primary disabled:opacity-50"
+            onClick={() => onPick(s.text)}
+            className={`min-h-11 rounded-[10px] border bg-white px-4 py-2 text-left text-sm hover:border-primary hover:text-primary disabled:opacity-50 ${
+              s.personal ? 'border-primary/40' : 'border-line'
+            }`}
           >
-            {s}
+            {s.personal && (
+              <span className="mb-0.5 block text-[11px] font-medium uppercase tracking-wide text-primary">
+                Dành cho em
+              </span>
+            )}
+            {s.text}
           </button>
         ))}
       </div>

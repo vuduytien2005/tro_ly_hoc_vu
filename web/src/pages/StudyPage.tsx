@@ -14,10 +14,11 @@ import {
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { ApiError, api } from '../lib/api'
+import { ApiError } from '../lib/api'
 import { formatDate } from '../lib/format'
 import {
   CERTIFICATE_LABELS,
+  OVERVIEW_QUERY,
   STUDENT_STATUS,
   TUITION_STATUS,
   buildAlerts,
@@ -27,7 +28,9 @@ import {
   semesterLabel,
   type Alert,
   type Overview,
+  type Schedule,
   type TranscriptRow,
+  weekGrid,
 } from '../lib/overview'
 import type { ChatPrefillState } from '../lib/reminders'
 
@@ -131,10 +134,7 @@ function gradeClass(diemChu: string | null): string {
 
 /** "Học tập của em": đọc trực tiếp qua backend (không qua LLM) — xem /api/my/overview. */
 export default function StudyPage() {
-  const query = useQuery({
-    queryKey: ['my-overview'],
-    queryFn: () => api<Overview>('/api/my/overview'),
-  })
+  const query = useQuery(OVERVIEW_QUERY)
 
   return (
     <div className="h-full overflow-y-auto">
@@ -231,7 +231,7 @@ function OverviewBody({ data }: { data: Overview }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="space-y-4">
         <Card
           icon={<CalendarDays size={18} />}
           title={`Thời khóa biểu${data.thoi_khoa_bieu ? ` · ${semesterLabel(data.thoi_khoa_bieu.hoc_ky)}` : ''}`}
@@ -241,16 +241,19 @@ function OverviewBody({ data }: { data: Overview }) {
           ) : data.thoi_khoa_bieu.lop.length === 0 ? (
             <p className="text-sm text-slate-500">Em chưa đăng ký lớp nào trong học kỳ này.</p>
           ) : (
-            <ul className="divide-y divide-line">
-              {data.thoi_khoa_bieu.lop.map((c) => (
-                <li key={c.ma_lop} className="py-2">
-                  <p className="font-medium text-navy">{c.ten_hp}</p>
-                  <p className="text-xs text-slate-500">
-                    {c.thu}, tiết {c.tiet} · Phòng {c.phong} · {c.giang_vien} · {c.ma_lop}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            <>
+              <WeekTimetable classes={data.thoi_khoa_bieu.lop} />
+              <ul className="divide-y divide-line sm:hidden">
+                {data.thoi_khoa_bieu.lop.map((c) => (
+                  <li key={c.ma_lop} className="py-2">
+                    <p className="font-medium text-navy">{c.ten_hp}</p>
+                    <p className="text-xs text-slate-500">
+                      {c.thu}, tiết {c.tiet} · Phòng {c.phong} · {c.giang_vien} · {c.ma_lop}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </Card>
 
@@ -422,6 +425,69 @@ function Transcript({ data }: { data: TranscriptRow[] }) {
               </tbody>
             </table>
           )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const CLASS_COLORS = [
+  'bg-blue-50 border-blue-300 text-blue-900',
+  'bg-emerald-50 border-emerald-300 text-emerald-900',
+  'bg-amber-50 border-amber-300 text-amber-900',
+  'bg-violet-50 border-violet-300 text-violet-900',
+  'bg-rose-50 border-rose-300 text-rose-900',
+  'bg-cyan-50 border-cyan-300 text-cyan-900',
+]
+
+/** Lưới tuần (màn hình từ sm trở lên); điện thoại dùng danh sách bên dưới. */
+function WeekTimetable({ classes }: { classes: Schedule['lop'] }) {
+  const grid = weekGrid(classes)
+  const colorOf = new Map(classes.map((c, i) => [c.ma_lop, CLASS_COLORS[i % CLASS_COLORS.length]]))
+  return (
+    <div
+      className="hidden gap-px overflow-hidden rounded-xl border border-line bg-line text-xs sm:grid"
+      style={{
+        gridTemplateColumns: `2.75rem repeat(${grid.days.length}, minmax(0, 1fr))`,
+        gridTemplateRows: `auto repeat(${grid.periods}, 1.75rem)`,
+      }}
+    >
+      <div className="bg-page" />
+      {grid.days.map((d) => (
+        <div key={d} className="bg-page py-1.5 text-center font-medium text-slate-600">
+          {d}
+        </div>
+      ))}
+      {Array.from({ length: grid.periods }, (_, i) => (
+        <div
+          key={`p${i}`}
+          className="flex items-center justify-center bg-page text-slate-400"
+          style={{ gridColumn: 1, gridRow: i + 2 }}
+        >
+          {i + 1}
+        </div>
+      ))}
+      {Array.from({ length: grid.periods * grid.days.length }, (_, i) => (
+        <div
+          key={`e${i}`}
+          className="bg-white"
+          style={{
+            gridColumn: (i % grid.days.length) + 2,
+            gridRow: Math.floor(i / grid.days.length) + 2,
+          }}
+        />
+      ))}
+      {grid.cells.map((c) => (
+        <div
+          key={c.ma_lop}
+          className={`z-10 m-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 ${colorOf.get(c.ma_lop)}`}
+          style={{ gridColumn: c.col + 2, gridRow: `${c.from + 1} / ${c.to + 2}` }}
+          title={`${c.ten_hp} · tiết ${c.from}-${c.to} · phòng ${c.phong}`}
+        >
+          <p className="font-semibold leading-tight">{c.ten_hp}</p>
+          <p className="opacity-80">
+            {c.ma_lop} · {c.phong}
+          </p>
         </div>
       ))}
     </div>

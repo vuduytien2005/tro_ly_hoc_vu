@@ -5,6 +5,7 @@ import {
   formatVnd,
   groupBySemester,
   semesterLabel,
+  weekGrid,
   type Overview,
   type TranscriptRow,
 } from './overview'
@@ -116,5 +117,38 @@ describe('buildAlerts', () => {
     expect(missing).toHaveLength(1)
     expect(missing[0].muc_do).toBe('chu_y')
     expect(missing[0].chi_tiet).toContain('ngoại ngữ')
+  })
+})
+
+describe('weekGrid', () => {
+  const cls = (ma_lop: string, thu: string, tiet: string) => ({
+    ma_lop,
+    ten_hp: ma_lop,
+    tin_chi: 3,
+    thu,
+    tiet,
+    phong: 'B1',
+    giang_vien: 'GV',
+  })
+
+  it('Thứ 2–7, tối thiểu 10 tiết, đặt lớp đúng cột và hàng', () => {
+    const g = weekGrid([cls('A', 'Thứ 2', '1-3'), cls('B', 'Thứ 5', '7-9')])
+    expect(g.days).toEqual(['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'])
+    expect(g.periods).toBe(10)
+    expect(g.cells.map((c) => [c.ma_lop, c.col, c.from, c.to])).toEqual([
+      ['A', 0, 1, 3],
+      ['B', 3, 7, 9],
+    ])
+  })
+
+  it('thêm Chủ nhật khi có lớp, mở rộng số tiết, bỏ qua dữ liệu lạ', () => {
+    const g = weekGrid([
+      cls('C', 'Chủ nhật', '10-12'),
+      cls('X', 'Thứ hai', '1-2'),
+      cls('Y', 'Thứ 3', 'abc'),
+    ])
+    expect(g.days.at(-1)).toBe('Chủ nhật')
+    expect(g.periods).toBe(12)
+    expect(g.cells.map((c) => [c.ma_lop, c.col])).toEqual([['C', 6]])
   })
 })

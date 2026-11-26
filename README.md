@@ -34,7 +34,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -DbServer "localhos
 `setup.ps1` làm lần lượt (chạy lại an toàn, bước đã xong thì bỏ qua):
 1. Kiểm tra Python, Node.js, sqlcmd, ODBC Driver 18.
 2. Tạo `.env` từ `.env.example`, **tự sinh** `JWT_SECRET`, `INTERNAL_API_TOKEN` ngẫu nhiên (hệ thống từ chối khởi động nếu còn chuỗi mẫu — xem `docs/10`).
-3. Chạy 4 file `database/01..04` (chỉ khi CSDL chưa có; `-TaoLaiCsdl` để xóa và tạo lại). CSDL đã có thì chạy các script nâng cấp `05..10` (chạy lại an toàn; `09` = kiểm chứng câu trả lời + câu hỏi gửi cán bộ; `10` = kho hỏi đáp cán bộ). `11` = dữ liệu demo bổ sung (9 sinh viên, ngành HTTT, khóa K26); `setup.ps1` tự chạy.
+3. Chạy 4 file `database/01..04` (chỉ khi CSDL chưa có; `-TaoLaiCsdl` để xóa và tạo lại). CSDL đã có thì chạy các script nâng cấp `05..10` (chạy lại an toàn; `09` = kiểm chứng câu trả lời + câu hỏi gửi cán bộ; `10` = kho hỏi đáp cán bộ). `11` = dữ liệu demo bổ sung (9 sinh viên, ngành HTTT, khóa K26); `setup.ps1` tự chạy. Kho hỏi đáp mẫu (54 mục, `database/kho_hoi_dap_mau.json`): `python scripts/seed_knowledge.py` (setup tự chạy; `--xuat` để lưu lại kho đã sửa).
 4. Tạo `backend\.venv`, `pip install -e ".[dev]"` (`-Eval` để cài thêm gói thực nghiệm).
 5. Tạo 6 tài khoản demo (`seed_users.py`).
 6. `npm ci` cho web.

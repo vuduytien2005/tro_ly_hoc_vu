@@ -1,0 +1,272 @@
+[
+  {
+    "cau_hoi": "Một tín chỉ tương đương bao nhiêu giờ học?\nCách hỏi khác: 1 tín chỉ là bao nhiêu tiết?; Tín chỉ được tính thế nào?",
+    "tra_loi": "Một tín chỉ tương đương 50 giờ học tập định mức của sinh viên, bao gồm thời gian học trên lớp, học có hướng dẫn, tự học, nghiên cứu, thực hành và kiểm tra, đánh giá. Với giờ lên lớp, một tín chỉ tương ứng 15 tiết lý thuyết hoặc 30 tiết thực hành.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Học phần tiên quyết và học phần học trước khác nhau thế nào?\nCách hỏi khác: Môn tiên quyết là gì?; Chưa qua môn tiên quyết có học được môn sau không?",
+    "tra_loi": "Học phần tiên quyết là học phần em phải học và đạt (điểm D trở lên) thì mới được đăng ký học phần sau. Học phần học trước chỉ yêu cầu em đã học, kể cả khi chưa đạt. Danh sách học phần tiên quyết và học trước có trong chương trình đào tạo của ngành em.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Lỡ hết hạn đăng ký học phần thì phải làm sao?\nCách hỏi khác: Quên đăng ký môn thì thế nào?; Có đăng ký bổ sung được không?",
+    "tra_loi": "Sau đợt đăng ký chính, trường mở đợt đăng ký bổ sung, điều chỉnh trong tuần đầu tiên của học kỳ. Em theo dõi thông báo của Phòng Đào tạo để biết các mốc thời gian. Nếu đã hết cả đợt bổ sung, em làm đơn gửi Phòng Đào tạo, có xác nhận của cố vấn học tập.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Lớp học phần em muốn đăng ký đã hết chỗ thì làm sao?\nCách hỏi khác: Lớp full rồi thì sao?; Xin mở thêm lớp được không?",
+    "tra_loi": "Em có thể chọn lớp khác của cùng học phần, hoặc theo dõi khi có sinh viên rút. Nếu nhiều sinh viên cùng có nhu cầu, lớp trưởng hoặc cố vấn học tập có thể đề xuất Phòng Đào tạo mở thêm lớp.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Thời gian tối đa để hoàn thành khóa học là bao lâu?\nCách hỏi khác: Học tối đa mấy năm?; Em học chậm thì được kéo dài bao lâu?",
+    "tra_loi": "Thời gian tối đa để hoàn thành khóa học không vượt quá 2 lần thời gian theo kế hoạch học tập chuẩn của toàn khóa. Ví dụ, chương trình chuẩn 4 năm thì tối đa là 8 năm. Quá thời hạn này sinh viên bị buộc thôi học.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em có được học vượt để ra trường sớm không?\nCách hỏi khác: Tốt nghiệp sớm được không?; Học nhanh hơn kế hoạch có được không?",
+    "tra_loi": "Được. Em có thể đăng ký nhiều tín chỉ hơn (trong giới hạn tối đa của học kỳ) và học thêm học kỳ hè để tốt nghiệp sớm. Thời gian học có thể rút ngắn so với kế hoạch học tập chuẩn, nhưng không quá 1 năm.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Học phần bắt buộc và học phần tự chọn khác nhau thế nào?\nCách hỏi khác: Môn tự chọn là gì?; Rớt môn tự chọn có phải học lại không?",
+    "tra_loi": "Học phần bắt buộc là học phần mọi sinh viên của ngành phải học và đạt. Học phần tự chọn cho phép em chọn trong một nhóm học phần cho đủ số tín chỉ quy định. Nếu không đạt học phần tự chọn, em có thể học lại học phần đó hoặc chọn học phần khác cùng nhóm thay thế.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Cố vấn học tập là ai và hỗ trợ em những gì?\nCách hỏi khác: Ai là cố vấn học tập của em?; Cố vấn học tập làm gì?",
+    "tra_loi": "Cố vấn học tập là giảng viên được khoa phân công theo dõi lớp sinh viên. Thầy cô tư vấn em lập kế hoạch học tập, chọn học phần, xử lý khi bị cảnh báo học vụ và ký xác nhận một số loại đơn. Tên và thông tin liên hệ của cố vấn học tập có ở văn phòng khoa.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Thang điểm chữ A, B, C, D, F được quy đổi như thế nào?\nCách hỏi khác: Bao nhiêu điểm thì được A?; Điểm 7 là điểm chữ gì?; Quy đổi điểm 10 sang điểm 4",
+    "tra_loi": "Điểm học phần thang 10 được quy đổi sang điểm chữ và thang 4 như sau:\n- A: từ 8,5 → 4,0\n- B+: từ 8,0 đến dưới 8,5 → 3,5\n- B: từ 7,0 đến dưới 8,0 → 3,0\n- C+: từ 6,5 đến dưới 7,0 → 2,5\n- C: từ 5,5 đến dưới 6,5 → 2,0\n- D+: từ 5,0 đến dưới 5,5 → 1,5\n- D: từ 4,0 đến dưới 5,0 → 1,0\n- F: dưới 4,0 → 0 (không đạt)\nHọc phần đạt là từ D trở lên.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Bao nhiêu điểm thì qua môn?\nCách hỏi khác: Điểm mấy thì đậu?; 4 điểm có qua môn không?",
+    "tra_loi": "Học phần được tính là đạt khi điểm học phần từ 4,0 (điểm D) trở lên. Dưới 4,0 là điểm F, không đạt. Riêng học phần tiên quyết, em cũng chỉ cần đạt từ D trở lên để được học học phần sau, trừ khi chương trình đào tạo quy định cao hơn.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Điểm trung bình học kỳ và điểm trung bình tích lũy được tính như thế nào?\nCách hỏi khác: Cách tính GPA; Tính điểm trung bình tích lũy thế nào?",
+    "tra_loi": "Điểm trung bình được tính theo thang 4 và có trọng số là số tín chỉ: ĐTB = Σ(điểm học phần thang 4 × số tín chỉ) / Σ số tín chỉ.\n- Điểm trung bình học kỳ tính trên các học phần học trong học kỳ đó.\n- Điểm trung bình tích lũy tính trên các học phần đã tích lũy từ đầu khóa. Các học phần điều kiện như Giáo dục thể chất, Giáo dục quốc phòng – an ninh không tính vào điểm trung bình.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Xếp loại học lực theo điểm trung bình như thế nào?\nCách hỏi khác: GPA bao nhiêu thì loại giỏi?; 3.2 là loại gì?",
+    "tra_loi": "Xếp loại học lực theo điểm trung bình (thang 4):\n- Xuất sắc: 3,60–4,00\n- Giỏi: 3,20–3,59\n- Khá: 2,50–3,19\n- Trung bình: 2,00–2,49\n- Yếu: 1,00–1,99\n- Kém: dưới 1,00",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Điểm học phần gồm những thành phần nào?\nCách hỏi khác: Điểm quá trình chiếm bao nhiêu phần trăm?; Điểm cuối kỳ chiếm bao nhiêu?",
+    "tra_loi": "Điểm học phần được tổng hợp từ ít nhất hai điểm thành phần, thường gồm điểm quá trình (chuyên cần, bài tập, kiểm tra giữa kỳ) và điểm thi kết thúc học phần. Tỷ trọng từng thành phần ghi trong đề cương chi tiết của học phần, giảng viên công bố vào buổi học đầu tiên.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Điểm I, X, R trên bảng điểm nghĩa là gì?\nCách hỏi khác: Điểm I là gì?; Bảng điểm có chữ R là sao?",
+    "tra_loi": "Đây là các ký hiệu đặc biệt, không tính vào điểm trung bình:\n- I: chưa đủ dữ liệu đánh giá, ví dụ được hoãn thi vì lý do chính đáng.\n- X: chưa nhận được kết quả thi.\n- R: học phần được miễn học và công nhận tín chỉ. Khi có kết quả chính thức, ký hiệu sẽ được thay bằng điểm chữ.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Khi nào có điểm thi kết thúc học phần?\nCách hỏi khác: Bao lâu thì có điểm?; Sao chưa thấy điểm môn em thi?",
+    "tra_loi": "Điểm thi kết thúc học phần được công bố trong vòng 2 tuần sau ngày thi. Nếu quá thời hạn mà chưa có điểm, em liên hệ khoa phụ trách học phần.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Học phần Giáo dục thể chất và Giáo dục quốc phòng có tính vào điểm trung bình không?\nCách hỏi khác: Điểm thể dục có tính GPA không?; Quốc phòng có tính điểm trung bình không?",
+    "tra_loi": "Không. Giáo dục thể chất và Giáo dục quốc phòng – an ninh là học phần điều kiện, không tính vào điểm trung bình học kỳ và tích lũy. Tuy nhiên em phải hoàn thành và có chứng chỉ thì mới đủ điều kiện xét tốt nghiệp.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Nghỉ học quá nhiều buổi thì có bị cấm thi không?\nCách hỏi khác: Vắng bao nhiêu buổi thì cấm thi?; Nghỉ học có bị trừ điểm không?",
+    "tra_loi": "Có. Nếu em vắng quá 20% số tiết của học phần thì không được dự thi kết thúc học phần và nhận điểm 0 cho bài thi. Mức cụ thể ghi trong đề cương học phần. Nếu vắng có lý do chính đáng (ốm đau, tai nạn…), em nộp giấy tờ chứng minh cho giảng viên càng sớm càng tốt.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em bị điểm F thì phải làm gì?\nCách hỏi khác: Rớt môn thì sao?; Trượt môn bắt buộc có phải học lại không?",
+    "tra_loi": "Nếu học phần bắt buộc bị điểm F, em phải đăng ký học lại học phần đó ở học kỳ sau hoặc học kỳ hè. Nếu là học phần tự chọn, em có thể học lại hoặc chọn học phần tự chọn khác thay thế.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em bị ốm vào ngày thi thì có được thi lại không?\nCách hỏi khác: Vắng thi có lý do; Xin hoãn thi",
+    "tra_loi": "Nếu vắng thi có lý do chính đáng như ốm đau, tai nạn, việc gia đình đột xuất, em nộp đơn xin hoãn thi kèm giấy tờ chứng minh trong vòng 3 ngày làm việc. Em sẽ nhận điểm I và được dự thi ở kỳ thi sau. Nếu vắng thi không có lý do, bài thi bị tính điểm 0.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Hai môn thi bị trùng lịch thì phải làm sao?\nCách hỏi khác: Trùng lịch thi; Lịch thi bị trùng giờ",
+    "tra_loi": "Em báo ngay cho Phòng Đào tạo trước ngày thi để được xếp lịch thi khác cho một trong hai học phần.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Đi thi cần mang theo những gì?\nCách hỏi khác: Quên thẻ sinh viên có được thi không?; Quy định phòng thi",
+    "tra_loi": "Em cần mang thẻ sinh viên hoặc CCCD, có mặt trước giờ thi 15 phút. Không mang điện thoại, tài liệu vào phòng thi trừ khi đề thi cho phép. Đến muộn quá 15 phút sau khi tính giờ làm bài thì không được dự thi.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Vi phạm quy chế thi sẽ bị xử lý như thế nào?\nCách hỏi khác: Mang tài liệu vào phòng thi bị gì?; Thi hộ bị xử lý thế nào?",
+    "tra_loi": "Tùy mức độ, sinh viên vi phạm có thể bị khiển trách (trừ 25% điểm bài thi), cảnh cáo (trừ 50%) hoặc đình chỉ thi (điểm 0). Nhờ người thi hộ hoặc thi hộ người khác bị kỷ luật đình chỉ học tập; vi phạm lần thứ hai bị buộc thôi học.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Học kỳ hè có bắt buộc không?\nCách hỏi khác: Học hè để làm gì?; Học kỳ phụ là gì?",
+    "tra_loi": "Học kỳ hè không bắt buộc. Đây là học kỳ phụ để em học lại, học cải thiện hoặc học vượt. Kết quả học kỳ hè được tính vào điểm trung bình tích lũy.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em có được miễn học phần khi đã có chứng chỉ không?\nCách hỏi khác: Có IELTS có được miễn tiếng Anh không?; Công nhận tín chỉ; Miễn học phần tin học",
+    "tra_loi": "Có thể. Nếu em có chứng chỉ ngoại ngữ, tin học đạt mức trường quy định (ví dụ IELTS từ 5.5 để được miễn học phần tiếng Anh), hoặc đã học học phần tương đương ở trường khác, em nộp đơn xin công nhận kết quả kèm bản sao chứng chỉ, bảng điểm tại Phòng Đào tạo. Học phần được công nhận ghi ký hiệu R trên bảng điểm.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em bị cảnh báo học tập thì nên làm gì?\nCách hỏi khác: Làm sao để thoát cảnh báo?; Bị cảnh báo có ảnh hưởng gì?",
+    "tra_loi": "Em nên:\n1. Gặp cố vấn học tập để lập lại kế hoạch học tập.\n2. Đăng ký số tín chỉ vừa sức (tối đa 14 tín chỉ khi đang bị cảnh báo).\n3. Ưu tiên học lại các học phần điểm F, nhất là học phần tiên quyết.\n4. Học cải thiện các học phần điểm thấp để nâng điểm trung bình tích lũy.\nNếu học kỳ sau kết quả cải thiện, em sẽ không còn bị cảnh báo.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Bị buộc thôi học rồi có được học lại không?\nCách hỏi khác: Bị đuổi học có chuyển sang hệ khác được không?; Bảo lưu kết quả khi bị thôi học",
+    "tra_loi": "Sinh viên bị buộc thôi học vì lý do học tập có thể xin chuyển sang học chương trình trình độ thấp hơn hoặc hình thức đào tạo khác (ví dụ vừa làm vừa học) nếu trường có tổ chức. Kết quả học tập đã tích lũy được xem xét công nhận. Nếu sau này thi tuyển lại, em có thể xin công nhận các học phần đã tích lũy.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Tín chỉ nợ là gì?\nCách hỏi khác: Nợ môn là sao?; Em nợ bao nhiêu tín chỉ?",
+    "tra_loi": "Tín chỉ nợ (nợ đọng) là tổng số tín chỉ của các học phần em bị điểm F mà chưa học lại đạt. Các học phần này hiện trên bảng điểm của em với điểm F; em cần đăng ký học lại đến khi đạt.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Thủ tục xin bảo lưu gồm những gì?\nCách hỏi khác: Hồ sơ bảo lưu; Nộp đơn bảo lưu ở đâu?",
+    "tra_loi": "Hồ sơ gồm:\n1. Đơn xin bảo lưu (nghỉ học tạm thời) theo mẫu, có ý kiến của cố vấn học tập và khoa.\n2. Giấy tờ chứng minh lý do (giấy khám bệnh, quyết định nhập ngũ… nếu có).\n3. Xác nhận đã hoàn thành học phí đến thời điểm xin nghỉ.\nNộp tại Phòng Đào tạo trong 4 tuần đầu học kỳ.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em muốn thôi học hẳn thì làm thế nào?\nCách hỏi khác: Xin thôi học tự nguyện; Rút hồ sơ",
+    "tra_loi": "Em làm đơn xin thôi học, có xác nhận của gia đình (nếu cần), cố vấn học tập và khoa, sau đó nộp tại Phòng Đào tạo. Em cần hoàn tất nghĩa vụ học phí, trả sách thư viện trước khi nhận quyết định thôi học và rút hồ sơ. Kết quả học tập đã tích lũy vẫn được cấp bảng điểm.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Thời gian bảo lưu có phải đóng học phí không?\nCách hỏi khác: Bảo lưu có mất tiền không?; Học phí khi nghỉ học tạm thời",
+    "tra_loi": "Trong thời gian bảo lưu, em không phải đóng học phí vì không đăng ký học phần. Học phí đã đóng cho học kỳ xin nghỉ được bảo lưu sang học kỳ em trở lại học.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em có được chuyển ngành không?\nCách hỏi khác: Điều kiện chuyển ngành; Đổi ngành học được không?",
+    "tra_loi": "Được, nếu em đáp ứng các điều kiện:\n- Không đang là sinh viên năm thứ nhất hoặc năm cuối khóa, không thuộc diện bị buộc thôi học hoặc đang bị kỷ luật.\n- Đáp ứng điều kiện trúng tuyển của ngành muốn chuyển trong cùng khóa tuyển sinh.\n- Ngành muốn chuyển còn đủ năng lực tiếp nhận. Em nộp đơn tại Phòng Đào tạo theo đợt trường thông báo.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Điều kiện chuyển trường là gì?\nCách hỏi khác: Chuyển sang trường khác được không?; Thủ tục chuyển trường",
+    "tra_loi": "Em được xét chuyển trường khi: không đang học năm thứ nhất hoặc năm cuối khóa; không thuộc diện bị buộc thôi học hoặc đang bị kỷ luật từ cảnh cáo trở lên; đáp ứng điều kiện trúng tuyển của ngành tương ứng ở trường chuyển đến; và trường đó đồng ý tiếp nhận. Thủ tục gồm đơn xin chuyển, sự đồng ý của trường chuyển đi và trường chuyển đến.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em có thể học song ngành (học cùng lúc hai chương trình) không?\nCách hỏi khác: Điều kiện học văn bằng 2 song song; Học hai ngành cùng lúc",
+    "tra_loi": "Có thể. Em được đăng ký học chương trình thứ hai khi đã kết thúc năm thứ nhất, ngành của chương trình thứ hai khác ngành đang học, và học lực xếp loại khá trở lên (hoặc đáp ứng điều kiện trúng tuyển của chương trình thứ hai). Nếu đang bị cảnh báo học vụ, em phải dừng học chương trình thứ hai ở học kỳ tiếp theo.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Học song ngành thì những học phần chung có phải học lại không?\nCách hỏi khác: Môn giống nhau ở hai ngành; Công nhận môn chung khi học song ngành",
+    "tra_loi": "Không. Những học phần có nội dung và khối lượng tương đương đã học ở chương trình thứ nhất sẽ được xem xét công nhận khi học chương trình thứ hai. Em chỉ cần học các học phần còn thiếu.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Điểm rèn luyện được xếp loại như thế nào?\nCách hỏi khác: Bao nhiêu điểm rèn luyện là loại tốt?; Thang điểm rèn luyện",
+    "tra_loi": "Điểm rèn luyện chấm theo thang 100:\n- Xuất sắc: 90–100\n- Tốt: 80 đến dưới 90\n- Khá: 65 đến dưới 80\n- Trung bình: 50 đến dưới 65\n- Yếu: 35 đến dưới 50\n- Kém: dưới 35",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Làm sao để được cộng điểm rèn luyện?\nCách hỏi khác: Tham gia hoạt động gì được điểm rèn luyện?; Cách tăng điểm rèn luyện",
+    "tra_loi": "Điểm rèn luyện đánh giá trên 5 nhóm tiêu chí: ý thức học tập; chấp hành nội quy; tham gia hoạt động chính trị, văn hóa, thể thao, tình nguyện; ý thức công dân trong cộng đồng; và tham gia công tác lớp, đoàn, hội. Em tham gia các hoạt động của khoa, Đoàn – Hội, giữ chức vụ cán bộ lớp, đạt thành tích học tập… để được cộng điểm. Nhớ giữ minh chứng khi tự đánh giá.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Điểm rèn luyện có ảnh hưởng gì đến học bổng và tốt nghiệp không?\nCách hỏi khác: Rèn luyện yếu có được học bổng không?; Điểm rèn luyện để làm gì?",
+    "tra_loi": "Có. Điểm rèn luyện là một tiêu chí xét học bổng khuyến khích học tập (yêu cầu từ loại khá trở lên), xét khen thưởng và được ghi vào hồ sơ tốt nghiệp. Sinh viên bị xếp loại rèn luyện kém trong 2 học kỳ liên tiếp có thể bị xem xét tạm ngừng học tập.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Hạng tốt nghiệp được xếp như thế nào?\nCách hỏi khác: Tốt nghiệp loại giỏi cần bao nhiêu điểm?; Xếp loại bằng tốt nghiệp",
+    "tra_loi": "Hạng tốt nghiệp xếp theo điểm trung bình tích lũy toàn khóa (thang 4): Xuất sắc 3,60–4,00; Giỏi 3,20–3,59; Khá 2,50–3,19; Trung bình 2,00–2,49. Hạng Xuất sắc hoặc Giỏi bị giảm một mức nếu số tín chỉ phải học lại vượt quá 5% tổng số tín chỉ của chương trình, hoặc em từng bị kỷ luật từ mức cảnh cáo trở lên.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Học lại nhiều môn có bị hạ bằng không?\nCách hỏi khác: Học cải thiện có bị hạ loại bằng không?; 5% tín chỉ học lại là sao?",
+    "tra_loi": "Có thể. Nếu em đạt hạng Xuất sắc hoặc Giỏi nhưng tổng số tín chỉ phải học lại vượt quá 5% tổng số tín chỉ của chương trình, hạng tốt nghiệp bị giảm một mức. Ví dụ, chương trình 130 tín chỉ thì giới hạn là khoảng 6 tín chỉ. Học cải thiện điểm (học lại học phần đã đạt) không tính vào phần này.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Điều kiện để được làm khóa luận tốt nghiệp là gì?\nCách hỏi khác: Ai được làm khóa luận?; Làm đồ án hay học môn thay thế?",
+    "tra_loi": "Sinh viên được đăng ký làm khóa luận khi đạt điểm trung bình tích lũy từ 2,80 trở lên và không nợ học phần bắt buộc. Sinh viên không đủ điều kiện sẽ học các học phần thay thế khóa luận với số tín chỉ tương đương.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Khi nào trường xét tốt nghiệp và khi nào nhận bằng?\nCách hỏi khác: Mỗi năm xét tốt nghiệp mấy đợt?; Bao lâu thì có bằng?",
+    "tra_loi": "Trường xét tốt nghiệp 4 đợt mỗi năm. Sau khi có quyết định công nhận tốt nghiệp, em có thể nhận giấy chứng nhận tốt nghiệp tạm thời; bằng chính thức được cấp trong khoảng 3 tháng. Lịch cụ thể theo thông báo của Phòng Đào tạo.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Đóng học phí bằng những cách nào?\nCách hỏi khác: Chuyển khoản học phí; Đóng học phí online",
+    "tra_loi": "Em có thể đóng học phí bằng chuyển khoản vào tài khoản của trường (nội dung ghi: mã sinh viên – họ tên – học phí học kỳ), thanh toán qua cổng thanh toán trực tuyến, hoặc nộp trực tiếp tại Phòng Kế hoạch – Tài chính. Sau khi chuyển khoản, hệ thống cập nhật trong 1–3 ngày làm việc.",
+    "phong_ban": "tai_chinh"
+  },
+  {
+    "cau_hoi": "Đối tượng nào được miễn, giảm học phí?\nCách hỏi khác: Em có được giảm học phí không?; Hộ nghèo có được miễn học phí không?",
+    "tra_loi": "Theo quy định của Chính phủ, các nhóm thường được miễn hoặc giảm học phí gồm: con của người có công với cách mạng; sinh viên khuyết tật; sinh viên mồ côi không nơi nương tựa; sinh viên dân tộc thiểu số thuộc hộ nghèo, cận nghèo hoặc ở vùng có điều kiện kinh tế – xã hội đặc biệt khó khăn; con của cán bộ, công nhân bị tai nạn lao động hoặc bệnh nghề nghiệp đang hưởng trợ cấp thường xuyên. Mức miễn, giảm và hồ sơ cụ thể em xem thông báo của Phòng Công tác sinh viên.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Hồ sơ xin miễn giảm học phí gồm những gì?\nCách hỏi khác: Nộp hồ sơ miễn giảm ở đâu?; Giấy tờ giảm học phí",
+    "tra_loi": "Hồ sơ gồm: đơn đề nghị miễn, giảm học phí (theo mẫu); bản sao giấy tờ chứng minh thuộc đối tượng (giấy xác nhận hộ nghèo/cận nghèo, giấy chứng nhận khuyết tật, giấy xác nhận con người có công…); bản sao CCCD. Nộp tại Phòng Công tác sinh viên trong 4 tuần đầu học kỳ.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Điều kiện nhận học bổng khuyến khích học tập là gì?\nCách hỏi khác: GPA bao nhiêu thì có học bổng?; Xét học bổng thế nào?",
+    "tra_loi": "Học bổng khuyến khích học tập xét theo từng học kỳ, dựa trên: điểm trung bình học kỳ từ loại khá trở lên; điểm rèn luyện từ loại khá trở lên; đăng ký ít nhất 15 tín chỉ trong học kỳ; không có học phần điểm F và không bị kỷ luật. Học bổng xét từ cao xuống thấp trong phạm vi quỹ học bổng của từng khoa, khóa.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Sinh viên có thể vay vốn đi học không?\nCách hỏi khác: Vay ngân hàng chính sách xã hội; Vay tiền đóng học phí",
+    "tra_loi": "Có. Sinh viên thuộc hộ nghèo, cận nghèo, gia đình có hoàn cảnh khó khăn có thể vay vốn tín dụng sinh viên tại Ngân hàng Chính sách xã hội ở địa phương. Em xin giấy xác nhận sinh viên của trường, rồi cùng gia đình làm hồ sơ vay tại địa phương nơi cư trú.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Làm sao để xin giấy xác nhận sinh viên?\nCách hỏi khác: Xin giấy xác nhận đang học; Giấy xác nhận sinh viên để vay vốn",
+    "tra_loi": "Em đăng ký trên cổng thông tin sinh viên hoặc nhờ trợ lý học vụ tạo yêu cầu, ghi rõ mục đích (vay vốn, hoãn nghĩa vụ quân sự, bổ sung hồ sơ…). Giấy được trả sau 1–3 ngày làm việc tại Phòng Công tác sinh viên; nhớ mang thẻ sinh viên khi đến nhận.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Em làm mất thẻ sinh viên thì làm lại thế nào?\nCách hỏi khác: Cấp lại thẻ sinh viên; Thẻ sinh viên bị hỏng",
+    "tra_loi": "Em làm đơn đề nghị cấp lại thẻ sinh viên tại Phòng Công tác sinh viên (hoặc trên cổng thông tin sinh viên), nộp lệ phí 50.000 đồng. Thẻ mới được cấp sau 5 ngày làm việc. Trong thời gian chờ, em có thể dùng CCCD để dự thi.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Xin bảng điểm có đóng dấu ở đâu?\nCách hỏi khác: Cấp bảng điểm; Bảng điểm tiếng Anh",
+    "tra_loi": "Em đăng ký cấp bảng điểm tại Phòng Đào tạo hoặc qua cổng thông tin sinh viên. Có bảng điểm tiếng Việt và tiếng Anh, lệ phí 20.000 đồng/bản, nhận sau 3 ngày làm việc.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Sinh viên có được tạm hoãn nghĩa vụ quân sự không?\nCách hỏi khác: Hoãn đi nghĩa vụ; Giấy hoãn nghĩa vụ quân sự",
+    "tra_loi": "Có. Sinh viên đang học chương trình đào tạo chính quy trình độ đại học được tạm hoãn gọi nhập ngũ trong thời gian một khóa đào tạo. Em xin giấy xác nhận sinh viên của trường rồi nộp cho Ban Chỉ huy quân sự cấp xã nơi cư trú.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Em muốn thay đổi thông tin cá nhân (họ tên, ngày sinh, số CCCD) thì làm sao?\nCách hỏi khác: Sửa sai thông tin trên hệ thống; Cập nhật CCCD mới",
+    "tra_loi": "Với số điện thoại, email, địa chỉ: em tự cập nhật trên cổng thông tin sinh viên. Với họ tên, ngày sinh, số CCCD: em làm đơn đề nghị điều chỉnh kèm bản sao giấy tờ hợp lệ (CCCD, giấy khai sinh, quyết định thay đổi hộ tịch) nộp tại Phòng Đào tạo.",
+    "phong_ban": "dao_tao"
+  },
+  {
+    "cau_hoi": "Em muốn đăng ký ở ký túc xá thì làm thế nào?\nCách hỏi khác: Đăng ký KTX; Phí ký túc xá",
+    "tra_loi": "Em đăng ký ký túc xá theo đợt trường thông báo (đầu năm học và đầu học kỳ), qua cổng thông tin sinh viên hoặc tại Ban Quản lý ký túc xá. Ưu tiên tân sinh viên, sinh viên thuộc diện chính sách và ở xa. Mức phí từ 300.000 đến 600.000 đồng/tháng tùy loại phòng.",
+    "phong_ban": "khac"
+  },
+  {
+    "cau_hoi": "Thủ tục đăng ký bảo hiểm y tế sinh viên như thế nào?\nCách hỏi khác: BHYT sinh viên có bắt buộc không?; Đã có BHYT ở nhà có phải mua nữa không?",
+    "tra_loi": "Bảo hiểm y tế là bắt buộc với sinh viên. Em đóng BHYT qua trường theo đợt thông báo hằng năm. Nếu đã có thẻ BHYT theo đối tượng khác (hộ nghèo, người dân tộc thiểu số, theo hộ gia đình…), em nộp bản sao thẻ còn hạn cho Phòng Công tác sinh viên để không phải mua thêm.",
+    "phong_ban": "ctsv"
+  },
+  {
+    "cau_hoi": "Em nên liên hệ phòng ban nào cho từng việc?\nCách hỏi khác: Phòng đào tạo ở đâu?; Liên hệ ai để hỏi học phí?",
+    "tra_loi": "- Phòng Đào tạo: đăng ký học phần, điểm, lịch thi, bảo lưu, tốt nghiệp, chuyển ngành.\n- Phòng Công tác sinh viên: giấy xác nhận, học bổng, miễn giảm học phí, điểm rèn luyện, BHYT, thẻ sinh viên.\n- Phòng Kế hoạch – Tài chính: học phí.\n- Văn phòng khoa / cố vấn học tập: tư vấn kế hoạch học tập, ký đơn.\nCác phòng làm việc từ thứ Hai đến thứ Sáu, sáng 7:30–11:30, chiều 13:30–17:00.",
+    "phong_ban": "khac"
+  }
+]

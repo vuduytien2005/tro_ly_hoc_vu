@@ -1,5 +1,6 @@
 // Trang "Học tập của em": kiểu dữ liệu của /api/my/overview và các hàm thuần để hiển thị.
 // Mỗi mục có thể null khi công cụ tương ứng đang tắt hoặc lỗi (xem tam_dung, nguon_loi).
+import { api } from './api'
 
 export interface Profile {
   ho_ten: string
@@ -194,4 +195,50 @@ export function buildAlerts(o: Overview): Alert[] {
     }
   }
   return alerts
+}
+
+/** Truy vấn dùng chung (trang Học tập + gợi ý ở chat): mỗi lần tải gọi 6 tool -> giữ cache 5 phút. */
+export const OVERVIEW_QUERY = {
+  queryKey: ['my-overview'],
+  queryFn: () => api<Overview>('/api/my/overview'),
+  staleTime: 5 * 60_000,
+}
+
+export interface GridCell {
+  ma_lop: string
+  ten_hp: string
+  phong: string
+  /** Cột 0 = Thứ 2 ... 5 = Thứ 7, 6 = Chủ nhật. */
+  col: number
+  from: number
+  to: number
+}
+
+export interface WeekGrid {
+  days: string[]
+  periods: number
+  cells: GridCell[]
+}
+
+const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
+const MIN_PERIODS = 10
+
+/** Thời khóa biểu dạng lưới tuần. Nhãn thứ / tiết không đọc được -> bỏ qua lớp đó. */
+export function weekGrid(classes: Schedule['lop']): WeekGrid {
+  const cells: GridCell[] = []
+  for (const c of classes) {
+    const col = c.thu === 'Chủ nhật' ? 6 : WEEKDAYS.indexOf(c.thu)
+    const m = /^(\d+)-(\d+)$/.exec(c.tiet)
+    if (col < 0 || !m) continue
+    const from = Number(m[1])
+    const to = Number(m[2])
+    if (from < 1 || to < from) continue
+    cells.push({ ma_lop: c.ma_lop, ten_hp: c.ten_hp, phong: c.phong, col, from, to })
+  }
+  const hasSunday = cells.some((c) => c.col === 6)
+  return {
+    days: hasSunday ? [...WEEKDAYS, 'Chủ nhật'] : WEEKDAYS,
+    periods: Math.max(MIN_PERIODS, ...cells.map((c) => c.to)),
+    cells,
+  }
 }

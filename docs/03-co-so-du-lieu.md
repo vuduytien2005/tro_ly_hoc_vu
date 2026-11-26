@@ -187,6 +187,8 @@ Script `database/10_nang_cap_kho_hoi_dap.sql` (chạy lại an toàn; máy cài 
   cán bộ / câu trả lời thiếu căn cứ). Không có trigger: code tự ghi `updated_at` (theo `DEMO_NOW`).
 Thiết kế: `docs/superpowers/specs/2026-11-25-kho-hoi-dap-va-lo-hong-tri-thuc-design.md`.
 
+**Bộ kho mẫu** (bổ sung 26/11/2026): `database/kho_hoi_dap_mau.json` — 54 mục hỏi đáp chung (tín chỉ, điểm, thi, cảnh báo học vụ, bảo lưu, tốt nghiệp, học phí, học bổng, giấy tờ…), KHÔNG chứa số liệu riêng theo khóa (kho áp dụng mọi khóa). Nạp bằng `backend/scripts/seed_knowledge.py` (sau `seed_users.py`; người tạo = admin; chỉ thêm mục chưa có theo câu hỏi; tự lập chỉ mục khi quy_che đang tắt, mã thoát 2 nếu quy_che đang chạy). `setup.ps1` tự chạy. Sửa kho trên trang Tri thức rồi muốn lưu lại vào Git: `python scripts/seed_knowledge.py --xuat`.
+
 ## Dữ liệu demo bổ sung — 11 (25/11/2026)
 Script `database/11_bo_sung_du_lieu_demo.sql` (CSDL `tlhv_qlsv`, chạy sau `03`; chạy lại an toàn —
 đã có SV22004 thì bỏ qua). `setup.ps1` và `reset_demo.ps1` đã chạy script này. Sinh từ script Python nên

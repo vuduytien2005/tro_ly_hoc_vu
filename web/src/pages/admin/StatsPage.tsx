@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Ban,
   Clock,
+  Download,
   FileCheck2,
   MessageSquare,
   MessagesSquare,
@@ -21,11 +22,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Card, PageHeader, inputClass } from '../../components/admin/ui'
+import { Card, PageHeader, inputClass, secondaryButton } from '../../components/admin/ui'
 import { formatMs, formatPercent, toQuery } from '../../lib/admin'
 import type { SafetyStats, Stats } from '../../lib/adminTypes'
 import { ApiError, api } from '../../lib/api'
 import { formatDate, formatDateTime } from '../../lib/format'
+import { downloadStatsCsv } from '../../lib/statsCsv'
 import {
   ACTION_SEGMENTS,
   CALL_SEGMENTS,
@@ -67,6 +69,15 @@ export default function StatsPage() {
             className={inputClass}
           />
         </label>
+        <button
+          type="button"
+          disabled={!s}
+          onClick={() => s && downloadStatsCsv(s)}
+          className={`${secondaryButton} inline-flex items-center gap-2`}
+          title="Tải số liệu của khoảng ngày đang chọn (mở được bằng Excel)"
+        >
+          <Download size={16} /> Xuất CSV
+        </button>
       </PageHeader>
 
       {stats.isError && (

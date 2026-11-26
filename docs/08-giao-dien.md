@@ -14,6 +14,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 /                       → chuyển tới /chat
 /chat                   → cuộc trò chuyện mới
 /chat/:id               → cuộc trò chuyện
+/hoc-tap                → Học tập của em (bổ sung 26/11/2026)
 /thu-tuc                → Thủ tục của em
 /admin                  → Thống kê
 /admin/tai-lieu
@@ -34,10 +35,13 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 - **Kiểm chứng câu trả lời** (23/11/2026, chỉ câu trả lời có tra cứu quy chế): sau khi chữ hiện xong, dòng nhỏ "Đang kiểm chứng với văn bản…", rồi nhãn "Đã kiểm chứng x/y ý với văn bản" (xanh khi đủ, vàng khi thiếu; rê chuột thấy mô hình giám khảo). Ý không có căn cứ được **gạch chân chấm vàng**, rê chuột thấy lý do. Có ý thiếu căn cứ → nút **"Hỏi cán bộ"** điền sẵn ô chat "Mình muốn gửi câu hỏi này cho cán bộ phòng ban phụ trách." (không tự gửi; trợ lý sẽ đề nghị `ask_staff` và hiện thẻ xác nhận). Lịch sử tải lại vẫn hiện đúng (đọc `kiem_chung`).
 - **Đánh giá:** nút 👍/👎 (dùng icon, không dùng emoji) dưới câu trả lời; 👎 mở ô góp ý.
 - **Ô nhập:** textarea tự giãn, Enter gửi, Shift+Enter xuống dòng; dòng nhắc "Câu trả lời do AI tạo, hãy đối chiếu văn bản gốc".
-- **Câu hỏi gợi ý** khi hội thoại trống: "Em còn thiếu gì để tốt nghiệp?", "Lịch thi của em", "Học lại môn bị F thế nào?", "Xin giấy xác nhận sinh viên".
+- **Câu hỏi gợi ý** khi hội thoại trống (cá nhân hóa 26/11/2026, `web/src/lib/suggestions.ts`): tối đa 4 câu, ưu tiên tình trạng của chính sinh viên lấy từ `/api/my/overview` (cảnh báo học vụ → thiếu chứng chỉ / đủ điều kiện tốt nghiệp → nợ học phí → bảo lưu → môn F chưa học lại (tên môn thật) → GPA ≥ 3,6 hỏi học bổng → tân sinh viên hỏi tín chỉ); câu cá nhân hóa viền xanh + nhãn "Dành cho em". Thiếu thì bù câu mặc định "Em còn thiếu gì để tốt nghiệp?", "Lịch thi của em", "Học lại môn bị F thế nào?", "Xin giấy xác nhận sinh viên" (bỏ câu mặc định trùng chủ đề). API lỗi → chỉ câu mặc định.
 - **Chế độ trình bày** (demo trước hội đồng; chỉ khi backend đặt `CHE_DO_TRINH_BAY=true`, `/health.che_do_trinh_bay`): thanh trên cùng có công tắc "Chế độ trình bày" (lưu `localStorage`) và nút A−/A+ (cỡ chữ gốc 100/115/130%). Bật thì:
   - cột phải **"Bên trong Agent"** (~360 px; màn hẹp xếp xuống dưới): mỗi lượt gọi công cụ một thẻ đánh số — nhãn tiếng Việt + tên kỹ thuật, huy hiệu trạng thái (màu như trang Nhật ký), "LLM gửi: …", dòng nền vàng **"🔒 Hệ thống điền: ma_sv=…"** hoặc "LLM gửi SV22002 → hệ thống ghi đè ma_sv=SV22001", lý do khi bị từ chối. Đọc từ `GET /api/conversations/{id}/trace` (nhật ký `luot_goi_cong_cu`), tải lại khi luồng báo `tool_end`/`pending_action`/`done` và sau khi xác nhận/hủy thẻ (không poll). Thẻ mới nổi bật ~1 giây. Chân bảng: "Bảng này đọc trực tiếp từ nhật ký hệ thống";
   - hàng nút **câu hỏi soạn sẵn** trên ô nhập (`web/src/lib/demoPrompts.ts`, nguyên văn `docs/kich-ban-demo.md`): bấm = điền vào ô, chưa gửi.
+
+## Trang "Học tập của em" (`/hoc-tap`, bổ sung 26/11/2026)
+Đọc `GET /api/my/overview` (không qua LLM; cache 5 phút, dùng chung với gợi ý ở chat). Thẻ hồ sơ nền xanh đậm (họ tên, lớp, ngành, khóa, trạng thái học); ô cảnh báo màu kèm nút "Hỏi trợ lý" (đỏ: cảnh báo học vụ, nợ học phí; cam: thiếu chứng chỉ tốt nghiệp; xanh: đủ điều kiện tốt nghiệp); 3 thẻ số (GPA tích lũy, tín chỉ tích lũy có thanh tiến độ, học phí kỳ này); **thời khóa biểu dạng lưới tuần** (cột Thứ 2–7, thêm Chủ nhật nếu có lớp; hàng tiết 1–10 hoặc hơn; mỗi lớp một màu; điện thoại hiện danh sách); lịch thi; tiến độ tốt nghiệp (chứng chỉ ✓/✗, học phần còn thiếu); bảng điểm theo học kỳ (mở/thu gọn, F đỏ, A xanh, ghi "học lại"); khung học phí chi tiết khi còn nợ. Mục nào có công cụ đang tắt → "Chức năng này đang tạm dừng", lỗi → "Chưa tải được phần này", các mục khác vẫn hiện.
 
 ## Trang "Thủ tục của em"
 Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên / Trợ lý AI), trạng thái (badge màu). Bấm xem chi tiết nội dung đơn và ghi chú xử lý. Câu hỏi gửi cán bộ (`hoi_dap`): chi tiết hiện "Câu hỏi", "Gửi tới" (tên phòng ban) và mục **"Trả lời của cán bộ"**.
@@ -51,7 +55,7 @@ Bảng/thẻ đơn: mã đơn, loại, ngày tạo, người tạo (Sinh viên /
   - Dưới server: "`x`: trùng tên với công cụ của server `y` — bị bỏ qua".
 - **Nhật ký:** công tắc **"Tự cập nhật"** (3 giây/lần, dòng mới nổi bật ~1 giây — dùng khi demo, không phải F5); bảng thời gian, người dùng, server/tool, trạng thái, thời gian xử lý; bấm dòng mở ngăn chi tiết JSON. Nếu `tham_so_llm` khác `tham_so` → tô vàng "Đã tiêm ngữ cảnh".
 - **Đơn từ** (bổ sung 23/11/2026): quản trị viên đóng vai cán bộ phòng CTSV. Lọc trạng thái (mặc định "Mới tạo") và loại đơn; bảng mã đơn, sinh viên, loại (kèm "Trợ lý AI"/"Sinh viên" tạo), thời điểm nộp, trạng thái. Nút "Xử lý" mở ngăn chi tiết: nội dung đơn, ô ghi chú gửi sinh viên (bắt buộc khi từ chối), chỉ hiện các nút bước kế tiếp hợp lệ (Nhận xử lý / Duyệt / Từ chối / Hoàn tất). Kết quả hiện ngay ở "Thủ tục của em".
-- **Thống kê:** 4 thẻ số liệu, biểu đồ chủ đề/tool dùng nhiều, danh sách câu trả lời bị đánh giá "chưa đúng".
+- **Thống kê:** 4 thẻ số liệu, biểu đồ chủ đề/tool dùng nhiều, danh sách câu trả lời bị đánh giá "chưa đúng". Bổ sung 26/11/2026: khu **"An toàn & độ tin cậy"** (lượt gọi bị từ chối, lần LLM tự điền mã SV bị ghi đè, tỉ lệ sinh viên xác nhận hành động, tỉ lệ ý có căn cứ; 2 thanh màu tỉ lệ theo trạng thái lượt gọi và kết cục hành động cần xác nhận) và nút **"Xuất CSV"** (tạo ở trình duyệt từ số liệu đang hiển thị, BOM UTF-8 cho Excel, tên `thong-ke_<từ>_<đến>.csv`).
 
 ### Trang "Đơn từ" — câu hỏi gửi cán bộ (bổ sung 23/11/2026)
 Bộ lọc loại có "Câu hỏi cán bộ". Mở một câu hỏi: hiện câu hỏi + phòng ban; ô nhập đổi thành

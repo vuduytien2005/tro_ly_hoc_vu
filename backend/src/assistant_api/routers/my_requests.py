@@ -149,7 +149,7 @@ async def list_reminders(request: Request, user: Student, db: DbSession) -> dict
     }
 
 
-OVERVIEW_REASON = "Trang Học tập của em"
+OVERVIEW_REASON = "Tổng quan học tập (trang Học tập của em, gợi ý câu hỏi ở chat)"
 # Khóa trong kết quả -> tool đọc tương ứng
 OVERVIEW_SECTIONS = {
     "ho_so": "get_student_profile",
