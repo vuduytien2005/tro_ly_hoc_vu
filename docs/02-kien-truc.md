@@ -47,6 +47,8 @@ flowchart TB
     Assistant --> DBA
 ```
 
+*Hình 2.1. Tổng quan các thành phần của hệ thống.*
+
 **Bảng 2.1.** Trách nhiệm từng thành phần
 
 | Thành phần | Trách nhiệm | Không làm |
@@ -98,6 +100,8 @@ sequenceDiagram
     L-->>A: "Đã đăng ký thành công..."
     A-->>W: tokens + done
 ```
+
+*Hình 2.2. Luồng xử lý một tin nhắn có thao tác cần xác nhận.*
 
 ## 3. Vòng lặp Agent (assistant_api/agent/loop.py)
 
@@ -205,6 +209,8 @@ sequenceDiagram
     Note over API: lượt chat kế tiếp: công cụ có trong tools_for_llm
 ```
 
+*Hình 2.3. Thêm MCP server lúc đang chạy.*
+
 ## 8. Lập chỉ mục văn bản từ trang quản trị (GĐ8)
 
 ```mermaid
@@ -224,6 +230,8 @@ sequenceDiagram
     Q->>Q: van_ban = da_lap_chi_muc (hoặc loi + thông báo)
     W->>A: hỏi lại danh sách mỗi 2 giây cho tới khi hết "Đang xử lý"
 ```
+
+*Hình 2.4. Lập chỉ mục văn bản từ trang quản trị.*
 
 **Vì sao lập chỉ mục trong tiến trình `quy_che` chứ không ở `assistant_api` (đổi so với thiết kế gốc
 "BackgroundTasks của assistant_api"):** ChromaDB chế độ persistent nạp chỉ mục HNSW vào RAM của từng
