@@ -2,6 +2,8 @@
 
 Hai CSDL tách biệt, mô phỏng thực tế "hệ thống của trường" và "hệ thống trợ lý" thuộc hai nơi khác nhau:
 
+**Bảng 3.1.** Hai CSDL của hệ thống
+
 | CSDL | Ai dùng | Script |
 |---|---|---|
 | `tlhv_qlsv` | chỉ `qlsv_api` | `database/01_qlsv_schema.sql`, `03_qlsv_seed.sql` |
@@ -28,6 +30,9 @@ Tiền tố `tlhv_` (trợ lý học vụ) tránh trùng với CSDL có sẵn tr
 4. Kiểm tra trong SSMS: `SELECT ma_sv, ho_ten FROM tlhv_qlsv.dbo.sinh_vien;` → 14 dòng (5 dòng nếu chưa chạy `11`), tên tiếng Việt đúng dấu.
 
 ## Quy ước chuyển đổi kiểu dữ liệu (MySQL → SQL Server)
+
+**Bảng 3.2.** Quy ước chuyển kiểu dữ liệu từ MySQL sang SQL Server
+
 | Thiết kế gốc (MySQL) | SQL Server | Lý do / lưu ý |
 |---|---|---|
 | `VARCHAR`, `TEXT`, `MEDIUMTEXT` + utf8mb4 | `NVARCHAR(n)`, `NVARCHAR(MAX)` | Lưu Unicode. Literal trong SQL phải viết `N'...'`, thiếu `N` sẽ mất dấu. Model dùng `Unicode`/`UnicodeText` |
@@ -108,6 +113,9 @@ erDiagram
 - **Đăng ký cả gói:** chạy đúng 9 bước kiểm tra của đăng ký một lớp cho từng lớp (theo thứ tự mã lớp — thứ tự khóa cố định), trong **một giao dịch**; lớp sau thấy lớp trước nên trùng lịch / vượt tín chỉ *trong gói* cũng bị bắt. Một lớp lỗi → rollback cả gói. Tối đa 8 lớp; mã trùng → 422 `DANH_SACH_LOP_KHONG_HOP_LE`.
 
 ### Mã lỗi bổ sung của qlsv_api
+
+**Bảng 3.3.** Mã lỗi bổ sung của qlsv_api
+
 | Mã | HTTP | Khi nào |
 |---|---|---|
 | `THIEU_TOKEN_NOI_BO`, `TOKEN_NOI_BO_KHONG_HOP_LE` | 401 | Thiếu / sai header `X-Internal-Token` |
@@ -145,6 +153,9 @@ erDiagram
 - `doan_van_ban.vector_id` = id của vector trong ChromaDB (collection `quy_che`), dạng `vb{van_ban_id}_d{thu_tu}`.
 
 ### Tài khoản mẫu (tạo bằng `backend/scripts/seed_users.py`)
+
+**Bảng 3.4.** Tài khoản mẫu
+
 | Email | Mật khẩu | Vai trò | ma_sv | ma_khoa |
 |---|---|---|---|---|
 | sv22001@truong.example | `Sv@123456` | sinh_vien | SV22001 | K22 |
@@ -198,6 +209,8 @@ Thêm: ngành **HTTT – Hệ thống thông tin** (học phần IS101–IS204, 
 khóa **K26** (chương trình CNPM K26 = CNPM K22), 8 lớp học phần, lịch thi, học phí, chứng chỉ, 3 đơn,
 6 đầu sách (TV011–TV016) và 4 lượt mượn.
 
+**Bảng 3.5.** Sinh viên demo bổ sung (script 11)
+
 | Sinh viên | Ngành, khóa | Tình huống demo |
 |---|---|---|
 | SV22004 Đỗ Thị Hạnh | CNPM K22 | Bị cảnh báo học vụ (2 học phần F chưa học lại, GPA 1,00) → tối đa 14 tín chỉ |
@@ -223,6 +236,8 @@ theo thông tin công khai", không phải dữ liệu thật của sinh viên.
 
 **Lấy theo văn bản thật** (tải từ hunre.edu.vn, 26/11/2026):
 
+**Bảng 3.6.** Dữ liệu lấy theo văn bản thật của HUNRE (script 12)
+
 | Nội dung | Giá trị trong CSDL | Nguồn |
 |---|---|---|
 | Ngành | `7850101` Quản lý tài nguyên và môi trường | Thông tin tuyển sinh 2026 |
@@ -242,6 +257,8 @@ còn thu hộ khám sức khỏe 120.000 đ, BHYT 854.000 đ, bảo hiểm thân
 nộp trực tuyến bằng **mã QR** trên trang tra cứu & thanh toán phí nhập học (tra theo số CCCD), sau đó kiểm
 tra mục "khoản đã nộp". Đăng ký học trên cổng đăng ký: xem chương trình học → chọn lớp học phần (có nút
 lọc lớp không trùng giờ; học cải thiện điểm có nút riêng) → in phiếu nộp khoa qua cố vấn học tập.
+
+**Bảng 3.7.** Sinh viên mô phỏng HUNRE (script 12)
 
 | Sinh viên | Lớp, khóa | Tình huống demo |
 |---|---|---|
