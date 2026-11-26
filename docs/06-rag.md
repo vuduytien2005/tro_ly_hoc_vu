@@ -26,6 +26,8 @@ keyword.py   → chỉ mục BM25 (rank-bm25) dựng từ doan_van_ban, tách t�
 retriever.py → hybrid search + lọc phiên bản + (tuỳ chọn) rerank
 ```
 
+*Hình 6.1. Pipeline lập chỉ mục và truy xuất văn bản quy chế.*
+
 ### Chiến lược chia đoạn
 
 **Bảng 6.1.** Các chiến lược chia đoạn
