@@ -25,6 +25,8 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 /admin/don-tu           → Đơn từ (duyệt đơn, bổ sung 23/11/2026)
 ```
 
+*Hình 8.1. Cây trang của giao diện web (sinh viên và quản trị).*
+
 ## Trang chat (quan trọng nhất)
 - **Sidebar trái** (nền xanh đậm): logo, **chuông nhắc việc** (huy hiệu đỏ = có việc khẩn, cam = sắp tới; mở danh sách học phí / lịch thi / sách sắp đến hạn, nút "Hỏi trợ lý" mở /chat với câu hỏi soạn sẵn trong ô nhập, không tự gửi — bổ sung 23/11/2026), nút "Cuộc trò chuyện mới", danh sách hội thoại gần đây, liên kết "Thủ tục của em", thông tin sinh viên ở đáy.
 - **Khung chat:** tin người dùng căn phải nền xanh; tin trợ lý căn trái nền trắng.
