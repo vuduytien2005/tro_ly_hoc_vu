@@ -14,18 +14,18 @@ Tiền tố `tlhv_` (trợ lý học vụ) tránh trùng với CSDL có sẵn tr
 ## Cài đặt
 1. Cài SQL Server (bản **Express** miễn phí là đủ) + **SQL Server Management Studio (SSMS)** + **ODBC Driver 18 for SQL Server**.
    Máy phát triển hiện có instance `localhost\SQLEXPRESS01` (SQL Server 2025 Express).
-2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `09` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
+2. Chạy lần lượt 4 file trong `database/` (thứ tự 01 → 02 → 03 → 04). Máy đã cài từ trước: chạy thêm các script nâng cấp `05` → `10` theo thứ tự (mỗi script chạy lại nhiều lần vẫn an toàn). Sau đó chạy `11_bo_sung_du_lieu_demo.sql` (dữ liệu demo bổ sung, mục cuối tài liệu). Script 01, 02 tự tạo CSDL nếu chưa có, rồi xóa và tạo lại bảng.
    - **SSMS:** File → Open → chọn file → Execute (F5), lần lượt từng file.
    - **Dòng lệnh** (PowerShell, tại thư mục gốc dự án):
      ```powershell
-     foreach ($f in '01_qlsv_schema','02_assistant_schema','03_qlsv_seed','04_assistant_seed') {
+     foreach ($f in '01_qlsv_schema','02_assistant_schema','03_qlsv_seed','04_assistant_seed','11_bo_sung_du_lieu_demo') {
        sqlcmd -S ".\SQLEXPRESS01" -E -C -f 65001 -b -i "database\$f.sql"
      }
      ```
      `-E`: đăng nhập Windows; `-C`: tin cậy chứng chỉ tự ký; `-f 65001`: đọc file UTF-8 (giữ dấu tiếng Việt).
 3. Đăng nhập: mặc định dùng **Windows Authentication** (để trống `DB_USER`, `DB_PASSWORD` trong `.env`), tài khoản Windows đang chạy backend phải có quyền trên 2 CSDL (người cài SQL Server mặc định là sysadmin).
    Muốn dùng SQL Server Authentication: bật "SQL Server and Windows Authentication mode" trong SSMS (Server Properties → Security), tạo login rồi điền `DB_USER`, `DB_PASSWORD`.
-4. Kiểm tra trong SSMS: `SELECT ma_sv, ho_ten FROM tlhv_qlsv.dbo.sinh_vien;` → 5 dòng, tên tiếng Việt đúng dấu.
+4. Kiểm tra trong SSMS: `SELECT ma_sv, ho_ten FROM tlhv_qlsv.dbo.sinh_vien;` → 14 dòng (5 dòng nếu chưa chạy `11`), tên tiếng Việt đúng dấu.
 
 ## Quy ước chuyển đổi kiểu dữ liệu (MySQL → SQL Server)
 | Thiết kế gốc (MySQL) | SQL Server | Lý do / lưu ý |
@@ -154,6 +154,8 @@ erDiagram
 | sv22003@truong.example | `Sv@123456` | sinh_vien | SV22003 | K22 |
 | admin@truong.example   | `Admin@123456` | admin | – | – |
 
+Đã chạy `11_bo_sung_du_lieu_demo.sql` thì `seed_users.py` tạo thêm 9 tài khoản sinh viên (email `<ma_sv viết thường>@truong.example`, mật khẩu `Sv@123456`), xem bảng ở mục "Dữ liệu demo bổ sung".
+
 ## Nâng cấp 08 — MCP elicitation (23/11/2026)
 `database/08_nang_cap_elicitation.sql` (chạy lại nhiều lần vẫn an toàn; máy cài mới chạy 02 là có):
 - `hanh_dong_cho_xac_nhan.trang_thai` thêm `cho_bo_sung`: đã bấm Xác nhận nhưng MCP server cần sinh
@@ -184,3 +186,29 @@ Script `database/10_nang_cap_kho_hoi_dap.sql` (chạy lại an toàn; máy cài 
   created_at, updated_at)` — nguồn sự thật để sửa/gỡ; `ma_don`/`tin_nhan_id` = nguồn gốc (câu hỏi gửi
   cán bộ / câu trả lời thiếu căn cứ). Không có trigger: code tự ghi `updated_at` (theo `DEMO_NOW`).
 Thiết kế: `docs/superpowers/specs/2026-11-25-kho-hoi-dap-va-lo-hong-tri-thuc-design.md`.
+
+## Dữ liệu demo bổ sung — 11 (25/11/2026)
+Script `database/11_bo_sung_du_lieu_demo.sql` (CSDL `tlhv_qlsv`, chạy sau `03`; chạy lại an toàn —
+đã có SV22004 thì bỏ qua). `setup.ps1` và `reset_demo.ps1` đã chạy script này. Sinh từ script Python nên
+điểm tổng kết (0,4 × QT + 0,6 × thi) và điểm chữ khớp thang của trường.
+
+Thêm: ngành **HTTT – Hệ thống thông tin** (học phần IS101–IS204, chương trình 24 tín chỉ cho K22, K23),
+khóa **K26** (chương trình CNPM K26 = CNPM K22), 8 lớp học phần, lịch thi, học phí, chứng chỉ, 3 đơn,
+6 đầu sách (TV011–TV016) và 4 lượt mượn.
+
+| Sinh viên | Ngành, khóa | Tình huống demo |
+|---|---|---|
+| SV22004 Đỗ Thị Hạnh | CNPM K22 | Bị cảnh báo học vụ (2 học phần F chưa học lại, GPA 1,00) → tối đa 14 tín chỉ |
+| SV22005 Vũ Đức Mạnh | CNPM K22 | Nợ học phí: HK2 2025-2026 nộp một phần, HK1 2026-2027 chưa nộp (quá hạn) |
+| SV22006 Ngô Thanh Tâm | CNPM K22 | Đang bảo lưu (đơn DT-2026-0101 đã duyệt) |
+| SV22007 Phan Thùy Linh | CNPM K22 | Học lực xuất sắc (GPA 3,95), có IELTS 7.0 |
+| SV21002 Trịnh Quang Khải | CNPM K21 | Đủ điều kiện tốt nghiệp (38/38 tín chỉ, đủ chứng chỉ) |
+| SV21003 Mai Phương Thảo | CNPM K21 | Đủ tín chỉ nhưng thiếu chứng chỉ ngoại ngữ, GDQP đang chờ duyệt |
+| SV26001 Lý Gia Bảo | CNPM K26 | Tân sinh viên, học kỳ đầu, chưa có điểm, có lịch thi |
+| SV22101 Châu Ngọc Lan | HTTT K22 | Ngành khác, học tốt, đang học IS203 |
+| SV23101 Tạ Minh Quân | HTTT K23 | Đang học IS102, nộp học phí một phần, sách mượn quá hạn |
+
+Ràng buộc khi thêm: KHÔNG thêm lớp cho học phần cũ ở học kỳ đang mở đăng ký (HK2 2026-2027) và không
+sửa 5 sinh viên cũ, để các kịch bản thực nghiệm TN3/TN4 vẫn đúng. Các test đếm số sinh viên / số đơn
+so với trạng thái CSDL lúc chạy (không đếm cứng), nên chạy được cả khi chưa chạy `11`.
+

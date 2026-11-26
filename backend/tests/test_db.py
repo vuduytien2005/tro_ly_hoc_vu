@@ -54,7 +54,7 @@ def assistant_db() -> Iterator[Session]:
 
 def test_read_five_students(qlsv_db: Session) -> None:
     students = qlsv_db.scalars(select(SinhVien).order_by(SinhVien.id)).all()
-    assert len(students) == 5
+    assert len(students) >= 5  # 5 SV của 03_qlsv_seed.sql (+ 9 SV nếu đã chạy 11)
     assert students[0].ma_sv == "SV22001"
     assert students[0].ho_ten == "Nguyễn Văn An"  # utf8mb4 đọc đúng tiếng Việt
     assert students[0].khoa_hoc.ma_khoa == "K22"

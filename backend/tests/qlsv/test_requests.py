@@ -1,9 +1,11 @@
 """Đơn từ: sinh mã đơn, bảo lưu (NO_HOC_PHI), phúc khảo (học kỳ đã kết thúc gần nhất)."""
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.qlsv_api.errors import BusinessError
+from src.qlsv_api.models import DonTu
 from src.qlsv_api.services import request_service
 from tests.qlsv.conftest import DEMO_NOW
 
@@ -15,14 +17,16 @@ def create(db: Session, ma_sv: str, loai: str, noi_dung: dict):  # type: ignore[
 
 
 def test_certificate_request_gets_next_code(db: Session) -> None:
+    # Dữ liệu mẫu đã có DT-2026-0001 (03) và DT-2026-0101..0103 (11): mã mới = số lớn nhất + 1
+    last = max(int(m[-4:]) for m in db.scalars(select(DonTu.ma_don)) if m.startswith("DT-2026-"))
     out = create(db, "SV21001", "giay_xac_nhan_sv", {"muc_dich": "Hồ sơ vay vốn", "so_ban": 2})
-    assert out.ma_don == "DT-2026-0002"  # dữ liệu mẫu đã có DT-2026-0001
+    assert out.ma_don == f"DT-2026-{last + 1:04d}"
     assert out.trang_thai == "moi_tao" and out.tao_boi == "tro_ly_ai"
     assert out.noi_dung == {"muc_dich": "Hồ sơ vay vốn", "so_ban": 2}
     assert out.created_at == DEMO_NOW
 
     out2 = create(db, "SV22001", "giay_xac_nhan_sv", {"muc_dich": "Làm thẻ xe"})
-    assert out2.ma_don == "DT-2026-0003"
+    assert out2.ma_don == f"DT-2026-{last + 2:04d}"
 
 
 def test_invalid_content_is_422(db: Session) -> None:
@@ -116,9 +120,11 @@ def test_reject_requires_reason(db: Session, note: str | None) -> None:
 
 
 def test_staff_list_all_requests(db: Session) -> None:
+    before = request_service.list_all_requests(db, None, None, 1, 20).tong
+    deferrals = request_service.list_all_requests(db, None, "bao_luu", 1, 20).tong
     a = create(db, "SV22001", "giay_xac_nhan_sv", {"muc_dich": "Làm thẻ xe"})
     page = request_service.list_all_requests(db, None, None, 1, 20)
-    assert page.tong == 2
+    assert page.tong == before + 1
     times = [d.created_at for d in page.don]
     assert times == sorted(times, reverse=True)  # mới nhất trước
     mine = next(d for d in page.don if d.ma_don == a.ma_don)
@@ -126,9 +132,9 @@ def test_staff_list_all_requests(db: Session) -> None:
     assert mine.noi_dung == {"muc_dich": "Làm thẻ xe", "so_ban": 1}
     only_new = request_service.list_all_requests(db, "moi_tao", None, 1, 20)
     assert [d.ma_don for d in only_new.don] == [a.ma_don]
-    assert request_service.list_all_requests(db, None, "bao_luu", 1, 20).tong == 0
+    assert request_service.list_all_requests(db, None, "bao_luu", 1, 20).tong == deferrals
     second = request_service.list_all_requests(db, None, None, 2, 1)
-    assert second.tong == 2 and second.don[0].ma_don == page.don[1].ma_don
+    assert second.tong == before + 1 and second.don[0].ma_don == page.don[1].ma_don
 
 
 def test_deferral_contact_is_validated() -> None:

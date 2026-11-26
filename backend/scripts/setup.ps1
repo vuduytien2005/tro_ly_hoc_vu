@@ -114,12 +114,13 @@ if ($exists -and -not $TaoLaiCsdl) {
     # Nâng cấp CSDL cũ (chạy lại an toàn): tool_call_id NVARCHAR(MAX) cho Gemini
     foreach ($name in "05_nang_cap_tool_call_id.sql", "06_nang_cap_ban_duyet.sql", "07_nang_cap_ke_hoach_hoc_ky.sql",
                      "08_nang_cap_elicitation.sql", "09_nang_cap_kiem_chung_hoi_dap.sql",
-                     "10_nang_cap_kho_hoi_dap.sql") {
+                     "10_nang_cap_kho_hoi_dap.sql", "11_bo_sung_du_lieu_demo.sql") {
         Invoke-Sql @("-i", (Join-Path $Root "database\$name")) | Out-Null
         Write-Ok $name
     }
 } else {
-    foreach ($name in "01_qlsv_schema.sql", "02_assistant_schema.sql", "03_qlsv_seed.sql", "04_assistant_seed.sql") {
+    foreach ($name in "01_qlsv_schema.sql", "02_assistant_schema.sql", "03_qlsv_seed.sql", "04_assistant_seed.sql",
+                     "11_bo_sung_du_lieu_demo.sql") {
         Invoke-Sql @("-i", (Join-Path $Root "database\$name")) | Out-Null
         Write-Ok $name
     }

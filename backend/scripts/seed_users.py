@@ -1,5 +1,7 @@
-"""Tạo 6 tài khoản mẫu (docs/03-co-so-du-lieu.md) trong CSDL `tlhv_assistant`.
+"""Tạo tài khoản mẫu (docs/03-co-so-du-lieu.md) trong CSDL `tlhv_assistant`.
 
+- 5 sinh viên của 03_qlsv_seed.sql + admin; thêm 9 sinh viên nếu đã chạy
+  database/11_bo_sung_du_lieu_demo.sql.
 - Họ tên và ma_khoa của sinh viên lấy từ CSDL `tlhv_qlsv` (nguồn sự thật của trường).
 - Chạy lại nhiều lần không bị trùng: đã có email thì chỉ cập nhật thông tin,
   GIỮ NGUYÊN mật khẩu (trừ khi dùng --reset-password).
@@ -23,6 +25,18 @@ from src.shared.db import assistant_session_factory, qlsv_session_factory
 STUDENT_PASSWORD = "Sv@123456"
 ADMIN_PASSWORD = "Admin@123456"
 STUDENT_IDS = ["SV22001", "SV22002", "SV21001", "SV23001", "SV22003"]
+# Sinh viên của database/11_bo_sung_du_lieu_demo.sql: tạo tài khoản nếu đã có trong qlsv
+EXTRA_STUDENT_IDS = [
+    "SV22004",
+    "SV22005",
+    "SV22006",
+    "SV22007",
+    "SV21002",
+    "SV21003",
+    "SV26001",
+    "SV22101",
+    "SV23101",
+]
 ADMIN_EMAIL = "admin@truong.example"
 ADMIN_NAME = "Quản trị viên"
 
@@ -46,7 +60,7 @@ def load_student_specs() -> list[AccountSpec]:
         rows = db.execute(
             select(SinhVien.ma_sv, SinhVien.ho_ten, SinhVien.email, KhoaHoc.ma_khoa)
             .join(KhoaHoc, SinhVien.khoa_hoc_id == KhoaHoc.id)
-            .where(SinhVien.ma_sv.in_(STUDENT_IDS))
+            .where(SinhVien.ma_sv.in_(STUDENT_IDS + EXTRA_STUDENT_IDS))
         ).all()
 
     found = {r.ma_sv: r for r in rows}
@@ -56,6 +70,7 @@ def load_student_specs() -> list[AccountSpec]:
             f"Không tìm thấy sinh viên {missing} trong CSDL qlsv. "
             "Hãy chạy database/03_qlsv_seed.sql trước."
         )
+    extra = [m for m in EXTRA_STUDENT_IDS if m in found]
     return [
         AccountSpec(
             email=found[m].email,
@@ -65,7 +80,7 @@ def load_student_specs() -> list[AccountSpec]:
             ma_sv=m,
             ma_khoa=found[m].ma_khoa,
         )
-        for m in STUDENT_IDS
+        for m in STUDENT_IDS + extra
     ]
 
 

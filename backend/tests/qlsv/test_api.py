@@ -117,5 +117,7 @@ def test_request_endpoints(client: TestClient) -> None:
 
 def test_staff_request_list_endpoint(client: TestClient) -> None:
     body = client.get("/internal/requests", params={"trang_thai": "hoan_tat"}).json()
-    assert body["tong"] == 1 and body["don"][0]["ma_sv"] == "SV21001"
+    assert body["tong"] == len(body["don"]) >= 1
+    assert {d["trang_thai"] for d in body["don"]} == {"hoan_tat"}
+    assert "SV21001" in {d["ma_sv"] for d in body["don"]}  # DT-2026-0001 của dữ liệu mẫu
     assert client.get("/internal/requests", params={"trang_thai": "xoa"}).status_code == 422

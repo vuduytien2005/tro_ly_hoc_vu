@@ -34,7 +34,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -DbServer "localhos
 `setup.ps1` làm lần lượt (chạy lại an toàn, bước đã xong thì bỏ qua):
 1. Kiểm tra Python, Node.js, sqlcmd, ODBC Driver 18.
 2. Tạo `.env` từ `.env.example`, **tự sinh** `JWT_SECRET`, `INTERNAL_API_TOKEN` ngẫu nhiên (hệ thống từ chối khởi động nếu còn chuỗi mẫu — xem `docs/10`).
-3. Chạy 4 file `database/01..04` (chỉ khi CSDL chưa có; `-TaoLaiCsdl` để xóa và tạo lại). CSDL đã có thì chạy các script nâng cấp `05..10` (chạy lại an toàn; `09` = kiểm chứng câu trả lời + câu hỏi gửi cán bộ; `10` = kho hỏi đáp cán bộ).
+3. Chạy 4 file `database/01..04` (chỉ khi CSDL chưa có; `-TaoLaiCsdl` để xóa và tạo lại). CSDL đã có thì chạy các script nâng cấp `05..10` (chạy lại an toàn; `09` = kiểm chứng câu trả lời + câu hỏi gửi cán bộ; `10` = kho hỏi đáp cán bộ). `11` = dữ liệu demo bổ sung (9 sinh viên, ngành HTTT, khóa K26); `setup.ps1` tự chạy.
 4. Tạo `backend\.venv`, `pip install -e ".[dev]"` (`-Eval` để cài thêm gói thực nghiệm).
 5. Tạo 6 tài khoản demo (`seed_users.py`).
 6. `npm ci` cho web.
@@ -61,6 +61,7 @@ python scripts\demo_check.py                # (thư mục backend, venv bật) k
 | Sinh viên | `sv22001@truong.example` | `Sv@123456` | K22, dùng cho demo 1–5, 7–9 |
 | Sinh viên | `sv21001@truong.example` | `Sv@123456` | K21, demo 6 |
 | Sinh viên | `sv22002@truong.example`, `sv23001@…`, `sv22003@…` | `Sv@123456` | |
+| Sinh viên | `sv22004@…` (cảnh báo học vụ), `sv22005@…` (nợ học phí), `sv22006@…` (đang bảo lưu), `sv22007@…` (học lực xuất sắc), `sv21002@…` (đủ điều kiện tốt nghiệp), `sv21003@…` (thiếu chứng chỉ), `sv26001@…` (tân sinh viên K26), `sv22101@…`, `sv23101@…` (ngành HTTT) | `Sv@123456` | dữ liệu `database/11`, xem docs/03 |
 | Quản trị | `admin@truong.example` | `Admin@123456` | trang Tài liệu, MCP & quyền, Nhật ký, Thống kê |
 
 ## Kịch bản demo (docs/01 mục 6)

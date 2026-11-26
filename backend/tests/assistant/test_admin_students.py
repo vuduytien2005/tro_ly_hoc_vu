@@ -96,13 +96,13 @@ def test_list_shows_linked_accounts(
     r = app_client.get("/api/admin/students", headers=login(app_client, admin.email))
     assert r.status_code == 200, r.text
     rows = {s["ma_sv"]: s for s in r.json()["sinh_vien"]}
-    assert r.json()["tong"] == 5
+    assert r.json()["tong"] >= 5  # 5 SV của 03_qlsv_seed.sql (+ 9 SV nếu đã chạy 11)
     assert rows["SV22001"]["tai_khoan"] == {"id": student.id, "dang_hoat_dong": True}
 
     programs = app_client.get(
         "/api/admin/students/programs", headers=login(app_client, admin.email)
     ).json()
-    assert {p["ma_khoa"] for p in programs} == {"K21", "K22", "K23"}
+    assert {p["ma_khoa"] for p in programs} >= {"K21", "K22", "K23"}
 
 
 def test_create_student_with_account(app_client: TestClient, admin: NguoiDung) -> None:

@@ -28,19 +28,20 @@ def test_requires_internal_token(client: TestClient) -> None:
 
 def test_list_and_search(client: TestClient) -> None:
     body = client.get("/internal/students").json()
-    assert body["tong"] == 5
-    assert [s["ma_sv"] for s in body["sinh_vien"]][:2] == ["SV21001", "SV22001"]
+    assert body["tong"] >= 5  # 5 SV của 03_qlsv_seed.sql (+ 9 SV nếu đã chạy 11)
+    codes = [s["ma_sv"] for s in body["sinh_vien"]]
+    assert codes == sorted(codes) and codes[0] == "SV21001"
 
     found = client.get("/internal/students", params={"q": "Bình"}).json()
     assert [s["ma_sv"] for s in found["sinh_vien"]] == ["SV22002"]
 
     page = client.get("/internal/students", params={"page": 2, "page_size": 2}).json()
-    assert page["tong"] == 5 and len(page["sinh_vien"]) == 2
+    assert page["tong"] == body["tong"] and len(page["sinh_vien"]) == 2
 
 
 def test_programs(client: TestClient) -> None:
     programs = client.get("/internal/programs").json()
-    assert {(p["ma_nganh"], p["ma_khoa"]) for p in programs} == {
+    assert {(p["ma_nganh"], p["ma_khoa"]) for p in programs} >= {
         ("CNPM", "K21"),
         ("CNPM", "K22"),
         ("CNPM", "K23"),
@@ -48,6 +49,7 @@ def test_programs(client: TestClient) -> None:
 
 
 def test_create_student_normalizes_and_is_readable(client: TestClient) -> None:
+    before = client.get("/internal/students").json()["tong"]
     r = client.post("/internal/students", json=NEW)
     assert r.status_code == 201, r.text
     sv = r.json()
@@ -61,7 +63,7 @@ def test_create_student_normalizes_and_is_readable(client: TestClient) -> None:
     assert client.get("/internal/students/SV22099").json()["ho_ten"] == "Đỗ Minh Khoa"
     transcript = client.get("/internal/students/SV22099/transcript")
     assert transcript.status_code == 200
-    assert client.get("/internal/students").json()["tong"] == 6
+    assert client.get("/internal/students").json()["tong"] == before + 1
 
 
 def test_create_rejects_duplicates_and_bad_data(client: TestClient) -> None:
