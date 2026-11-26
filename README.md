@@ -5,6 +5,9 @@
 Bộ thiết kế này dùng để làm dự án bằng **VS Code + Claude Code (Claude CLI) + SQL Server (SSMS)**. Code sẽ do Claude Code sinh theo từng giai đoạn dựa trên tài liệu trong `docs/`.
 
 ## Bộ thiết kế gồm gì
+
+**Bảng 1.** Các tài liệu thiết kế
+
 | File | Nội dung |
 |---|---|
 | `CLAUDE.md` | "Bộ nhớ dự án": Claude Code tự đọc mỗi lần khởi động (công nghệ, cấu trúc, quy ước, quy tắc bảo mật) |
@@ -56,6 +59,9 @@ python scripts\demo_check.py                # (thư mục backend, venv bật) k
 - Kiểm tra code: `cd backend; pytest -q` · `cd web; npm test; npm run build`.
 
 ### Tài khoản demo
+
+**Bảng 2.** Tài khoản demo
+
 | Vai trò | Email | Mật khẩu | Ghi chú |
 |---|---|---|---|
 | Sinh viên | `sv22001@truong.example` | `Sv@123456` | K22, dùng cho demo 1–5, 7–9 |
@@ -66,6 +72,8 @@ python scripts\demo_check.py                # (thư mục backend, venv bật) k
 
 ## Kịch bản demo (docs/01 mục 6)
 Trước buổi demo: `.\scripts\reset_demo.ps1` → `.\scripts\run_all.ps1` → `python scripts\demo_check.py` (tất cả **ĐẠT**) → `npm run dev`.
+
+**Bảng 3.** Kịch bản demo
 
 | # | Đăng nhập | Thao tác | Kết quả mong đợi |
 |---|---|---|---|
@@ -88,6 +96,9 @@ python scripts\demo_check.py --llm --lan 3  # chạy tự động demo 1–9 ba 
 ```
 
 ## Xử lý sự cố
+
+**Bảng 4.** Xử lý sự cố thường gặp
+
 | Hiện tượng | Cách xử lý |
 |---|---|
 | Service không khởi động, báo `JWT_SECRET ... phải là chuỗi ngẫu nhiên` | Chạy lại `setup.ps1` (tự sinh) hoặc tạo bằng `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
