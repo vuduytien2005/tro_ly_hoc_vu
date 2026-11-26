@@ -162,3 +162,99 @@ def test_num_ctx_override_and_cloud_models_untouched() -> None:
 def test_timeout_override() -> None:
     assert LiteLlm("ollama_chat/qwen3:8b", timeout=600)._params("x", [], [])["timeout"] == 600
     assert LiteLlm("gemini/gemini-x", timeout=None).timeout == get_settings().llm_timeout_seconds
+
+
+# ----- Dự phòng khi hết hạn mức / quá tải (bổ sung 26/11/2026) -------------------------------
+def _by_model(fail: dict[str, Exception]) -> tuple[Any, list[str]]:
+    """acompletion giả: model trong `fail` -> ném lỗi; model khác -> trả "từ <model>"."""
+    seen: list[str] = []
+
+    async def acompletion(**kw: Any) -> Any:
+        seen.append(kw["model"])
+        if kw["model"] in fail:
+            raise fail[kw["model"]]
+
+        async def gen() -> Any:
+            yield _Chunk(f"từ {kw['model']}")
+
+        return gen()
+
+    return acompletion, seen
+
+
+def _texts(llm: LiteLlm) -> list[str]:
+    async def run() -> list[str]:
+        return [x async for x in llm.stream([], []) if isinstance(x, str)]
+
+    return anyio.run(run)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        litellm.RateLimitError('PerDay quota "retryDelay": "11836s"', **ARGS),  # hết hạn mức ngày
+        litellm.ServiceUnavailableError("high demand", **ARGS),  # quá tải
+    ],
+)
+def test_switches_to_fallback_when_quota_or_overload(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    acompletion, seen = _by_model({"gemini/gemini-x": error})
+    monkeypatch.setattr(litellm, "acompletion", acompletion)
+    monkeypatch.setattr(litellm, "stream_chunk_builder", lambda *a, **k: None)
+    llm = LiteLlm("gemini/gemini-x")
+    llm.rate_limit_wait = 0
+    llm.fallback_model = "ollama/qwen2.5:7b"
+    with pytest.raises(LlmError, match="không trả về nội dung"):  # stream giả không có kết thúc
+        _texts(llm)
+    assert seen == ["gemini/gemini-x", "ollama/qwen2.5:7b"]
+
+
+def test_fallback_is_announced_and_turn_names_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.assistant_api.agent.llm import FallbackNotice, LlmTurn
+
+    acompletion, _ = _by_model({"gemini/gemini-x": litellm.RateLimitError("quota", **ARGS)})
+    monkeypatch.setattr(litellm, "acompletion", acompletion)
+    final = type("F", (), {})()
+    final.choices = [
+        type(
+            "C",
+            (),
+            {
+                "message": type("M", (), {"content": "ok", "tool_calls": None})(),
+                "finish_reason": "stop",
+            },
+        )()
+    ]
+    monkeypatch.setattr(litellm, "stream_chunk_builder", lambda *a, **k: final)
+    llm = LiteLlm("gemini/gemini-x")
+    llm.rate_limit_wait = 0
+    llm.fallback_model = "ollama/qwen2.5:7b"
+
+    async def run() -> list[Any]:
+        return [x async for x in llm.stream([], [])]
+
+    items = anyio.run(run)
+    # Báo trước (giao diện hiện "đang dùng mô hình dự phòng"), rồi mới tới chữ của dự phòng
+    assert items[0] == FallbackNotice("ollama/qwen2.5:7b")
+    assert items[1] == "từ ollama/qwen2.5:7b"
+    assert isinstance(items[-1], LlmTurn) and items[-1].model == "ollama/qwen2.5:7b"
+
+
+def test_no_fallback_for_other_errors_or_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    acompletion, seen = _by_model({"gemini/gemini-x": litellm.BadRequestError("bad", **ARGS)})
+    monkeypatch.setattr(litellm, "acompletion", acompletion)
+    llm = LiteLlm("gemini/gemini-x")
+    llm.fallback_model = "ollama/qwen2.5:7b"
+    with pytest.raises(LlmError, match="Không gọi được"):
+        _texts(llm)  # lỗi cấu hình / yêu cầu sai: dự phòng không giúp được, báo đúng lỗi
+    assert seen == ["gemini/gemini-x"]
+
+    acompletion, seen = _by_model({"gemini/gemini-x": litellm.RateLimitError("quota", **ARGS)})
+    monkeypatch.setattr(litellm, "acompletion", acompletion)
+    llm = LiteLlm("gemini/gemini-x")
+    llm.rate_limit_wait = 0
+    llm.fallback_model = ""
+    with pytest.raises(LlmError, match="quá tải"):
+        _texts(llm)
+    assert seen == ["gemini/gemini-x"]

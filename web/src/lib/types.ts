@@ -93,6 +93,8 @@ export type AgentEvent =
   | { event: 'pending_action'; data: PendingAction }
   | { event: 'done'; data: { tin_nhan_id: number } }
   | { event: 'error'; data: { detail: string; code: string } }
+  /** Đã chuyển sang mô hình dự phòng (mô hình chính hết hạn mức / quá tải) — chỉ để báo. */
+  | { event: 'notice'; data: { text: string; code: string } }
 
 // ----- Thủ tục của em -----
 export interface RequestSummary {

@@ -4,6 +4,8 @@ import {
   creditPercent,
   formatVnd,
   groupBySemester,
+  nextSemester,
+  semesterOptions,
   semesterLabel,
   weekGrid,
   type Overview,
@@ -150,5 +152,26 @@ describe('weekGrid', () => {
     expect(g.days.at(-1)).toBe('Chủ nhật')
     expect(g.periods).toBe(12)
     expect(g.cells.map((c) => [c.ma_lop, c.col])).toEqual([['C', 6]])
+  })
+})
+
+describe('nextSemester / semesterOptions', () => {
+  it('HK1 -> HK2 cùng năm; HK2 -> HK1 năm sau', () => {
+    expect(nextSemester('2026-2027-HK1')).toBe('2026-2027-HK2')
+    expect(nextSemester('2026-2027-HK2')).toBe('2027-2028-HK1')
+    expect(nextSemester('la')).toBeNull()
+  })
+
+  it('học kỳ sau, hiện tại và các kỳ trong bảng điểm — mới nhất trước, không trùng', () => {
+    const opts = semesterOptions('2026-2027-HK1', [
+      row('A', '2025-2026-HK1'),
+      row('B', '2026-2027-HK1'),
+      row('C', '2025-2026-HK2'),
+    ])
+    expect(opts).toEqual(['2026-2027-HK2', '2026-2027-HK1', '2025-2026-HK2', '2025-2026-HK1'])
+  })
+
+  it('chưa biết kỳ hiện tại -> chỉ các kỳ trong bảng điểm', () => {
+    expect(semesterOptions(undefined, [row('A', '2025-2026-HK1')])).toEqual(['2025-2026-HK1'])
   })
 })

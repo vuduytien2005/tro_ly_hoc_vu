@@ -31,6 +31,12 @@ export function toQuery(params: Record<string, string | number | null | undefine
   return s ? `?${s}` : ''
 }
 
+/** Huy hiệu số việc chờ trên menu quản trị: rỗng = ẩn. */
+export function countBadge(n: number | undefined): string {
+  if (!n || n <= 0) return ''
+  return n > 99 ? '99+' : String(n)
+}
+
 export function formatPercent(ratio: number | null): string {
   return ratio == null ? '—' : `${Math.round(ratio * 1000) / 10}%`
 }

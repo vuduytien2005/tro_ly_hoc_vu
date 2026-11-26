@@ -144,7 +144,7 @@ input: user, hoi_thoai, noi_dung
 - Ghi nhật ký: `bi_tu_choi` (tool không tồn tại/đang tắt/thiếu ma_sv), `loi` (tham số JSON hỏng, MCP không kết nối, kết quả `thanh_cong: false`), `thanh_cong`. Tool `can_xac_nhan=1` ghi `cho_xac_nhan` (xem cơ chế xác nhận ở trên).
 - Lỗi LLM → sự kiện `error` mã `LOI_MO_HINH_NGON_NGU`; tin user vẫn được lưu.
 - Luồng SSE dùng phiên CSDL riêng; phiên của request đóng ngay sau khi kiểm tra quyền.
-- **LLM mặc định: Claude Opus 5.5** qua LiteLLM (`LLM_MODEL=anthropic/claude-opus-5-5`). Mô hình này: không nhận `temperature` (để trống `LLM_TEMPERATURE`), chỉ dùng `tool_choice="auto"`, luôn "thinking" (token thinking tính vào `LLM_MAX_TOKENS` → mặc định 16000). Khối thinking được gửi lại nguyên vẹn trong CÙNG lượt có tool_call; giữa các lượt, lịch sử chỉ gồm văn bản + tool_call + kết quả (bỏ toàn bộ thinking cũ — API cho phép). Từ chối do bộ lọc an toàn (`finish_reason=refusal`) → thử lại với `LLM_FALLBACK_MODEL` nếu có.
+- **LLM mặc định: Claude Opus 5.5** qua LiteLLM (`LLM_MODEL=anthropic/claude-opus-5-5`). Mô hình này: không nhận `temperature` (để trống `LLM_TEMPERATURE`), chỉ dùng `tool_choice="auto"`, luôn "thinking" (token thinking tính vào `LLM_MAX_TOKENS` → mặc định 16000). Khối thinking được gửi lại nguyên vẹn trong CÙNG lượt có tool_call; giữa các lượt, lịch sử chỉ gồm văn bản + tool_call + kết quả (bỏ toàn bộ thinking cũ — API cho phép). Từ chối do bộ lọc an toàn (`finish_reason=refusal`) → thử lại với `LLM_FALLBACK_MODEL` nếu có. **Hết hạn mức / quá tải** (429, 503 — gặp thường xuyên với Gemini gói miễn phí, vì demo, kiểm chứng và script thực nghiệm dùng chung một khóa) → cũng chuyển sang `LLM_FALLBACK_MODEL` (bổ sung 26/11/2026; máy dev đặt `ollama/qwen2.5:7b` chạy cục bộ, không tốn hạn mức), chỉ khi chưa gửi chữ nào cho sinh viên; lỗi khác (sai khóa, sai tên mô hình) không chuyển. Bước kiểm chứng (`verifier.py`) dùng cùng cơ chế: ghi `mo_hinh` là mô hình thực sự chấm và nới thời hạn gấp 3 `VERIFIER_TIMEOUT_SECONDS` khi đã chuyển sang dự phòng.
 
 **LLM giả lập cho test:** `FakeLLM` trả về chuỗi phản hồi định sẵn (có tool_calls) để test vòng lặp mà không tốn tiền API.
 
@@ -174,6 +174,7 @@ Nguyên tắc:
 | `pending_action` | `{"ma":"uuid","ten_cong_cu":"register_course","mo_ta":"...","het_han_luc":"...+07:00"}` |
 | `done` | `{"tin_nhan_id": 123}` |
 | `error` | `{"detail": "...", "code": "..."}` |
+| `notice` | `{"text": "...", "code": "MO_HINH_DU_PHONG"}` — đã chuyển sang `LLM_FALLBACK_MODEL` (mô hình chính hết hạn mức / quá tải), tối đa một lần mỗi lượt; giao diện hiện dòng chữ xám trong bong bóng trả lời (bổ sung 26/11/2026) |
 
 ## 6. Tiêm ngữ cảnh và xác thực nội bộ
 - Mỗi tool MCP khai báo `ma_sv: str` (và `ma_khoa: str` với `search_regulations`) là **tham số đầu tiên**. Ghi chú `[INJECTED]` nằm trong mô tả của tham số (JSON schema), không nằm trong docstring.

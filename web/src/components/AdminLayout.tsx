@@ -1,9 +1,10 @@
 import {
-  Lightbulb,
   BarChart3,
   FileCheck,
-  GraduationCap,
   FileText,
+  GraduationCap,
+  KeyRound,
+  Lightbulb,
   LogOut,
   Menu,
   ScrollText,
@@ -13,11 +14,27 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
+import { countBadge } from '../lib/admin'
+import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import ChangePasswordDialog from './ChangePasswordDialog'
+import ErrorBoundary from './ErrorBoundary'
 import { useFontScale } from '../lib/presentation'
 import { FontButtons } from './FontButtons'
+
+/** Đơn mới chưa xử lý (khóa nằm dưới ['admin','requests'] -> xử lý đơn xong là tự cập nhật). */
+function usePendingRequests(): number | undefined {
+  const q = useQuery({
+    queryKey: ['admin', 'requests', 'moi-tao'],
+    queryFn: () => api<{ tong: number }>('/api/admin/requests?trang_thai=moi_tao&page_size=1'),
+    refetchInterval: 30_000,
+    retry: false,
+  })
+  return q.data?.tong
+}
 
 const LINKS = [
   { to: '/admin/tai-lieu', label: 'Tài liệu', icon: FileText },
@@ -33,6 +50,8 @@ const LINKS = [
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
+  const [changingPassword, setChangingPassword] = useState(false)
+  const pendingRequests = usePendingRequests()
   const location = useLocation()
   // Menu trượt (màn hình nhỏ) gắn với trang đang mở -> chuyển trang là tự đóng
   const [openOn, setOpenOn] = useState<string | null>(null)
@@ -63,25 +82,45 @@ export default function AdminLayout() {
           </button>
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {LINKS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex h-11 items-center gap-3 rounded-[10px] px-3 text-sm hover:bg-white/10 ${
-                  isActive ? 'bg-white/15 font-medium text-white' : ''
-                }`
-              }
-            >
-              <Icon size={18} /> {label}
-            </NavLink>
-          ))}
+          {LINKS.map(({ to, label, icon: Icon }) => {
+            const badge = to === '/admin/don-tu' ? countBadge(pendingRequests) : ''
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `flex h-11 items-center gap-3 rounded-[10px] px-3 text-sm hover:bg-white/10 ${
+                    isActive ? 'bg-white/15 font-medium text-white' : ''
+                  }`
+                }
+              >
+                <Icon size={18} /> <span className="flex-1">{label}</span>
+                {badge && (
+                  <span
+                    className="min-w-6 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs font-semibold text-white"
+                    aria-label={`${badge} đơn mới chưa xử lý`}
+                  >
+                    {badge}
+                  </span>
+                )}
+              </NavLink>
+            )
+          })}
         </nav>
         <div className="flex items-center gap-3 border-t border-white/10 p-3">
           <div className="min-w-0 flex-1 px-2">
             <p className="truncate text-sm font-medium text-white">{user?.ho_ten}</p>
             <p className="truncate text-xs text-slate-400">{user?.email}</p>
           </div>
+          {changingPassword && <ChangePasswordDialog onClose={() => setChangingPassword(false)} />}
+          <button
+            onClick={() => setChangingPassword(true)}
+            aria-label="Đổi mật khẩu"
+            title="Đổi mật khẩu"
+            className="flex h-11 w-11 items-center justify-center rounded-[10px] hover:bg-white/10"
+          >
+            <KeyRound size={18} />
+          </button>
           <button
             onClick={logout}
             aria-label="Đăng xuất"
@@ -110,7 +149,9 @@ export default function AdminLayout() {
             <div className="-mt-3 mb-2 flex justify-end">
               <FontButtons scale={fontScale} onScale={setFontScale} />
             </div>
-            <Outlet />
+            <ErrorBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
       </div>

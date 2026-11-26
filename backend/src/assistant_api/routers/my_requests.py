@@ -4,9 +4,9 @@ Vẫn áp dụng đủ quy tắc bảo mật: tool phải đang bật (quy tắc
 (quy tắc 1), mỗi lần gọi ghi nhật ký (quy tắc 3, hoi_thoai_id = NULL).
 """
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
 from src.assistant_api.agent.executor import Outcome, ToolLog, failure, invoke
 from src.assistant_api.agent.registry import (
@@ -101,11 +101,17 @@ REMINDER_TOOLS = (
 
 
 async def call_read_tools(
-    request: Request, db: DbSession, user: NguoiDung, tools: tuple[str, ...], reason: str
-) -> tuple[dict[str, dict[str, Any] | None], list[str], list[str]]:
-    """Gọi lần lượt các tool đọc (không tham số ngoài ma_sv được tiêm).
+    request: Request,
+    db: DbSession,
+    user: NguoiDung,
+    tools: tuple[str, ...],
+    reason: str,
+    args: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, dict[str, Any] | None], list[str], list[str], list[str]]:
+    """Gọi lần lượt các tool đọc (tham số riêng theo `args`, ma_sv luôn được tiêm).
 
-    Trả về (kết quả theo tên tool, tool gọi lỗi, tool đang tắt). Tool tắt / lỗi -> None,
+    Trả về (kết quả theo tên tool, tool gọi lỗi, tool đang tắt, tool báo không có dữ liệu — mã lỗi
+    `*_KHONG_TON_TAI`, vd học kỳ chưa có học phí). Tool tắt / lỗi / không có dữ liệu -> None,
     các tool còn lại vẫn có kết quả (trang không hỏng cả vì một nguồn).
     """
     registry: ToolRegistry = request.app.state.registry
@@ -114,6 +120,7 @@ async def call_read_tools(
     results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
     paused: list[str] = []
+    missing: list[str] = []
     for tool in tools:
         policy = policies.get(tool)
         if policy is None or not policy.available or policy.spec is None:
@@ -122,11 +129,13 @@ async def call_read_tools(
             paused.append(tool)
             continue
         try:
-            results[tool] = await call_direct(request, db, user, tool, {}, reason)
-        except ApiError:
+            results[tool] = await call_direct(
+                request, db, user, tool, (args or {}).get(tool, {}), reason
+            )
+        except ApiError as exc:
             results[tool] = None  # lần gọi lỗi đã được ghi nhật ký trong call_direct
-            failed.append(tool)
-    return results, failed, paused
+            (missing if exc.code.endswith("_KHONG_TON_TAI") else failed).append(tool)
+    return results, failed, paused, missing
 
 
 @router.get(
@@ -134,7 +143,10 @@ async def call_read_tools(
     summary="Nhắc việc: học phí, lịch thi, sách sắp đến hạn, đơn vừa xử lý (gọi các tool đọc)",
 )
 async def list_reminders(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
-    results, failed, _ = await call_read_tools(request, db, user, REMINDER_TOOLS, REMINDER_REASON)
+    results, failed, _, missing = await call_read_tools(
+        request, db, user, REMINDER_TOOLS, REMINDER_REASON
+    )
+    failed += missing  # giữ nguyên hành vi cũ của nhắc việc
     today = now().date()
     return {
         "ngay": today.isoformat(),
@@ -159,17 +171,36 @@ OVERVIEW_SECTIONS = {
     "lich_thi": "get_exam_schedule",
     "hoc_phi": "get_tuition_status",
 }
+SEMESTER_TOOLS = ("get_current_schedule", "get_exam_schedule", "get_tuition_status")
 
 
 @router.get(
     "/overview",
     summary="Học tập của em: hồ sơ, bảng điểm, tiến độ tốt nghiệp, TKB, lịch thi, học phí",
 )
-async def get_overview(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
-    results, failed, paused = await call_read_tools(
-        request, db, user, tuple(OVERVIEW_SECTIONS.values()), OVERVIEW_REASON
+async def get_overview(
+    request: Request,
+    user: Student,
+    db: DbSession,
+    ma_hoc_ky: Annotated[
+        str | None,
+        Query(
+            pattern=r"^\d{4}-\d{4}-HK[1-3]$", description="vd 2026-2027-HK2; mặc định kỳ hiện tại"
+        ),
+    ] = None,
+) -> dict[str, Any]:
+    # Học kỳ chỉ áp cho TKB, lịch thi, học phí; bảng điểm / tốt nghiệp luôn toàn khóa
+    semester_args = {"ma_hoc_ky": ma_hoc_ky} if ma_hoc_ky else {}
+    results, failed, paused, missing = await call_read_tools(
+        request,
+        db,
+        user,
+        tuple(OVERVIEW_SECTIONS.values()),
+        OVERVIEW_REASON,
+        {tool: semester_args for tool in SEMESTER_TOOLS},
     )
     body: dict[str, Any] = {key: results[tool] for key, tool in OVERVIEW_SECTIONS.items()}
     body["nguon_loi"] = failed
     body["tam_dung"] = paused
+    body["khong_co_du_lieu"] = missing
     return body

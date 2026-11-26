@@ -115,7 +115,7 @@ class MeteredLLM:
                     self.texts.append(item.text)
                 if self._timing and item.tool_calls and self.first_feedback_s is None:
                     self.first_feedback_s = self._elapsed()
-            elif self._timing and item and self.ttft_s is None:
+            elif isinstance(item, str) and self._timing and item and self.ttft_s is None:
                 self.ttft_s = self._elapsed()
                 if self.first_feedback_s is None:
                     self.first_feedback_s = self.ttft_s

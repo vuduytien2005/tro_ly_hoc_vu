@@ -31,7 +31,15 @@ litellm.drop_params = True  # bỏ tham số mà nhà cung cấp không hỗ tr�
 
 
 class LlmError(Exception):
-    """Lỗi gọi LLM (chưa cấu hình, sai khóa API, quá hạn mức...)."""
+    """Lỗi gọi LLM (chưa cấu hình, sai khóa API, quá hạn mức...).
+
+    `overloaded`: nhà cung cấp hết hạn mức / quá tải (429, 503) — đổi sang mô hình dự phòng có
+    thể giúp; các lỗi khác (sai khóa, sai tên mô hình) thì không.
+    """
+
+    def __init__(self, message: str, *, overloaded: bool = False) -> None:
+        super().__init__(message)
+        self.overloaded = overloaded
 
 
 @dataclass(frozen=True)
@@ -50,16 +58,24 @@ class LlmTurn:
     output_tokens: int | None = None
     # Tin nhắn assistant để nối vào messages ở bước sau (kèm thinking_blocks nếu có)
     assistant_message: dict[str, Any] = field(default_factory=dict)
+    model: str = ""  # mô hình thực sự trả lời (khác LLM_MODEL khi đã chuyển sang dự phòng)
 
     @property
     def refused(self) -> bool:
         return self.finish_reason == "refusal"
 
 
+@dataclass(frozen=True)
+class FallbackNotice:
+    """Phát ra trước khi chuyển sang mô hình dự phòng (để giao diện báo "trả lời chậm hơn")."""
+
+    model: str
+
+
 class LLM(Protocol):
     def stream(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
-    ) -> AsyncIterator[str | LlmTurn]: ...
+    ) -> AsyncIterator[str | LlmTurn | FallbackNotice]: ...
 
 
 def build_assistant_message(
@@ -207,10 +223,12 @@ class LiteLlm:
                     if delay > LONG_QUOTA_SECONDS:  # vd Gemini miễn phí: 20 lượt/ngày/model
                         raise LlmError(
                             "Trợ lý đã dùng hết hạn mức của mô hình ngôn ngữ trong ngày, "
-                            "vui lòng báo quản trị viên hoặc thử lại sau."
+                            "vui lòng báo quản trị viên hoặc thử lại sau.",
+                            overloaded=True,
                         ) from exc
                     raise LlmError(
-                        "Mô hình ngôn ngữ đang quá tải, vui lòng thử lại sau ít phút."
+                        "Mô hình ngôn ngữ đang quá tải, vui lòng thử lại sau ít phút.",
+                        overloaded=True,
                     ) from exc
                 logger.warning("LLM quá tải/hết hạn mức, chờ %.0f giây rồi gọi lại", delay)
                 await asyncio.sleep(delay)
@@ -238,19 +256,33 @@ class LiteLlm:
             assistant_message=build_assistant_message(
                 text, calls, getattr(message, "thinking_blocks", None)
             ),
+            model=model,
         )
 
     async def stream(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
-    ) -> AsyncIterator[str | LlmTurn]:
+    ) -> AsyncIterator[str | LlmTurn | FallbackNotice]:
         if not self.model:
             raise LlmError("Chưa cấu hình mô hình ngôn ngữ (LLM_MODEL trong .env).")
         turn: LlmTurn | None = None
-        async for item in self._stream_once(self.model, messages, tools):
-            if isinstance(item, LlmTurn):
-                turn = item
-            else:
+        sent_text = False
+        try:
+            async for item in self._stream_once(self.model, messages, tools):
+                if isinstance(item, LlmTurn):
+                    turn = item
+                else:
+                    sent_text = True
+                    yield item
+        except LlmError as exc:
+            # Hết hạn mức / quá tải (vd Gemini miễn phí) -> chuyển sang mô hình dự phòng (vd
+            # Ollama chạy trên máy) thay vì bỏ dở câu hỏi. Chỉ khi chưa gửi chữ nào (tránh lặp).
+            if not (exc.overloaded and self.fallback_model and not sent_text):
+                raise
+            logger.warning("%s: %s -> chuyển sang %s", self.model, exc, self.fallback_model)
+            yield FallbackNotice(self.fallback_model)
+            async for item in self._stream_once(self.fallback_model, messages, tools):
                 yield item
+            return
         assert turn is not None
         if turn.refused and self.fallback_model and not turn.text:
             logger.warning("%s từ chối trả lời, thử lại với %s", self.model, self.fallback_model)
@@ -265,10 +297,14 @@ class LiteLlm:
 class FakeResponse:
     text: str = ""
     tool_calls: list[tuple[str, dict[str, Any] | str]] = field(default_factory=list)
+    fallback: bool = False  # giả lập mô hình chính hết hạn mức -> mô hình dự phòng trả lời
 
 
 class FakeLLM:
     """Trả lần lượt các phản hồi định sẵn; ghi lại messages/tools mỗi lần gọi để test kiểm tra."""
+
+    MODEL = "gia-lap"
+    FALLBACK_MODEL = "gia-lap-du-phong"
 
     def __init__(self, responses: Sequence[FakeResponse]) -> None:
         self._responses = list(responses)
@@ -276,11 +312,13 @@ class FakeLLM:
 
     async def stream(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
-    ) -> AsyncIterator[str | LlmTurn]:
+    ) -> AsyncIterator[str | LlmTurn | FallbackNotice]:
         self.calls.append({"messages": json.loads(json.dumps(messages)), "tools": tools})
         if not self._responses:
             raise LlmError("FakeLLM hết phản hồi định sẵn.")
         response = self._responses.pop(0)
+        if response.fallback:
+            yield FallbackNotice(self.FALLBACK_MODEL)
         for i in range(0, len(response.text), 8):
             yield response.text[i : i + 8]
         n = len(self.calls)
@@ -299,4 +337,5 @@ class FakeLLM:
             input_tokens=100,
             output_tokens=20,
             assistant_message=build_assistant_message(response.text, calls),
+            model=self.FALLBACK_MODEL if response.fallback else self.MODEL,
         )

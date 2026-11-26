@@ -30,6 +30,12 @@ class UserOut(BaseModel):
     ma_khoa: str | None
 
 
+class ChangePasswordIn(BaseModel):
+    mat_khau_cu: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+    # Độ mạnh kiểm tra ở router (cùng quy tắc với quản trị viên đặt mật khẩu, lỗi MAT_KHAU_YEU)
+    mat_khau_moi: Annotated[str, StringConstraints(max_length=200)]
+
+
 class LoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"

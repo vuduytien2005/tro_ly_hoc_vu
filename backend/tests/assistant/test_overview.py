@@ -108,3 +108,37 @@ def test_overview_skips_disabled_tool_without_calling(
 
 def test_overview_requires_student(client: TestClient) -> None:
     assert client.get("/api/my/overview").status_code == 401
+
+
+def test_overview_semester_goes_to_semester_tools_only(
+    client: TestClient, student: NguoiDung, qlsv_mock: respx.MockRouter
+) -> None:
+    tuition = qlsv_mock.get(
+        "/internal/students/SV22001/tuition", params={"ma_hoc_ky": "2026-2027-HK2"}
+    ).respond(200, json={**TUITION, "ma_hoc_ky": "2026-2027-HK2"})
+    transcript = qlsv_mock.get("/internal/students/SV22001/transcript").respond(
+        200, json=TRANSCRIPT
+    )
+    r = client.get("/api/my/overview?ma_hoc_ky=2026-2027-HK2", headers=login(client, student.email))
+    assert r.status_code == 200, r.text
+    assert tuition.called and r.json()["hoc_phi"]["hoc_ky"] == "2026-2027-HK2"
+    # Bảng điểm luôn toàn khóa: không gửi ma_hoc_ky
+    assert "ma_hoc_ky" not in str(transcript.calls.last.request.url)
+
+
+def test_overview_semester_without_data_is_not_an_error(
+    client: TestClient, student: NguoiDung, qlsv_mock: respx.MockRouter
+) -> None:
+    qlsv_mock.get("/internal/students/SV22001/tuition").respond(
+        404, json={"detail": "Chưa có thông tin học phí.", "code": "HOC_PHI_KHONG_TON_TAI"}
+    )
+    r = client.get("/api/my/overview?ma_hoc_ky=2027-2028-HK1", headers=login(client, student.email))
+    body = r.json()
+    assert body["hoc_phi"] is None
+    assert "get_tuition_status" in body["khong_co_du_lieu"]
+    assert "get_tuition_status" not in body["nguon_loi"]
+
+
+def test_overview_rejects_malformed_semester(client: TestClient, student: NguoiDung) -> None:
+    r = client.get("/api/my/overview?ma_hoc_ky=HK1'--", headers=login(client, student.email))
+    assert r.status_code == 422

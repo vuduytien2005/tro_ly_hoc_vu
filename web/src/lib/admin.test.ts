@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  countBadge,
   changedFields,
   cohortRange,
   formatMs,
@@ -72,5 +73,14 @@ describe('reviewBadge', () => {
       tone: 'changed',
     })
     expect(reviewBadge('da_duyet')).toBeNull()
+  })
+})
+
+describe('countBadge', () => {
+  it('ẩn khi 0 hoặc chưa tải, tối đa 99+', () => {
+    expect(countBadge(undefined)).toBe('')
+    expect(countBadge(0)).toBe('')
+    expect(countBadge(7)).toBe('7')
+    expect(countBadge(150)).toBe('99+')
   })
 })

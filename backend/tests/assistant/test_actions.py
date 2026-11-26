@@ -302,7 +302,11 @@ def test_schedule_conflict_detected_before_card(
     assert "pending_action" not in dict(events) and not post.called
     (log,) = tool_logs(db, cid, "register_course")
     assert log.trang_thai == "loi" and log.ket_qua["ma_loi"] == "TRUNG_LICH"
-    assert db.scalars(select(HanhDongChoXacNhan)).all() == []
+    # Chỉ xét hội thoại này: CSDL dev có thể có thẻ thật do người dùng tạo khi chạy web
+    assert (
+        db.scalars(select(HanhDongChoXacNhan).where(HanhDongChoXacNhan.hoi_thoai_id == cid)).all()
+        == []
+    )
 
 
 def test_schedule_conflict_reaches_llm(
@@ -581,7 +585,11 @@ def test_sweep_loop_survives_db_errors(caplog: pytest.LogCaptureFixture) -> None
 
     async def run() -> None:
         task = asyncio.create_task(sweep_expired_actions(broken_factory, 0.01))
-        await asyncio.sleep(0.1)
+        # Chờ theo điều kiện, không theo thời gian cố định: máy chậm (in traceback lâu) vẫn đúng
+        for _ in range(500):
+            if calls >= 2:
+                break
+            await asyncio.sleep(0.01)
         task.cancel()
 
     asyncio.run(run())

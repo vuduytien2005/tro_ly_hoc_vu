@@ -160,3 +160,9 @@ def test_empty_verdict_means_no_claims_not_error() -> None:
     assert parse_verdict(fabricated, ANSWER, {1}) is None
     result, _, _ = run_verify(FakeLLM([FakeResponse(text='{"y": []}')]))
     assert result is not None and (result["tong"], result["co_can_cu"], result["y"]) == (0, 0, [])
+
+
+def test_verify_answer_names_the_model_that_actually_judged() -> None:
+    # Gemini hết hạn mức -> mô hình dự phòng chấm: ghi đúng tên mô hình dự phòng
+    result, _, _ = run_verify(FakeLLM([FakeResponse(text=GOOD, fallback=True)]))
+    assert result is not None and result["mo_hinh"] == FakeLLM.FALLBACK_MODEL

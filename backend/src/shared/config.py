@@ -79,7 +79,8 @@ class Settings(BaseSettings):
     llm_temperature: float | None = None
     # Với Claude, token "thinking" tính vào max_tokens -> để rộng
     llm_max_tokens: int = 16000
-    # Mô hình thử lại khi mô hình chính từ chối trả lời (stop_reason "refusal"); trống = không
+    # Mô hình dự phòng: khi mô hình chính từ chối trả lời (stop_reason "refusal") hoặc hết hạn
+    # mức / quá tải (429, 503). Vd ollama/qwen2.5:7b; trống = không dự phòng
     llm_fallback_model: str = ""
     llm_timeout_seconds: float = 120.0
     # Cửa sổ ngữ cảnh khi chạy mô hình cục bộ qua Ollama (ollama/..., ollama_chat/...).

@@ -15,9 +15,11 @@ from typing import Any, Literal, TypedDict
 
 import anyio
 
-from src.assistant_api.agent.llm import LLM, LlmTurn
+from src.assistant_api.agent.llm import LLM, FallbackNotice, LlmTurn
 
 logger = logging.getLogger(__name__)
+
+FALLBACK_TIMEOUT_FACTOR = 3  # thời hạn chấm khi đã chuyển sang mô hình dự phòng = 3 x thường
 
 Verdict = Literal["co_can_cu", "khong_co_can_cu"]
 VERDICTS: tuple[str, ...] = ("co_can_cu", "khong_co_can_cu")
@@ -178,10 +180,14 @@ async def verify_answer(
     text = ""
     tokens_in = tokens_out = 0
     try:
-        with anyio.fail_after(timeout):
+        with anyio.fail_after(timeout) as scope:
             async for item in llm.stream(build_messages(answer, passages), []):
-                if isinstance(item, LlmTurn):
+                if isinstance(item, FallbackNotice):
+                    # Mô hình dự phòng (vd Ollama trên máy) chậm hơn nhiều -> nới thời hạn
+                    scope.deadline = anyio.current_time() + timeout * FALLBACK_TIMEOUT_FACTOR
+                elif isinstance(item, LlmTurn):
                     text = item.text
+                    model_name = item.model or model_name
                     tokens_in = item.input_tokens or 0
                     tokens_out = item.output_tokens or 0
     except Exception as exc:  # giám khảo lỗi không được làm hỏng lượt trả lời

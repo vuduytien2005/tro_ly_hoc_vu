@@ -224,6 +224,27 @@ def test_llm_error_emits_error_event(client: TestClient, student: NguoiDung, db:
     assert roles == ["user"]  # tin user vẫn được lưu
 
 
+def test_fallback_model_emits_notice_once(
+    client: TestClient,
+    student: NguoiDung,
+    script: Callable[..., FakeLLM],
+    qlsv_mock: respx.MockRouter,
+) -> None:
+    # Mô hình chính hết hạn mức -> dự phòng (chậm hơn): báo sinh viên một lần mỗi lượt
+    qlsv_mock.get("/internal/students/SV22001").respond(200, json=PROFILE)
+    script(
+        FakeResponse(tool_calls=[("get_student_profile", {})], fallback=True),
+        FakeResponse(text="Hồ sơ của em đây.", fallback=True),
+    )
+    headers = login(client, student.email)
+    cid = new_conversation(client, headers)
+    events = chat(client, headers, cid, "hồ sơ của em")
+    notices = [d for e, d in events if e == "notice"]
+    assert len(notices) == 1 and notices[0]["code"] == "MO_HINH_DU_PHONG"
+    assert "dự phòng" in notices[0]["text"]
+    assert events[-1][0] == "done"
+
+
 def test_history_sent_on_second_turn(
     client: TestClient,
     student: NguoiDung,

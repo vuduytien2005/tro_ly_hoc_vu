@@ -3,6 +3,7 @@ import {
   CircleAlert,
   CircleCheck,
   GraduationCap,
+  Info,
   Presentation,
   RotateCcw,
   Sparkles,
@@ -22,7 +23,7 @@ import { ApiError, api } from '../lib/api'
 import { DEMO_PROMPTS } from '../lib/demoPrompts'
 import { OVERVIEW_QUERY } from '../lib/overview'
 import { suggestionsFor } from '../lib/suggestions'
-import { CANCEL_PREFIX, CONFIRM_PREFIX } from '../lib/format'
+import { CANCEL_PREFIX, CONFIRM_PREFIX, unansweredQuestion } from '../lib/format'
 import { fetchHealth, isRetryable } from '../lib/health'
 import { readPrefill } from '../lib/reminders'
 import { traceKey, useFontScale, usePresentationMode, type FontScale } from '../lib/presentation'
@@ -48,6 +49,7 @@ interface LiveTurn {
   verifying: boolean
   verification: Verification | null
   breakNext: boolean // có tool chen giữa -> đoạn chữ tiếp theo xuống đoạn mới
+  notice: string | null // vd đang dùng mô hình dự phòng (chậm hơn)
   finished: boolean
 }
 
@@ -193,6 +195,9 @@ export default function ChatPage() {
         })
         refreshTrace()
         break
+      case 'notice':
+        setLive((t) => t && { ...t, notice: event.data.text })
+        break
       case 'error':
         // Lỗi trong luồng (vd mô hình ngôn ngữ quá tải / sai khóa API) -> cho thử lại nếu hợp lý
         setError({
@@ -220,6 +225,7 @@ export default function ChatPage() {
         verifying: false,
         verification: null,
         breakNext: false,
+        notice: null,
         finished: false,
       })
       try {
@@ -345,6 +351,9 @@ export default function ChatPage() {
   )
   const history = messages.data?.tin_nhan ?? []
   const empty = conversationId == null || (messages.isSuccess && history.length === 0 && !live)
+  // Lượt trước bị lỗi (vd mô hình hết hạn mức) rồi tải lại trang -> câu hỏi cuối chưa có trả lời
+  const unanswered =
+    messages.isSuccess && !live && !error && cards.length === 0 ? unansweredQuestion(history) : null
 
   if (messages.isError) {
     const notFound = messages.error instanceof ApiError && messages.error.status === 404
@@ -397,6 +406,11 @@ export default function ChatPage() {
             <>
               <UserBubble text={live.userText} />
               <AssistantBubble>
+                {live.notice && (
+                  <p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
+                    <Info size={14} className="shrink-0" /> {live.notice}
+                  </p>
+                )}
                 <ToolChips chips={live.chips} />
                 {live.text ? (
                   <AnswerText text={live.text} citations={live.citations} verification={live.verification} />
@@ -425,6 +439,22 @@ export default function ChatPage() {
             />
           ))}
 
+          {unanswered && (
+            <div className="my-3 flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <CircleAlert size={18} className="mt-0.5 shrink-0" />
+              <span className="flex-1">
+                Câu hỏi này chưa được trả lời (lượt trước bị gián đoạn). Em gửi lại nhé.
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => send(unanswered)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-medium hover:bg-amber-100 disabled:opacity-50"
+              >
+                <RotateCcw size={14} /> Gửi lại câu hỏi
+              </button>
+            </div>
+          )}
           {error && (
             <div role="alert" className="my-3 flex items-start gap-2 rounded-xl bg-err-bg px-4 py-3 text-sm text-err">
               <CircleAlert size={18} className="mt-0.5 shrink-0" />

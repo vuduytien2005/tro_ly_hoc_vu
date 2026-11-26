@@ -86,6 +86,8 @@ export interface Overview {
   hoc_phi: Tuition | null
   nguon_loi: string[]
   tam_dung: string[]
+  /** Tool báo không có dữ liệu (vd học kỳ chưa có học phí) — không phải lỗi. */
+  khong_co_du_lieu?: string[]
 }
 
 export interface Alert {
@@ -198,10 +200,39 @@ export function buildAlerts(o: Overview): Alert[] {
 }
 
 /** Truy vấn dùng chung (trang Học tập + gợi ý ở chat): mỗi lần tải gọi 6 tool -> giữ cache 5 phút. */
-export const OVERVIEW_QUERY = {
-  queryKey: ['my-overview'],
-  queryFn: () => api<Overview>('/api/my/overview'),
-  staleTime: 5 * 60_000,
+export const OVERVIEW_QUERY = overviewQuery()
+
+/** Có học kỳ -> TKB, lịch thi, học phí của kỳ đó (bảng điểm / tốt nghiệp vẫn toàn khóa). */
+export function overviewQuery(semester?: string) {
+  return {
+    queryKey: semester ? ['my-overview', semester] : ['my-overview'],
+    queryFn: () =>
+      api<Overview>(
+        semester
+          ? `/api/my/overview?ma_hoc_ky=${encodeURIComponent(semester)}`
+          : '/api/my/overview',
+      ),
+    staleTime: 5 * 60_000,
+  }
+}
+
+/** Học kỳ kế tiếp (HK1 -> HK2 cùng năm học; HK2 -> HK1 năm học sau). Mã lạ -> null. */
+export function nextSemester(code: string): string | null {
+  const m = /^(\d{4})-(\d{4})-HK([12])$/.exec(code)
+  if (!m) return null
+  const [from, to] = [Number(m[1]), Number(m[2])]
+  return m[3] === '1' ? `${from}-${to}-HK2` : `${from + 1}-${to + 1}-HK1`
+}
+
+/** Các học kỳ cho ô chọn: kỳ sau, kỳ hiện tại, các kỳ trong bảng điểm — mới nhất trước. */
+export function semesterOptions(current: string | undefined, rows: TranscriptRow[]): string[] {
+  const codes = new Set(rows.map((r) => r.hoc_ky))
+  if (current) {
+    codes.add(current)
+    const next = nextSemester(current)
+    if (next) codes.add(next)
+  }
+  return [...codes].sort((a, b) => b.localeCompare(a))
 }
 
 export interface GridCell {

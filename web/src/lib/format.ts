@@ -1,6 +1,6 @@
 // Hàm định dạng thuần (có test): trích dẫn, đồng hồ đếm ngược, ngày giờ.
 
-import type { Citation } from './types'
+import type { Citation, Message } from './types'
 
 const CITATION_RE = /\[(\d{1,3})\](?!\()/g
 
@@ -22,9 +22,7 @@ export function citationNumber(href: string | undefined): number | null {
 }
 
 export function citationLocation(c: Citation): string {
-  return [c.dieu, c.khoan, c.trang != null ? `trang ${c.trang}` : null]
-    .filter(Boolean)
-    .join(', ')
+  return [c.dieu, c.khoan, c.trang != null ? `trang ${c.trang}` : null].filter(Boolean).join(', ')
 }
 
 /** Số mili-giây còn lại -> "mm:ss" (âm -> "00:00"). */
@@ -63,3 +61,19 @@ export function formatDate(iso: string): string {
 /** Tin user do hệ thống lưu khi sinh viên bấm Xác nhận / Hủy trên thẻ (xem backend loop.py). */
 export const CONFIRM_PREFIX = 'Xác nhận: '
 export const CANCEL_PREFIX = 'Hủy: '
+
+/**
+ * Câu hỏi cuối của sinh viên chưa có câu trả lời (lượt bị lỗi — vd mô hình ngôn ngữ hết hạn mức —
+ * nên chỉ lưu tin của sinh viên). Trả về nội dung để gửi lại; tin Xác nhận / Hủy không gửi lại.
+ */
+export function unansweredQuestion(messages: Message[]): string | null {
+  const last = messages.at(-1)
+  if (!last) return null
+  if (last.vai_tro === 'assistant') {
+    if (last.noi_dung.trim()) return null
+    return unansweredQuestion(messages.slice(0, -1))
+  }
+  if (last.noi_dung.startsWith(CONFIRM_PREFIX) || last.noi_dung.startsWith(CANCEL_PREFIX))
+    return null
+  return last.noi_dung
+}

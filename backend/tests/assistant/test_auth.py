@@ -89,3 +89,42 @@ def test_expired_token(client: TestClient, student: NguoiDung) -> None:
 def test_admin_cannot_use_student_endpoints(client: TestClient, admin: NguoiDung) -> None:
     r = client.get("/api/conversations", headers=login(client, admin.email))
     assert r.status_code == 403 and r.json()["code"] == "KHONG_DU_QUYEN"
+
+
+# ----- Đổi mật khẩu (bổ sung 26/11/2026) ------------------------------------------------------
+NEW_PASSWORD = "MoiHon2026"
+
+
+def change(client: TestClient, headers: dict[str, str], old: str, new: str):  # noqa: ANN201
+    return client.post(
+        "/api/auth/change-password",
+        json={"mat_khau_cu": old, "mat_khau_moi": new},
+        headers=headers,
+    )
+
+
+def test_change_password_then_login_with_new_one(client: TestClient, student: NguoiDung) -> None:
+    headers = login(client, student.email)
+    assert change(client, headers, PASSWORD, NEW_PASSWORD).status_code == 204
+    login(client, student.email, NEW_PASSWORD)  # mật khẩu mới dùng được
+    old = client.post("/api/auth/login", json={"email": student.email, "mat_khau": PASSWORD})
+    assert old.status_code == 401  # mật khẩu cũ hết hiệu lực
+
+
+def test_change_password_requires_current_password(client: TestClient, admin: NguoiDung) -> None:
+    headers = login(client, admin.email)  # quản trị viên cũng đổi được mật khẩu của mình
+    r = change(client, headers, "SaiMatKhau1", NEW_PASSWORD)
+    assert r.status_code == 400 and r.json()["code"] == "SAI_MAT_KHAU_HIEN_TAI"
+    login(client, admin.email)  # không đổi gì
+
+
+def test_change_password_rejects_weak_or_unchanged(client: TestClient, student: NguoiDung) -> None:
+    headers = login(client, student.email)
+    weak = change(client, headers, PASSWORD, "ngan")
+    assert weak.status_code == 422 and weak.json()["code"] == "MAT_KHAU_YEU"
+    same = change(client, headers, PASSWORD, PASSWORD)
+    assert same.status_code == 400 and same.json()["code"] == "MAT_KHAU_TRUNG"
+
+
+def test_change_password_requires_login(client: TestClient) -> None:
+    assert change(client, {}, PASSWORD, NEW_PASSWORD).status_code == 401

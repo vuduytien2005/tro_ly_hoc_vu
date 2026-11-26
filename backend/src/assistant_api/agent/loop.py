@@ -46,7 +46,7 @@ from src.assistant_api.agent.executor import (
     parse_arguments,
     update_log,
 )
-from src.assistant_api.agent.llm import LLM, LlmError, LlmTurn, ToolCall
+from src.assistant_api.agent.llm import LLM, FallbackNotice, LlmError, LlmTurn, ToolCall
 from src.assistant_api.agent.prompts import system_prompt, tool_label
 from src.assistant_api.agent.registry import (
     HIDDEN_PARAMS,
@@ -90,6 +90,13 @@ def unavailable_tools(policies: dict[str, ToolPolicy], server_status: dict[str, 
 
 CONFIRM_PREFIX = "Xác nhận: "
 CANCEL_PREFIX = "Hủy: "
+# Mô hình chính hết hạn mức / quá tải -> đã chuyển sang mô hình dự phòng (agent/llm.py)
+FALLBACK_NOTICE = {
+    "code": "MO_HINH_DU_PHONG",
+    "text": (
+        "Mô hình chính đang quá tải nên trợ lý dùng mô hình dự phòng, câu trả lời có thể chậm hơn."
+    ),
+}
 SYSTEM_LOOKUP_REASON = "Hệ thống tự tra cứu để dựng thẻ xác nhận"
 CITATION_RE = re.compile(r"\[(\d{1,3})\]")
 DEFAULT_TITLE = "Cuộc trò chuyện mới"
@@ -467,12 +474,17 @@ class AgentRunner:
         sources: dict[int, dict[str, Any]] = {}
         passages: dict[int, str] = {}
         tokens_in = tokens_out = 0
+        notified_fallback = False
 
         for _step in range(self.max_steps):
             turn: LlmTurn | None = None
             async for item in self.llm.stream(messages, tools):
                 if isinstance(item, LlmTurn):
                     turn = item
+                elif isinstance(item, FallbackNotice):
+                    if not notified_fallback:  # mỗi lượt báo một lần dù nhiều bước cùng dự phòng
+                        notified_fallback = True
+                        yield AgentEvent("notice", FALLBACK_NOTICE)
                 else:
                     yield AgentEvent("token", {"text": item})
             assert turn is not None

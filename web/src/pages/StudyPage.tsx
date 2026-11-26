@@ -19,6 +19,8 @@ import { formatDate } from '../lib/format'
 import {
   CERTIFICATE_LABELS,
   OVERVIEW_QUERY,
+  overviewQuery,
+  semesterOptions,
   STUDENT_STATUS,
   TUITION_STATUS,
   buildAlerts,
@@ -77,12 +79,14 @@ function Card({
   )
 }
 
-function Unavailable({ paused }: { paused: boolean }) {
+function Unavailable({ paused, missing }: { paused: boolean; missing: boolean }) {
   return (
     <p className="text-sm text-slate-500">
       {paused
         ? 'Chức năng này đang tạm dừng.'
-        : 'Chưa tải được phần này, em thử tải lại trang sau ít phút.'}
+        : missing
+          ? 'Chưa có dữ liệu cho học kỳ này.'
+          : 'Chưa tải được phần này, em thử tải lại trang sau ít phút.'}
     </p>
   )
 }
@@ -134,14 +138,48 @@ function gradeClass(diemChu: string | null): string {
 
 /** "Học tập của em": đọc trực tiếp qua backend (không qua LLM) — xem /api/my/overview. */
 export default function StudyPage() {
-  const query = useQuery(OVERVIEW_QUERY)
+  // '' = học kỳ hiện tại (truy vấn dùng chung với gợi ý ở chat)
+  const [semester, setSemester] = useState('')
+  const base = useQuery(OVERVIEW_QUERY)
+  const picked = useQuery({
+    ...overviewQuery(semester),
+    enabled: semester !== '',
+    placeholderData: (prev) => prev,
+  })
+  const query = semester ? picked : base
+  const current =
+    base.data?.thoi_khoa_bieu?.hoc_ky ?? base.data?.lich_thi?.hoc_ky ?? base.data?.hoc_phi?.hoc_ky
+  const options = semesterOptions(current, base.data?.bang_diem?.ket_qua ?? []).filter(
+    (c) => c !== current,
+  )
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-5xl space-y-4 px-3 py-6 sm:px-6">
         <div className="flex items-center gap-3">
           <GraduationCap className="text-primary" />
-          <h1 className="text-xl font-semibold text-navy">Học tập của em</h1>
+          <h1 className="flex-1 text-xl font-semibold text-navy">Học tập của em</h1>
+          {base.data && (
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <span className="hidden sm:inline">Học kỳ</span>
+              <select
+                value={semester}
+                onChange={(e) => setSemester(e.target.value)}
+                className="h-9 rounded-[10px] border border-line bg-white px-2 text-sm"
+                title="Áp dụng cho thời khóa biểu, lịch thi, học phí"
+              >
+                <option value="">Hiện tại{current ? ` (${semesterLabel(current)})` : ''}</option>
+                {options.map((c) => (
+                  <option key={c} value={c}>
+                    {semesterLabel(c)}
+                  </option>
+                ))}
+              </select>
+              {semester && picked.isFetching && (
+                <LoaderCircle size={14} className="animate-spin text-slate-400" />
+              )}
+            </label>
+          )}
         </div>
         {query.isPending && (
           <p className="flex items-center gap-2 text-sm text-slate-500">
@@ -163,6 +201,7 @@ export default function StudyPage() {
 
 function OverviewBody({ data }: { data: Overview }) {
   const paused = (tool: string) => data.tam_dung.includes(tool)
+  const missing = (tool: string) => (data.khong_co_du_lieu ?? []).includes(tool)
   const alerts = buildAlerts(data)
   const p = data.ho_so
   const t = data.bang_diem
@@ -220,7 +259,7 @@ function OverviewBody({ data }: { data: Overview }) {
           }
         />
         <Stat
-          label="Học phí kỳ này"
+          label="Học phí"
           value={fee ? (fee.con_no > 0 ? formatVnd(fee.con_no) : 'Đã nộp đủ') : '—'}
           sub={
             fee &&
@@ -237,7 +276,10 @@ function OverviewBody({ data }: { data: Overview }) {
           title={`Thời khóa biểu${data.thoi_khoa_bieu ? ` · ${semesterLabel(data.thoi_khoa_bieu.hoc_ky)}` : ''}`}
         >
           {!data.thoi_khoa_bieu ? (
-            <Unavailable paused={paused('get_current_schedule')} />
+            <Unavailable
+              paused={paused('get_current_schedule')}
+              missing={missing('get_current_schedule')}
+            />
           ) : data.thoi_khoa_bieu.lop.length === 0 ? (
             <p className="text-sm text-slate-500">Em chưa đăng ký lớp nào trong học kỳ này.</p>
           ) : (
@@ -259,7 +301,10 @@ function OverviewBody({ data }: { data: Overview }) {
 
         <Card icon={<CalendarClock size={18} />} title="Lịch thi">
           {!data.lich_thi ? (
-            <Unavailable paused={paused('get_exam_schedule')} />
+            <Unavailable
+              paused={paused('get_exam_schedule')}
+              missing={missing('get_exam_schedule')}
+            />
           ) : data.lich_thi.lich_thi.length === 0 ? (
             <p className="text-sm text-slate-500">Chưa có lịch thi trong học kỳ này.</p>
           ) : (
@@ -291,7 +336,10 @@ function OverviewBody({ data }: { data: Overview }) {
         action={<AskButton question="Em còn thiếu gì để tốt nghiệp?" />}
       >
         {!g ? (
-          <Unavailable paused={paused('get_graduation_progress')} />
+          <Unavailable
+            paused={paused('get_graduation_progress')}
+            missing={missing('get_graduation_progress')}
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
@@ -339,7 +387,7 @@ function OverviewBody({ data }: { data: Overview }) {
         action={<AskButton question="Điểm của em thế nào, môn nào cần cải thiện?" />}
       >
         {!t ? (
-          <Unavailable paused={paused('get_transcript')} />
+          <Unavailable paused={paused('get_transcript')} missing={missing('get_transcript')} />
         ) : t.ket_qua.length === 0 ? (
           <p className="text-sm text-slate-500">Em chưa có kết quả học tập nào.</p>
         ) : (

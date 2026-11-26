@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { citationLocation, citationNumber, formatRemaining, linkCitations } from './format'
-import type { Citation } from './types'
+import {
+  citationLocation,
+  citationNumber,
+  formatRemaining,
+  linkCitations,
+  unansweredQuestion,
+} from './format'
+import type { Citation, Message } from './types'
 
 const cite = (so: number): Citation => ({
   so,
@@ -45,5 +51,32 @@ describe('formatRemaining', () => {
     expect(formatRemaining(600_000)).toBe('10:00')
     expect(formatRemaining(400)).toBe('00:01')
     expect(formatRemaining(-5000)).toBe('00:00')
+  })
+})
+
+describe('unansweredQuestion', () => {
+  let n = 0
+  const msg = (vai_tro: Message['vai_tro'], noi_dung: string): Message => ({
+    id: ++n,
+    vai_tro,
+    noi_dung,
+    trich_dan: null,
+    danh_gia: null,
+    created_at: '2026-11-25T16:32:00+07:00',
+  })
+
+  it('câu hỏi cuối chưa có trả lời (lượt bị lỗi, vd mô hình hết hạn mức) -> trả về câu hỏi', () => {
+    expect(
+      unansweredQuestion([msg('user', 'Chào'), msg('assistant', 'Chào em'), msg('user', 'GPA?')]),
+    ).toBe('GPA?')
+    // tin trợ lý rỗng (chỉ gọi công cụ rồi đứt) không tính là đã trả lời
+    expect(unansweredQuestion([msg('user', 'Lịch thi'), msg('assistant', '  ')])).toBe('Lịch thi')
+  })
+
+  it('đã trả lời, rỗng, hoặc tin Xác nhận / Hủy (không gửi lại được) -> null', () => {
+    expect(unansweredQuestion([])).toBeNull()
+    expect(unansweredQuestion([msg('user', 'Hỏi'), msg('assistant', 'Đáp')])).toBeNull()
+    expect(unansweredQuestion([msg('user', 'Xác nhận: Nộp đơn')])).toBeNull()
+    expect(unansweredQuestion([msg('user', 'Hủy: Nộp đơn')])).toBeNull()
   })
 })
