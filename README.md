@@ -140,6 +140,8 @@ Web (React) ──► assistant_api :8000 ──► LLM (LiteLLM)
                                     └─► thu_vien :9105 ─► qlsv_api (thêm trên trang MCP & quyền khi demo)
 ```
 
+*Hình 1. Kiến trúc tóm tắt của hệ thống.*
+
 ## Mẹo dùng Claude Code hiệu quả
 - Bật **Plan mode** (Shift+Tab) để duyệt kế hoạch trước khi Claude sửa file.
 - Mỗi giai đoạn một phiên làm việc; dùng `/clear` để không bị tràn ngữ cảnh.
