@@ -6,6 +6,9 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 2. **Thực hiện thủ tục học vụ** (MCP): xem thông tin cá nhân và làm thủ tục thay sinh viên, luôn có bước xác nhận với thao tác thay đổi dữ liệu.
 
 ## 2. Tác nhân
+
+**Bảng 1.1.** Các tác nhân của hệ thống
+
 | Tác nhân | Mô tả |
 |---|---|
 | Sinh viên | Đăng nhập, trò chuyện với trợ lý, xác nhận/hủy hành động, theo dõi đơn |
@@ -16,6 +19,9 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 ## 3. Yêu cầu chức năng
 
 ### 3.1. Sinh viên
+
+**Bảng 1.2.** Yêu cầu chức năng cho sinh viên
+
 | Mã | Chức năng | Ghi chú |
 |---|---|---|
 | SV-01 | Đăng nhập / đăng xuất | JWT, tài khoản do quản trị cấp (AD-09), không có tự đăng ký |
@@ -32,6 +38,9 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | SV-12 | Hỏi kế hoạch học kỳ tới, nhận gói đề xuất kèm lý do, đăng ký cả gói bằng một lần xác nhận | Bổ sung 20/11/2026. `plan_next_semester` (đọc) tính gói chắc chắn, lặp lại được: ưu tiên học lại → bắt buộc → học kỳ gợi ý; loại môn đang học, thiếu tiên quyết, lớp đầy, trùng lịch, vượt tín chỉ (nêu lý do). `register_courses_bundle` (ghi, một thẻ xác nhận) đăng ký nguyên khối: một lớp lỗi thì không lớp nào được ghi |
 
 ### 3.2. Quản trị viên
+
+**Bảng 1.3.** Yêu cầu chức năng cho quản trị viên
+
 | Mã | Chức năng | Ghi chú |
 |---|---|---|
 | AD-01 | Tải lên văn bản (PDF/DOCX), khai báo loại, phiên bản, khóa áp dụng | Lập chỉ mục chạy nền |
@@ -47,6 +56,9 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | AD-11 | Thêm và duyệt MCP server lúc hệ thống đang chạy (chỉ địa chỉ trên máy; công cụ mới mặc định tắt; mô tả đổi sau khi duyệt thì tự tắt) | Bổ sung 20/11/2026. Kiểm tra kết nối + xem trước mô tả trước khi lưu; bật công cụ = duyệt (ghi mã băm mô tả); trùng tên công cụ với server có trước → bỏ qua |
 
 ### 3.3. Trợ lý (hành vi Agent)
+
+**Bảng 1.4.** Yêu cầu về hành vi của trợ lý (Agent)
+
 | Mã | Yêu cầu |
 |---|---|
 | AG-01 | Tự quyết định dùng RAG, công cụ dữ liệu cá nhân, hay kết hợp |
@@ -58,6 +70,9 @@ Xây dựng trợ lý ảo AI Agent cho sinh viên với hai năng lực:
 | AG-07 | Trả lời bằng tiếng Việt, ngắn gọn, thân thiện |
 
 ## 4. Yêu cầu phi chức năng
+
+**Bảng 1.5.** Yêu cầu phi chức năng
+
 | Mã | Yêu cầu |
 |---|---|
 | NF-01 | Thời gian phản hồi token đầu tiên < 5 giây với câu hỏi thông thường (trên máy cá nhân, LLM qua API) |
