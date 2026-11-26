@@ -56,7 +56,10 @@ export function passwordProblem(password: string): string | null {
 }
 
 /** Chỉ giữ các trường đã đổi so với ban đầu (so sau khi bỏ khoảng trắng hai đầu). */
-export function changedFields<T extends Record<string, string>>(initial: T, current: T): Partial<T> {
+export function changedFields<T extends Record<string, string>>(
+  initial: T,
+  current: T,
+): Partial<T> {
   const out: Partial<T> = {}
   for (const key of Object.keys(current) as (keyof T)[]) {
     const value = current[key].trim()
@@ -103,4 +106,112 @@ export function reviewNoteProblem(target: string, note: string, loai?: string): 
   if (target === 'tu_choi') return 'Cần ghi lý do từ chối để sinh viên biết.'
   if (target === 'hoan_tat' && loai === 'hoi_dap') return 'Cần nhập nội dung trả lời cho sinh viên.'
   return null
+}
+
+// ----- Đơn từ: thời gian chờ + mẫu trả lời (bổ sung 26/11/2026) -----
+
+const VN_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
+const CLOSED_STATUSES = new Set(['hoan_tat', 'tu_choi'])
+/** Quá số ngày này mà đơn chưa xong -> tô cảnh báo trong danh sách. */
+export const OVERDUE_DAYS = 3
+
+/** Số ngày (theo lịch Việt Nam) đơn đã chờ; null khi đơn đã kết thúc. */
+export function waitingAge(
+  createdAt: string,
+  status: string,
+  now: Date = new Date(),
+): { days: number; label: string; overdue: boolean } | null {
+  if (CLOSED_STATUSES.has(status)) return null
+  const day = (d: Date) => Date.parse(`${VN_DATE.format(d)}T00:00:00Z`)
+  const days = Math.max(0, Math.round((day(now) - day(new Date(createdAt))) / 86_400_000))
+  return {
+    days,
+    label: days === 0 ? 'Gửi hôm nay' : `Chờ ${days} ngày`,
+    overdue: days > OVERDUE_DAYS,
+  }
+}
+
+export interface ReplyTemplate {
+  /** Bước xử lý mà mẫu này dùng kèm */
+  buoc: string
+  nhan: string
+  noi_dung: string
+}
+
+/** Câu trả lời mẫu cho cán bộ, theo loại đơn. Cán bộ sửa lại cho đúng trường hợp trước khi gửi. */
+const REPLY_TEMPLATES: Record<string, ReplyTemplate[]> = {
+  giay_xac_nhan_sv: [
+    {
+      buoc: 'da_duyet',
+      nhan: 'Đang làm giấy',
+      noi_dung: 'Đơn đã được duyệt, giấy xác nhận đang được in và đóng dấu.',
+    },
+    {
+      buoc: 'hoan_tat',
+      nhan: 'Mời nhận giấy',
+      noi_dung:
+        'Giấy xác nhận đã sẵn sàng. Em mang thẻ sinh viên đến phòng Công tác sinh viên nhận trong giờ hành chính.',
+    },
+    {
+      buoc: 'tu_choi',
+      nhan: 'Thông tin chưa khớp',
+      noi_dung:
+        'Thông tin trên đơn chưa khớp với hồ sơ sinh viên. Em kiểm tra lại rồi gửi đơn mới nhé.',
+    },
+  ],
+  bao_luu: [
+    {
+      buoc: 'da_duyet',
+      nhan: 'Đã duyệt',
+      noi_dung: 'Đơn bảo lưu đã được duyệt, quyết định bảo lưu sẽ được gửi tới em khi ban hành.',
+    },
+    {
+      buoc: 'hoan_tat',
+      nhan: 'Đã có quyết định',
+      noi_dung:
+        'Đã có quyết định bảo lưu. Trước khi quay lại học, em làm đơn nhập học lại theo hướng dẫn của phòng Đào tạo.',
+    },
+    {
+      buoc: 'tu_choi',
+      nhan: 'Thiếu minh chứng',
+      noi_dung:
+        'Đơn chưa có đủ giấy tờ minh chứng lý do bảo lưu theo quy chế. Em bổ sung rồi gửi lại đơn nhé.',
+    },
+  ],
+  phuc_khao: [
+    {
+      buoc: 'da_duyet',
+      nhan: 'Đã tiếp nhận',
+      noi_dung: 'Đơn phúc khảo đã được tiếp nhận và chuyển cho giảng viên chấm lại.',
+    },
+    {
+      buoc: 'hoan_tat',
+      nhan: 'Đã chấm lại',
+      noi_dung:
+        'Bài thi đã được chấm phúc khảo. Nếu điểm thay đổi, điểm mới đã được cập nhật trên bảng điểm của em.',
+    },
+    {
+      buoc: 'tu_choi',
+      nhan: 'Quá hạn phúc khảo',
+      noi_dung: 'Đơn được gửi sau thời hạn phúc khảo của học phần này nên không thể tiếp nhận.',
+    },
+  ],
+  hoi_dap: [
+    {
+      buoc: 'tu_choi',
+      nhan: 'Sai phòng ban',
+      noi_dung:
+        'Câu hỏi này không thuộc phạm vi phòng mình. Em gửi lại và chọn đúng phòng ban phụ trách nhé.',
+    },
+  ],
+}
+
+/** Mẫu của loại đơn, chỉ giữ những mẫu cho bước còn làm được ở trạng thái hiện tại. */
+export function replyTemplates(loai: string, steps: string[]): ReplyTemplate[] {
+  return (REPLY_TEMPLATES[loai] ?? []).filter((t) => steps.includes(t.buoc))
+}
+
+/** Chèn mẫu: ô trống -> thay bằng mẫu; đã có chữ -> nối xuống dòng mới (không xóa chữ cán bộ gõ). */
+export function insertTemplate(current: string, template: string): string {
+  return current.trim() ? `${current.replace(/\s+$/, '')}\n${template}` : template
 }

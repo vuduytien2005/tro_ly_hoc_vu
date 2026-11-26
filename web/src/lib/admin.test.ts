@@ -7,6 +7,9 @@ import {
   formatPercent,
   injectedKeys,
   passwordProblem,
+  insertTemplate,
+  replyTemplates,
+  waitingAge,
   reviewBadge,
   toQuery,
 } from './admin'
@@ -82,5 +85,44 @@ describe('countBadge', () => {
     expect(countBadge(0)).toBe('')
     expect(countBadge(7)).toBe('7')
     expect(countBadge(150)).toBe('99+')
+  })
+})
+
+describe('waitingAge', () => {
+  const NOW = new Date('2026-11-26T10:00:00+07:00')
+  it('đơn chưa xong: số ngày đã chờ (ngày Việt Nam), quá 3 ngày thì cảnh báo', () => {
+    expect(waitingAge('2026-11-26T08:00:00+07:00', 'moi_tao', NOW)).toEqual({
+      days: 0,
+      label: 'Gửi hôm nay',
+      overdue: false,
+    })
+    expect(waitingAge('2026-11-24T23:00:00+07:00', 'dang_xu_ly', NOW)).toEqual({
+      days: 2,
+      label: 'Chờ 2 ngày',
+      overdue: false,
+    })
+    expect(waitingAge('2026-11-23T08:00:00+07:00', 'moi_tao', NOW)?.overdue).toBe(false)
+    expect(waitingAge('2026-11-22T08:00:00+07:00', 'da_duyet', NOW)?.overdue).toBe(true)
+  })
+
+  it('đơn đã kết thúc -> null (không còn chờ)', () => {
+    expect(waitingAge('2026-11-01T08:00:00+07:00', 'hoan_tat', NOW)).toBeNull()
+    expect(waitingAge('2026-11-01T08:00:00+07:00', 'tu_choi', NOW)).toBeNull()
+  })
+})
+
+describe('replyTemplates / insertTemplate', () => {
+  it('mẫu theo loại đơn, chỉ cho các bước xử lý còn làm được', () => {
+    const all = replyTemplates('giay_xac_nhan_sv', ['dang_xu_ly', 'hoan_tat', 'tu_choi'])
+    expect(all.map((t) => t.buoc)).toEqual(expect.arrayContaining(['hoan_tat', 'tu_choi']))
+    const onlyDone = replyTemplates('giay_xac_nhan_sv', ['hoan_tat'])
+    expect(onlyDone.every((t) => t.buoc === 'hoan_tat')).toBe(true)
+    expect(replyTemplates('loai_la', ['hoan_tat'])).toEqual([])
+  })
+
+  it('ô trống -> thay bằng mẫu; đã có chữ -> thêm xuống dòng mới', () => {
+    expect(insertTemplate('', 'Mẫu')).toBe('Mẫu')
+    expect(insertTemplate('  ', 'Mẫu')).toBe('Mẫu')
+    expect(insertTemplate('Chào em.', 'Mẫu')).toBe('Chào em.\nMẫu')
   })
 })

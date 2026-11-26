@@ -3,7 +3,7 @@
 // "Thủ tục của em" hoặc hỏi trợ lý.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookPlus, Bot, Info, LoaderCircle, User } from 'lucide-react'
+import { BookPlus, Bot, Clock, Info, LoaderCircle, User } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
@@ -16,7 +16,15 @@ import {
   primaryButton,
   secondaryButton,
 } from '../../components/admin/ui'
-import { nextStatuses, reviewNoteProblem, toQuery } from '../../lib/admin'
+import {
+  OVERDUE_DAYS,
+  insertTemplate,
+  nextStatuses,
+  replyTemplates,
+  reviewNoteProblem,
+  toQuery,
+  waitingAge,
+} from '../../lib/admin'
 import {
   DEPARTMENTS,
   REQUEST_KIND,
@@ -160,7 +168,10 @@ export default function RequestsPage() {
                     {d.tao_boi === 'tro_ly_ai' ? 'Trợ lý AI' : 'Sinh viên'}
                   </p>
                 </td>
-                <td className="px-4 py-3">{formatDateTime(d.created_at)}</td>
+                <td className="px-4 py-3">
+                  <p>{formatDateTime(d.created_at)}</p>
+                  <WaitingTag createdAt={d.created_at} status={d.trang_thai} />
+                </td>
                 <td className="px-4 py-3">
                   <StatusBadge code={d.trang_thai} />
                 </td>
@@ -217,6 +228,7 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
   const [problem, setProblem] = useState<string | null>(null)
   const isQuestion = current.loai_don === 'hoi_dap'
   const steps = nextStatuses(current.trang_thai, current.loai_don)
+  const templates = replyTemplates(current.loai_don, steps)
 
   const review = useMutation({
     mutationFn: (trang_thai: string) =>
@@ -272,6 +284,22 @@ function ReviewDrawer({ request, onClose }: { request: StaffRequest; onClose: ()
 
       {steps.length > 0 ? (
         <div className="space-y-3 border-t border-line pt-4">
+          {templates.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-slate-500">Câu mẫu:</span>
+              {templates.map((t) => (
+                <button
+                  key={t.nhan}
+                  type="button"
+                  title={t.noi_dung}
+                  onClick={() => setNote((n) => insertTemplate(n, t.noi_dung))}
+                  className="rounded-full border border-line px-2.5 py-1 text-slate-600 hover:border-primary hover:text-primary"
+                >
+                  {t.nhan}
+                </button>
+              ))}
+            </div>
+          )}
           <Field
             label={
               isQuestion
@@ -362,4 +390,19 @@ function contentText(v: unknown): string {
       .join(' · ')
   }
   return String(v)
+}
+
+/** "Chờ N ngày" dưới ngày gửi; quá hạn thì thêm biểu tượng đồng hồ + chữ đậm (không chỉ đổi màu). */
+function WaitingTag({ createdAt, status }: { createdAt: string; status: string }) {
+  const age = waitingAge(createdAt, status)
+  if (!age) return null
+  return (
+    <p
+      className={`inline-flex items-center gap-1 text-xs ${age.overdue ? 'font-medium text-warn' : 'text-slate-500'}`}
+      title={age.overdue ? `Đã chờ quá ${OVERDUE_DAYS} ngày` : undefined}
+    >
+      {age.overdue && <Clock size={12} aria-hidden />}
+      {age.label}
+    </p>
+  )
 }
