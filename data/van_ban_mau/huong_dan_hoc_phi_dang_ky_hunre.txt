@@ -10,7 +10,7 @@ HỌC PHÍ VÀ CÁC KHOẢN THU
 1. Học phí được tính theo số tín chỉ sinh viên đăng ký trong học kỳ: học phí học kỳ = tổng số tín chỉ đăng ký × đơn giá một tín chỉ.
 2. Đơn giá học phí học kỳ chính của ngành Quản lý tài nguyên và môi trường là 475.000 đồng cho mỗi tín chỉ (mô phỏng). Học phần học lại, học cải thiện điểm tính cùng đơn giá.
 3. Ví dụ: sinh viên đăng ký 18 tín chỉ trong học kỳ phải nộp 18 × 475.000 = 8.550.000 đồng.
-4. Số tiền phải nộp, đã nộp và còn nợ của từng sinh viên được tra cứu trên cổng thông tin sinh viên hoặc hỏi trợ lý học vụ.
+4. Số tiền phải nộp, đã nộp và còn nợ của từng sinh viên được tra cứu trên cổng thông tin sinh viên, mục Học phí.
 Điều 3. Các khoản thu khi nhập học (tân sinh viên năm 2026)
 1. Thí sinh trúng tuyển đại học chính quy năm 2026 nộp lệ phí nhập học gồm học phí và các khoản thu hộ:
 a) Học phí học kỳ I năm học 2026 - 2027 (tạm thu): 9.026.000 đồng;
@@ -47,7 +47,6 @@ Trước mỗi đợt đăng ký, Trường công bố kế hoạch đào tạo 
 3. Vào mục "Đăng ký học", chọn học phần, bấm "Hiển thị lớp học phần" hoặc "Lọc lớp không trùng thời gian", chọn lớp rồi bấm "Đăng ký".
 4. Học phần học cải thiện điểm: bấm nút "Học cải thiện điểm" rồi mới chọn lớp và đăng ký.
 5. In kết quả đăng ký (xuất Excel), tra cứu các học phần đã đăng ký và tra cứu điểm trong các mục tương ứng; chọn "Thoát" trước khi rời hệ thống để bảo mật thông tin.
-6. Sinh viên cũng có thể nhờ trợ lý học vụ gợi ý kế hoạch và đăng ký lớp học phần; mọi lần đăng ký, hủy đăng ký qua trợ lý đều phải bấm xác nhận.
 Điều 9. Hoàn thiện kết quả đăng ký
 Sinh viên in phiếu đăng ký, nộp về khoa chủ quản qua cố vấn học tập xác nhận để chuyển Phòng Đào tạo lưu trữ.
 Điều 10. Học phần tiên quyết
