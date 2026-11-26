@@ -17,6 +17,9 @@
 - Lỗi nghiệp vụ trả về `{"thanh_cong": false, "ma_loi": "...", "thong_bao": "..."}` (không ném exception) để LLM giải thích được cho sinh viên.
 
 ## 1. Server `dao_tao` (:9101)
+
+**Bảng 5.1.** Công cụ của server `dao_tao`
+
 | Tool | Tham số (ngoài ma_sv) | Trả về (rút gọn) | Rủi ro / xác nhận |
 |---|---|---|---|
 | `get_student_profile` | – | ho_ten, lop, nganh, khoa, trang_thai | đọc |
@@ -47,6 +50,9 @@ async def register_course(
 ```
 
 ## 2. Server `ctsv` (:9102)
+
+**Bảng 5.2.** Công cụ của server `ctsv`
+
 | Tool | Tham số | Trả về | Rủi ro / xác nhận |
 |---|---|---|---|
 | `request_student_certificate` | `muc_dich: str`, `so_ban: int = 1` (1–5) | {ma_don, trang_thai, du_kien} | **ghi, xác nhận** |
@@ -61,11 +67,17 @@ async def register_course(
 - Lỗi nghiệp vụ hay gặp (từ qlsv_api, giữ nguyên mã): `TRUNG_LICH`, `LOP_DA_DAY`, `VUOT_TIN_CHI_TOI_DA`, `CHUA_DAT_TIEN_QUYET`, `DA_DANG_KY_HOC_PHAN`, `NGOAI_THOI_GIAN_DANG_KY`, `CHUA_DANG_KY_LOP`, `NO_HOC_PHI`, `SV_KHONG_DANG_HOC`, `KHONG_CO_DIEM_HOC_KY_GAN_NHAT`.
 
 ## 3. Server `tai_chinh` (:9103)
+
+**Bảng 5.3.** Công cụ của server `tai_chinh`
+
 | Tool | Tham số | Trả về | Rủi ro |
 |---|---|---|---|
 | `get_tuition_status` | `ma_hoc_ky: str \| None` | {phai_nop, da_nop, con_no, han_nop, trang_thai} | đọc |
 
 ## 4. Server `quy_che` (:9104) — nhánh RAG
+
+**Bảng 5.4.** Công cụ của server `quy_che`
+
 | Tool | Tham số | Trả về | Rủi ro |
 |---|---|---|---|
 | `search_regulations` | `ma_khoa: str` [INJECTED], `cau_hoi: str`, `top_k: int = 5` (≤ 8) | `{"doan": [{"so", "doan_id", "van_ban_id", "van_ban", "phien_ban", "loai", "dieu", "khoan", "trang", "noi_dung"}], "ghi_chu": "..."}` (`loai` thêm 25/11/2026: `hoi_dap` = kho hỏi đáp cán bộ; chỉ đổi dữ liệu trả về, không đổi docstring/schema → mã băm duyệt giữ nguyên) — `noi_dung` bọc trong `<tai_lieu>...</tai_lieu>` | đọc |
@@ -79,6 +91,8 @@ async def register_course(
 
 **Resources** (bổ sung 23/11/2026 — do ỨNG DỤNG đọc, không phải mô hình; thiết kế: `docs/superpowers/specs/2026-11-23-mcp-elicitation-resources-design.md`):
 
+**Bảng 5.5.** Resources của server `quy_che`
+
 | URI | Kiểu | Nội dung |
 |---|---|---|
 | `quy-che://van-ban` | tĩnh, `application/json` | `[{id, ten, phien_ban, ngay_hieu_luc}]` văn bản đã lập chỉ mục |
@@ -88,6 +102,8 @@ async def register_course(
 
 ## 4b. Server `thu_vien` (:9105) — thêm lúc chạy (AD-11, SV-11)
 Không có trong seed `04_assistant_seed.sql`: quản trị viên thêm trên trang MCP & quyền khi demo (demo 8), trợ lý dùng được ngay mà không sửa code. Mỗi tool khai báo **`title`** (tên hiển thị) và annotation **`readOnlyHint`** theo chuẩn MCP (`@mcp.tool(title=..., annotations=ToolAnnotations(read_only_hint=...))`). assistant_api dùng `title` cho nhãn "Đang dùng: …" và thẻ xác nhận; `readOnlyHint` chỉ là **gợi ý** hiện cho quản trị viên (server tự khai báo, không tin tuyệt đối — mức rủi ro do quản trị viên quyết).
+
+**Bảng 5.6.** Công cụ của server `thu_vien`
 
 | Tool | title | Tham số | Trả về | Rủi ro (gợi ý) |
 |---|---|---|---|---|
