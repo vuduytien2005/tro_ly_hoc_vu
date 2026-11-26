@@ -18,7 +18,7 @@ from typing import Annotated, Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
-from sqlalchemy import Date, cast, func, select
+from sqlalchemy import Date, Integer, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.assistant_api.agent.registry import ToolRegistry, strip_injected
@@ -29,6 +29,7 @@ from src.assistant_api.models import (
     CongCu,
     DanhGiaCauTraLoi,
     DoanVanBan,
+    HanhDongChoXacNhan,
     HoiThoai,
     LuotGoiCongCu,
     McpServer,
@@ -55,6 +56,7 @@ from src.assistant_api.schemas_admin import (
     McpServerOut,
     McpServerPatch,
     RagSearchIn,
+    SafetyStats,
     SkippedTool,
     StatsOut,
     ToolOut,
@@ -691,6 +693,59 @@ def stats(db: DbSession, tu: date | None = None, den: date | None = None) -> Sta
         top_cong_cu=[ToolUsage(ten_cong_cu=n, so_lan=c, so_loi=f or 0) for n, c, f in top_tools],
         theo_ngay=theo_ngay,
         cau_bi_che=_disliked(db, start, end),
+        an_toan=_safety(db, start, end),
+    )
+
+
+CALL_STATUSES = ("thanh_cong", "loi", "bi_tu_choi", "cho_xac_nhan", "da_huy")
+ACTION_STATUSES = ("cho", "cho_bo_sung", "da_xac_nhan", "da_huy", "het_han")
+
+
+def _safety(db: Session, start: datetime | None, end: datetime | None) -> SafetyStats:
+    log_range = (LuotGoiCongCu.created_at >= start, LuotGoiCongCu.created_at < end)
+    calls = dict(
+        db.execute(
+            select(LuotGoiCongCu.trang_thai, func.count(LuotGoiCongCu.id))
+            .where(*log_range)
+            .group_by(LuotGoiCongCu.trang_thai)
+        ).all()
+    )
+    actions = dict(
+        db.execute(
+            select(HanhDongChoXacNhan.trang_thai, func.count(HanhDongChoXacNhan.id))
+            .where(HanhDongChoXacNhan.created_at >= start, HanhDongChoXacNhan.created_at < end)
+            .group_by(HanhDongChoXacNhan.trang_thai)
+        ).all()
+    )
+    blocked = db.scalar(
+        select(func.count(LuotGoiCongCu.id)).where(
+            *log_range,
+            or_(
+                func.json_value(LuotGoiCongCu.tham_so_llm, "$.ma_sv").is_not(None),
+                func.json_value(LuotGoiCongCu.tham_so_llm, "$.ma_khoa").is_not(None),
+            ),
+        )
+    )
+    total = cast(func.json_value(TinNhan.kiem_chung, "$.tong"), Integer)
+    grounded = cast(func.json_value(TinNhan.kiem_chung, "$.co_can_cu"), Integer)
+    answers, claims, ok = db.execute(
+        select(func.count(TinNhan.id), func.sum(total), func.sum(grounded)).where(
+            TinNhan.created_at >= start,
+            TinNhan.created_at < end,
+            TinNhan.vai_tro == "assistant",
+            TinNhan.kiem_chung.is_not(None),
+            total > 0,
+        )
+    ).one()
+    claims, ok = claims or 0, ok or 0
+    return SafetyStats(
+        trang_thai_goi={s: calls.get(s, 0) for s in CALL_STATUSES},
+        hanh_dong={s: actions.get(s, 0) for s in ACTION_STATUSES},
+        so_lan_chan_ma_sv=blocked or 0,
+        so_cau_kiem_chung=answers or 0,
+        so_menh_de=claims,
+        so_co_can_cu=ok,
+        ti_le_co_can_cu=round(ok / claims, 4) if claims else None,
     )
 
 

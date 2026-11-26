@@ -1,5 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { Clock, MessageSquare, MessagesSquare, ThumbsUp } from 'lucide-react'
+import {
+  Ban,
+  Clock,
+  FileCheck2,
+  MessageSquare,
+  MessagesSquare,
+  MousePointerClick,
+  ShieldCheck,
+  ThumbsUp,
+} from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import {
   Bar,
@@ -14,9 +23,16 @@ import {
 } from 'recharts'
 import { Card, PageHeader, inputClass } from '../../components/admin/ui'
 import { formatMs, formatPercent, toQuery } from '../../lib/admin'
-import type { Stats } from '../../lib/adminTypes'
+import type { SafetyStats, Stats } from '../../lib/adminTypes'
 import { ApiError, api } from '../../lib/api'
 import { formatDate, formatDateTime } from '../../lib/format'
+import {
+  ACTION_SEGMENTS,
+  CALL_SEGMENTS,
+  confirmRate,
+  toSegments,
+  type SegmentDef,
+} from '../../lib/safety'
 
 const PRIMARY = '#1D4ED8'
 const ERROR = '#B91C1C'
@@ -78,6 +94,8 @@ export default function StatsPage() {
               hint={`${s.so_luot_goi_cong_cu} lượt gọi công cụ`}
             />
           </div>
+
+          <SafetySection safety={s.an_toan} />
 
           <div className="grid gap-5 xl:grid-cols-2">
             <Card className="p-4">
@@ -179,5 +197,131 @@ function Metric({
         {hint && <p className="text-xs text-slate-400">{hint}</p>}
       </div>
     </Card>
+  )
+}
+
+/** An toàn & độ tin cậy: số liệu cho các quy tắc bảo mật bắt buộc (CLAUDE.md). */
+function SafetySection({ safety }: { safety: SafetyStats }) {
+  const rate = confirmRate(safety.hanh_dong)
+  const finished =
+    (safety.hanh_dong.da_xac_nhan ?? 0) +
+    (safety.hanh_dong.da_huy ?? 0) +
+    (safety.hanh_dong.het_han ?? 0)
+  return (
+    <Card className="p-4">
+      <div className="mb-4 flex items-center gap-2">
+        <ShieldCheck size={20} className="text-primary" />
+        <h2 className="font-semibold text-navy">An toàn &amp; độ tin cậy</h2>
+      </div>
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MiniStat
+          icon={<Ban size={18} />}
+          label="Lượt gọi bị từ chối"
+          value={safety.trang_thai_goi.bi_tu_choi ?? 0}
+          hint="Công cụ đang tắt hoặc không đủ quyền"
+        />
+        <MiniStat
+          icon={<ShieldCheck size={18} />}
+          label="Lần LLM tự điền mã SV"
+          value={safety.so_lan_chan_ma_sv}
+          hint="Đã bị ghi đè bằng tài khoản đăng nhập"
+        />
+        <MiniStat
+          icon={<MousePointerClick size={18} />}
+          label="Tỉ lệ sinh viên xác nhận"
+          value={formatPercent(rate)}
+          hint={`${safety.hanh_dong.da_xac_nhan ?? 0}/${finished} hành động đã kết thúc`}
+        />
+        <MiniStat
+          icon={<FileCheck2 size={18} />}
+          label="Ý có căn cứ (kiểm chứng)"
+          value={formatPercent(safety.ti_le_co_can_cu)}
+          hint={`${safety.so_co_can_cu}/${safety.so_menh_de} ý · ${safety.so_cau_kiem_chung} câu trả lời`}
+        />
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <StackedBar
+          title="Lượt gọi công cụ theo kết quả"
+          counts={safety.trang_thai_goi}
+          defs={CALL_SEGMENTS}
+          empty="Chưa có lượt gọi công cụ trong khoảng này."
+        />
+        <StackedBar
+          title="Hành động cần xác nhận"
+          counts={safety.hanh_dong}
+          defs={ACTION_SEGMENTS}
+          empty="Chưa có hành động nào cần sinh viên xác nhận trong khoảng này."
+        />
+      </div>
+    </Card>
+  )
+}
+
+function MiniStat({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: ReactNode
+  label: string
+  value: string | number
+  hint: string
+}) {
+  return (
+    <div className="rounded-xl border border-line p-3">
+      <p className="flex items-center gap-2 text-sm text-slate-500">
+        <span className="text-primary">{icon}</span>
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-navy">{value}</p>
+      <p className="text-xs text-slate-400">{hint}</p>
+    </div>
+  )
+}
+
+function StackedBar({
+  title,
+  counts,
+  defs,
+  empty,
+}: {
+  title: string
+  counts: Record<string, number>
+  defs: SegmentDef[]
+  empty: string
+}) {
+  const segments = toSegments(counts, defs)
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-slate-600">{title}</p>
+      {segments.length === 0 ? (
+        <p className="text-sm text-slate-500">{empty}</p>
+      ) : (
+        <>
+          <div className="flex h-4 overflow-hidden rounded-full bg-slate-100">
+            {segments.map((s) => (
+              <div
+                key={s.key}
+                className={s.color}
+                style={{ width: `${s.pct}%` }}
+                title={`${s.label}: ${s.count} (${s.pct}%)`}
+              />
+            ))}
+          </div>
+          <ul className="mt-2 grid gap-1 text-xs text-slate-600 sm:grid-cols-2">
+            {segments.map((s) => (
+              <li key={s.key} className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.color}`} />
+                <span className="flex-1">{s.label}</span>
+                <span className="tabular-nums">
+                  {s.count} · {s.pct}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   )
 }

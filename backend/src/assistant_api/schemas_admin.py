@@ -202,6 +202,18 @@ class DislikedAnswer(BaseModel):
     _tz = field_validator("created_at", mode="after")(_aware)
 
 
+class SafetyStats(BaseModel):
+    """An toàn & độ tin cậy (bổ sung 26/11/2026) — số liệu cho các quy tắc bảo mật bắt buộc."""
+
+    trang_thai_goi: dict[str, int]  # luot_goi_cong_cu theo trạng thái (đủ 5 trạng thái)
+    hanh_dong: dict[str, int]  # hanh_dong_cho_xac_nhan theo trạng thái (đủ 5 trạng thái)
+    so_lan_chan_ma_sv: int  # LLM tự gửi ma_sv / ma_khoa -> bị ghi đè (quy tắc 1)
+    so_cau_kiem_chung: int  # câu trả lời có ít nhất một ý được giám khảo chấm
+    so_menh_de: int
+    so_co_can_cu: int
+    ti_le_co_can_cu: float | None  # None khi chưa có ý nào được chấm
+
+
 class StatsOut(BaseModel):
     tu: date
     den: date
@@ -215,6 +227,7 @@ class StatsOut(BaseModel):
     top_cong_cu: list[ToolUsage]
     theo_ngay: list[DailyCount]
     cau_bi_che: list[DislikedAnswer]
+    an_toan: SafetyStats
 
 
 # ----- Tài khoản (AD-09) ---------------------------------------------------------

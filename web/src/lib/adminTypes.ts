@@ -125,7 +125,19 @@ export interface AuditLogPage {
   luot_goi: AuditLog[]
 }
 
+/** Mục "An toàn & độ tin cậy" của /api/admin/stats (bổ sung 26/11/2026). */
+export interface SafetyStats {
+  trang_thai_goi: Record<string, number>
+  hanh_dong: Record<string, number>
+  so_lan_chan_ma_sv: number
+  so_cau_kiem_chung: number
+  so_menh_de: number
+  so_co_can_cu: number
+  ti_le_co_can_cu: number | null
+}
+
 export interface Stats {
+  an_toan: SafetyStats
   tu: string
   den: string
   so_hoi_thoai: number

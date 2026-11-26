@@ -5,6 +5,7 @@ Server quy_che chạy TRONG tiến trình (httpx.ASGITransport tới app thật,
 dùng Chroma tạm + HashingEmbedder; lập chỉ mục chạy đồng bộ thay cho luồng nền.
 """
 
+import uuid
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,7 @@ from src.assistant_api.main import create_app
 from src.assistant_api.models import (
     CongCu,
     DanhGiaCauTraLoi,
+    HanhDongChoXacNhan,
     HoiThoai,
     LuotGoiCongCu,
     McpServer,
@@ -463,6 +465,94 @@ def test_stats(
     assert empty["ti_le_huu_ich"] is None and empty["thoi_gian_phan_hoi_tb_ms"] is None
     r = admin_client.get("/api/admin/stats?tu=2030-02-01&den=2030-01-01", headers=ad)
     assert r.status_code == 422
+
+
+def test_stats_safety(
+    admin_client: TestClient, ad: dict[str, str], db: Session, student: NguoiDung
+) -> None:
+    """An toàn & độ tin cậy: trạng thái lượt gọi, hành động cần xác nhận, chặn ma_sv, kiểm chứng."""
+    day = datetime(2031, 3, 10, 9, 0)
+    conv = HoiThoai(nguoi_dung_id=student.id, tieu_de="An toàn", created_at=day, updated_at=day)
+    db.add(conv)
+    db.flush()
+    logs = []
+    for status, llm_args in (
+        ("thanh_cong", {}),
+        ("thanh_cong", {"ma_sv": "SV22002"}),  # LLM cố chọn ma_sv -> bị ghi đè
+        ("bi_tu_choi", None),
+        ("cho_xac_nhan", {"ma_lop": "IT004.02"}),
+        ("cho_xac_nhan", {"ma_lop": "SE105.02"}),
+        ("cho_xac_nhan", {"ma_lop": "SE104.01"}),
+    ):
+        log = LuotGoiCongCu(
+            nguoi_dung_id=student.id,
+            hoi_thoai_id=conv.id,
+            mcp_server="dao_tao",
+            ten_cong_cu="register_course",
+            tham_so={
+                "ma_sv": "SV22001",
+                **{k: v for k, v in (llm_args or {}).items() if k != "ma_sv"},
+            },
+            tham_so_llm=llm_args,
+            trang_thai=status,
+            created_at=day,
+        )
+        db.add(log)
+        db.flush()
+        logs.append(log)
+    for log, status in zip(logs[3:], ("da_xac_nhan", "da_huy", "het_han"), strict=True):
+        db.add(
+            HanhDongChoXacNhan(
+                ma=str(uuid.uuid4()),
+                hoi_thoai_id=conv.id,
+                nguoi_dung_id=student.id,
+                luot_goi_id=log.id,
+                mcp_server="dao_tao",
+                ten_cong_cu="register_course",
+                tham_so=log.tham_so,
+                mo_ta="Đăng ký lớp",
+                trang_thai=status,
+                het_han_luc=day,
+                created_at=day,
+            )
+        )
+    for verdict in ({"tong": 4, "co_can_cu": 3, "y": []}, {"tong": 2, "co_can_cu": 2, "y": []}):
+        db.add(
+            TinNhan(
+                hoi_thoai_id=conv.id,
+                vai_tro="assistant",
+                noi_dung="Theo quy chế [1].",
+                kiem_chung=verdict,
+                created_at=day,
+            )
+        )
+    db.commit()
+
+    s = admin_client.get("/api/admin/stats?tu=2031-03-10&den=2031-03-10", headers=ad).json()
+    safety = s["an_toan"]
+    assert safety["trang_thai_goi"] == {
+        "thanh_cong": 2,
+        "loi": 0,
+        "bi_tu_choi": 1,
+        "cho_xac_nhan": 3,
+        "da_huy": 0,
+    }
+    assert safety["hanh_dong"] == {
+        "cho": 0,
+        "cho_bo_sung": 0,
+        "da_xac_nhan": 1,
+        "da_huy": 1,
+        "het_han": 1,
+    }
+    assert safety["so_lan_chan_ma_sv"] == 1
+    assert (safety["so_cau_kiem_chung"], safety["so_menh_de"], safety["so_co_can_cu"]) == (2, 6, 5)
+    assert safety["ti_le_co_can_cu"] == round(5 / 6, 4)
+
+
+def test_stats_safety_empty_range(admin_client: TestClient, ad: dict[str, str]) -> None:
+    s = admin_client.get("/api/admin/stats?tu=2032-01-01&den=2032-01-01", headers=ad).json()
+    assert s["an_toan"]["ti_le_co_can_cu"] is None
+    assert sum(s["an_toan"]["trang_thai_goi"].values()) == 0
 
 
 def test_settings_paths_unchanged() -> None:
