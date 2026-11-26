@@ -106,6 +106,16 @@ function Sidebar({ onClose }: { onClose: () => void }) {
 
       <div className="space-y-1 border-t border-white/10 p-3">
         <NavLink
+          to="/hoc-tap"
+          className={({ isActive }) =>
+            `flex h-11 items-center gap-3 rounded-[10px] px-3 hover:bg-white/10 ${
+              isActive ? 'bg-white/10 text-white' : ''
+            }`
+          }
+        >
+          <GraduationCap size={18} /> Học tập của em
+        </NavLink>
+        <NavLink
           to="/thu-tuc"
           className={({ isActive }) =>
             `flex h-11 items-center gap-3 rounded-[10px] px-3 hover:bg-white/10 ${

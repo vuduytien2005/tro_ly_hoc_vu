@@ -100,27 +100,41 @@ REMINDER_TOOLS = (
 )
 
 
-@router.get(
-    "/reminders",
-    summary="Nhắc việc: học phí, lịch thi, sách sắp đến hạn, đơn vừa xử lý (gọi các tool đọc)",
-)
-async def list_reminders(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
+async def call_read_tools(
+    request: Request, db: DbSession, user: NguoiDung, tools: tuple[str, ...], reason: str
+) -> tuple[dict[str, dict[str, Any] | None], list[str], list[str]]:
+    """Gọi lần lượt các tool đọc (không tham số ngoài ma_sv được tiêm).
+
+    Trả về (kết quả theo tên tool, tool gọi lỗi, tool đang tắt). Tool tắt / lỗi -> None,
+    các tool còn lại vẫn có kết quả (trang không hỏng cả vì một nguồn).
+    """
     registry: ToolRegistry = request.app.state.registry
     await registry.ensure_fresh(db)
     policies = registry.policies(db)
     results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
-    for tool in REMINDER_TOOLS:
+    paused: list[str] = []
+    for tool in tools:
         policy = policies.get(tool)
         if policy is None or not policy.available or policy.spec is None:
-            # Quy tắc 6: tool tắt / server chưa cài -> không gọi, không nhắc (không phải lỗi)
+            # Quy tắc 6: tool tắt / server chưa cài -> không gọi (không phải lỗi)
             results[tool] = None
+            paused.append(tool)
             continue
         try:
-            results[tool] = await call_direct(request, db, user, tool, {}, REMINDER_REASON)
+            results[tool] = await call_direct(request, db, user, tool, {}, reason)
         except ApiError:
             results[tool] = None  # lần gọi lỗi đã được ghi nhật ký trong call_direct
             failed.append(tool)
+    return results, failed, paused
+
+
+@router.get(
+    "/reminders",
+    summary="Nhắc việc: học phí, lịch thi, sách sắp đến hạn, đơn vừa xử lý (gọi các tool đọc)",
+)
+async def list_reminders(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
+    results, failed, _ = await call_read_tools(request, db, user, REMINDER_TOOLS, REMINDER_REASON)
     today = now().date()
     return {
         "ngay": today.isoformat(),
@@ -133,3 +147,29 @@ async def list_reminders(request: Request, user: Student, db: DbSession) -> dict
         ),
         "nguon_loi": failed,
     }
+
+
+OVERVIEW_REASON = "Trang Học tập của em"
+# Khóa trong kết quả -> tool đọc tương ứng
+OVERVIEW_SECTIONS = {
+    "ho_so": "get_student_profile",
+    "bang_diem": "get_transcript",
+    "tot_nghiep": "get_graduation_progress",
+    "thoi_khoa_bieu": "get_current_schedule",
+    "lich_thi": "get_exam_schedule",
+    "hoc_phi": "get_tuition_status",
+}
+
+
+@router.get(
+    "/overview",
+    summary="Học tập của em: hồ sơ, bảng điểm, tiến độ tốt nghiệp, TKB, lịch thi, học phí",
+)
+async def get_overview(request: Request, user: Student, db: DbSession) -> dict[str, Any]:
+    results, failed, paused = await call_read_tools(
+        request, db, user, tuple(OVERVIEW_SECTIONS.values()), OVERVIEW_REASON
+    )
+    body: dict[str, Any] = {key: results[tool] for key, tool in OVERVIEW_SECTIONS.items()}
+    body["nguon_loi"] = failed
+    body["tam_dung"] = paused
+    return body

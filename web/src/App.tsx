@@ -5,6 +5,7 @@ import { RequireRole, homeFor, useAuth } from './lib/auth'
 import ChatPage from './pages/ChatPage'
 import LoginPage from './pages/LoginPage'
 import ProceduresPage from './pages/ProceduresPage'
+import StudyPage from './pages/StudyPage'
 
 // Trang quản trị tải riêng (có thư viện biểu đồ) -> sinh viên không phải tải phần này
 const AdminLayout = lazy(() => import('./components/AdminLayout'))
@@ -42,6 +43,7 @@ export default function App() {
         {/* Một route cho cả /chat và /chat/:id: tạo hội thoại mới không làm remount trang
             -> luồng SSE của câu hỏi đầu tiên không bị cắt. */}
         <Route path="/chat/:id?" element={<ChatPage />} />
+        <Route path="/hoc-tap" element={<StudyPage />} />
         <Route path="/thu-tuc" element={<ProceduresPage />} />
       </Route>
       {/* Sinh viên vào /admin -> RequireRole chuyển về /chat */}
