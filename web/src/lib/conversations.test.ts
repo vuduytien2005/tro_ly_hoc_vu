@@ -3,6 +3,9 @@ import {
   answerCopyText,
   charCounter,
   conversationText,
+  dayBreaks,
+  dayLabel,
+  formatTime,
   exportFileName,
   groupConversations,
   normalizeSearch,
@@ -135,5 +138,30 @@ describe('charCounter', () => {
     expect(charCounter(100, 2000)).toBeNull()
     expect(charCounter(1800, 2000)).toBe('1800/2000')
     expect(charCounter(2000, 2000)).toBe('2000/2000')
+  })
+})
+
+describe('dayLabel / formatTime / dayBreaks', () => {
+  it('nhãn ngày theo giờ Việt Nam: Hôm nay, Hôm qua, còn lại thứ + ngày', () => {
+    expect(dayLabel('2026-11-26T08:00:00+07:00', NOW)).toBe('Hôm nay')
+    expect(dayLabel('2026-11-25T23:30:00+07:00', NOW)).toBe('Hôm qua')
+    // 00:30 ngày 25 giờ VN = 17:30 ngày 24 giờ UTC -> vẫn là ngày 25
+    expect(dayLabel('2026-11-24T17:30:00Z', NOW)).toBe('Hôm qua')
+    expect(dayLabel('2026-11-23T09:00:00+07:00', NOW)).toBe('Thứ Hai, 23/11/2026')
+    expect(dayLabel('2026-11-22T09:00:00+07:00', NOW)).toBe('Chủ nhật, 22/11/2026')
+  })
+
+  it('giờ:phút theo giờ Việt Nam', () => {
+    expect(formatTime('2026-11-26T01:05:00Z')).toBe('08:05')
+  })
+
+  it('đánh dấu tin đầu tiên của mỗi ngày', () => {
+    const at = (id: number, created_at: string) => ({ id, created_at })
+    const breaks = dayBreaks([
+      at(1, '2026-11-25T09:00:00+07:00'),
+      at(2, '2026-11-25T10:00:00+07:00'),
+      at(3, '2026-11-26T08:00:00+07:00'),
+    ])
+    expect([...breaks]).toEqual([1, 3])
   })
 })

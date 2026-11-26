@@ -7,6 +7,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 - Màu: nền `#F5F7FB`; xanh đậm `#0F1F4B` (sidebar); xanh chính `#1D4ED8` (nút, tin nhắn người dùng); nhấn vàng `#F59E0B` (biểu tượng trợ lý); xanh lá `#065F46`/`#ECFDF5` (thành công); cam `#9A3412`/`#FFF7ED` (cảnh báo); đỏ `#991B1B`/`#FEF2F2` (lỗi).
 - Bo góc 10–18px, viền `#E3E8F0`, không đổ bóng đậm. Vùng bấm tối thiểu 44px.
 - Icon: `lucide-react`.
+- **Phím Esc** đóng hộp thoại / ngăn trượt (đổi mật khẩu, chi tiết đơn ở "Thủ tục của em", ngăn chi tiết ở các trang quản trị; hook `web/src/lib/useEscape.ts`), trừ khi đang gõ trong ô nhiều dòng (tránh mất câu trả lời cán bộ đang soạn).
 - **Đổi mật khẩu** (bổ sung 26/11/2026): nút chìa khóa cạnh nút đăng xuất ở cuối menu (sinh viên và quản trị) mở hộp thoại Mật khẩu hiện tại / Mật khẩu mới / Nhập lại; kiểm tra ngay trên trình duyệt (`web/src/lib/account.ts`) rồi gọi `POST /api/auth/change-password`. Hộp thoại render qua portal vào `body` (menu điện thoại trượt bằng `transform` sẽ kẹp phần tử `fixed`).
 - **Khung báo lỗi trang** (`ErrorBoundary`, bổ sung 26/11/2026): bọc nội dung trang trong cả hai layout; trang gặp lỗi khi hiển thị → khung "Trang này gặp sự cố…" + nút "Tải lại trang" thay cho trang trắng, menu vẫn dùng được, chuyển trang là hết lỗi. Không tải được phần mã của trang (vừa build lại) → "Trang vừa được cập nhật phiên bản mới…".
 
@@ -31,6 +32,7 @@ Tham khảo bộ mockup đã vẽ (màn hình "Sinh viên – Hỏi đáp", "Nâ
 
 ## Trang chat (quan trọng nhất)
 - **Sao chép câu trả lời** (bổ sung 26/11/2026): nút đầu hàng 👍/👎 dưới mỗi câu trả lời đã lưu; chép chữ thường (bỏ `**`, `#`, liên kết Markdown) kèm mục "Nguồn:" liệt kê trích dẫn; biểu tượng đổi thành ✓ trong 2 giây. Trình duyệt không cấp clipboard (mở qua IP LAN, không phải localhost/https) → báo bôi đen để chép.
+- **Ngày giờ tin nhắn** (bổ sung 26/11/2026, `dayLabel` / `formatTime` / `dayBreaks` trong `web/src/lib/conversations.ts`): dòng phân cách trước tin đầu tiên của mỗi ngày ("Hôm nay", "Hôm qua", "Thứ Hai, 23/11/2026" — tính theo giờ Việt Nam), giờ gửi `HH:mm` nhỏ dưới tin của sinh viên và đầu câu trả lời của trợ lý.
 - **Tự cuộn** (sửa 26/11/2026, `isNearBottom` trong `web/src/lib/format.ts`): chỉ cuộn theo chữ mới khi đang ở cách đáy ≤ 80px; sinh viên cuộn lên đọc lại thì giữ nguyên vị trí và hiện nút nổi **"Cuộn xuống cuối"**; gửi câu hỏi mới hoặc đổi hội thoại thì lại theo dõi cuối. (Trước đây mỗi chữ mới đều kéo về cuối, không đọc lại được khi đang trả lời.)
 - **Bộ đếm ký tự** ô nhập: hiện `n/2000` khi đã dùng từ 90% (cam), chạm giới hạn thì đỏ (khớp giới hạn 2000 ký tự của backend).
 - **Danh sách hội thoại** (thanh trái, bổ sung 26/11/2026, `web/src/lib/conversations.ts`): ô **"Tìm cuộc trò chuyện"** lọc theo tiêu đề, không phân biệt dấu / hoa thường ("hoc phi" khớp "Học phí"); nhóm theo lần cập nhật cuối, tính theo ngày giờ Việt Nam: Hôm nay / 7 ngày qua / 30 ngày qua / Cũ hơn. Mỗi hội thoại có nút Đổi tên, **Tải về máy** (tệp `.txt` gồm câu hỏi, câu trả lời, giờ, nguồn trích dẫn từng câu và dòng lưu ý "chỉ để tham khảo"; tên tệp không dấu), Xóa.

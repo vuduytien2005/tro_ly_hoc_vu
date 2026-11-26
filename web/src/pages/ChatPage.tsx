@@ -10,7 +10,7 @@ import {
   Sparkles,
   XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { AnswerText, SourceList, VerificationBadge } from '../components/chat/Answer'
 import { Composer, type Draft } from '../components/chat/Composer'
@@ -24,7 +24,7 @@ import { ApiError, api } from '../lib/api'
 import { DEMO_PROMPTS } from '../lib/demoPrompts'
 import { OVERVIEW_QUERY } from '../lib/overview'
 import { suggestionsFor } from '../lib/suggestions'
-import { answerCopyText } from '../lib/conversations'
+import { answerCopyText, dayBreaks, dayLabel, formatTime } from '../lib/conversations'
 import { CANCEL_PREFIX, CONFIRM_PREFIX, isNearBottom, unansweredQuestion } from '../lib/format'
 import { fetchHealth, isRetryable } from '../lib/health'
 import { readPrefill } from '../lib/reminders'
@@ -368,6 +368,7 @@ export default function ChatPage() {
     (c) => overrides[c.ma]?.state !== 'an',
   )
   const history = messages.data?.tin_nhan ?? []
+  const newDays = dayBreaks(history)
   const empty = conversationId == null || (messages.isSuccess && history.length === 0 && !live)
   // Lượt trước bị lỗi (vd mô hình hết hạn mức) rồi tải lại trang -> câu hỏi cuối chưa có trả lời
   const unanswered =
@@ -424,7 +425,10 @@ export default function ChatPage() {
           {empty && !live && <Welcome onPick={send} disabled={busy} />}
 
           {history.map((m) => (
-            <MessageView key={m.id} message={m} onAskStaff={askStaff} />
+            <Fragment key={m.id}>
+              {newDays.has(m.id) && <DayDivider label={dayLabel(m.created_at)} />}
+              <MessageView message={m} onAskStaff={askStaff} />
+            </Fragment>
           ))}
 
           {live && (
@@ -551,10 +555,22 @@ function dedupe(actions: PendingAction[]): PendingAction[] {
   return actions.filter((a) => (seen.has(a.ma) ? false : (seen.add(a.ma), true)))
 }
 
+function DayDivider({ label }: { label: string }) {
+  return (
+    <div className="my-4 flex items-center gap-3 text-xs text-slate-400" role="separator">
+      <span className="h-px flex-1 bg-line" />
+      {label}
+      <span className="h-px flex-1 bg-line" />
+    </div>
+  )
+}
+
 function MessageView({ message, onAskStaff }: { message: Message; onAskStaff: () => void }) {
-  if (message.vai_tro === 'user') return <UserBubble text={message.noi_dung} />
+  const time = formatTime(message.created_at)
+  if (message.vai_tro === 'user') return <UserBubble text={message.noi_dung} time={time} />
   return (
     <AssistantBubble>
+      <p className="mb-1 text-[11px] text-slate-400">{time}</p>
       <AnswerText text={message.noi_dung} citations={message.trich_dan} verification={message.kiem_chung} />
       <SourceList citations={message.trich_dan} />
       <VerificationBadge verification={message.kiem_chung} onAskStaff={onAskStaff} />
@@ -567,7 +583,7 @@ function MessageView({ message, onAskStaff }: { message: Message; onAskStaff: ()
   )
 }
 
-function UserBubble({ text }: { text: string }) {
+function UserBubble({ text, time }: { text: string; time?: string }) {
   // Tin hệ thống lưu khi sinh viên bấm trên thẻ xác nhận -> hiển thị dạng trạng thái
   if (text.startsWith(CONFIRM_PREFIX) || text.startsWith(CANCEL_PREFIX)) {
     const confirmed = text.startsWith(CONFIRM_PREFIX)
@@ -589,10 +605,11 @@ function UserBubble({ text }: { text: string }) {
     )
   }
   return (
-    <div className="my-3 flex justify-end">
+    <div className="my-3 flex flex-col items-end">
       <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-white">
         {text}
       </div>
+      {time && <span className="mt-1 text-[11px] text-slate-400">{time}</span>}
     </div>
   )
 }

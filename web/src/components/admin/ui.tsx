@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { passwordProblem } from '../../lib/admin'
+import { useEscape } from '../../lib/useEscape'
 
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -12,9 +13,7 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-2xl border border-line bg-white ${className}`}>{children}</div>
-  )
+  return <div className={`rounded-2xl border border-line bg-white ${className}`}>{children}</div>
 }
 
 export function Badge({ className, children }: { className: string; children: ReactNode }) {
@@ -72,6 +71,7 @@ export function Drawer({
   children: ReactNode
   wide?: boolean
 }) {
+  useEscape(onClose)
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
       <aside

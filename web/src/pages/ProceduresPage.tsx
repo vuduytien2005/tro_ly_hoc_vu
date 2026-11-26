@@ -3,6 +3,7 @@ import { Bot, ChevronRight, ClipboardList, LoaderCircle, User, X } from 'lucide-
 import { useState } from 'react'
 import { ApiError, api } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
+import { useEscape } from '../lib/useEscape'
 import { DEPARTMENTS } from '../lib/adminTypes'
 import type { RequestDetail, RequestListResponse } from '../lib/types'
 
@@ -158,6 +159,7 @@ function RequestDetailPanel({ maDon, onClose }: { maDon: string; onClose: () => 
     queryFn: () => api<RequestDetail>(`/api/my/requests/${encodeURIComponent(maDon)}`),
   })
   const d = detail.data
+  useEscape(onClose)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>

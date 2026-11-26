@@ -110,3 +110,40 @@ export function answerCopyText(text: string, citations: Citation[] | null | unde
 export function charCounter(length: number, max: number): string | null {
   return length >= max * 0.9 ? `${length}/${max}` : null
 }
+
+const WEEKDAYS = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+const VN_TIME = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
+/** Dòng phân cách ngày trong chat: "Hôm nay", "Hôm qua", "Thứ Hai, 23/11/2026" (giờ Việt Nam). */
+export function dayLabel(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso)
+  const day = vnDayNumber(date)
+  const diff = vnDayNumber(now) - day
+  if (diff === 0) return 'Hôm nay'
+  if (diff === 1) return 'Hôm qua'
+  const [y, m, d] = VN_DAY.format(date).split('-')
+  // 01/01/1970 là thứ Năm -> (số ngày + 4) % 7 = thứ trong tuần (0 = Chủ nhật)
+  return `${WEEKDAYS[(((day + 4) % 7) + 7) % 7]}, ${d}/${m}/${y}`
+}
+
+/** "08:05" theo giờ Việt Nam. */
+export function formatTime(iso: string): string {
+  return VN_TIME.format(new Date(iso))
+}
+
+/** id các tin nhắn mở đầu một ngày mới (để chèn dòng phân cách ngày). */
+export function dayBreaks(messages: { id: number; created_at: string }[]): Set<number> {
+  const out = new Set<number>()
+  let previous: number | null = null
+  for (const m of messages) {
+    const day = vnDayNumber(new Date(m.created_at))
+    if (day !== previous) out.add(m.id)
+    previous = day
+  }
+  return out
+}

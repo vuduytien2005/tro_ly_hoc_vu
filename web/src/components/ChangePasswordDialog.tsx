@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { changePasswordProblem } from '../lib/account'
 import { ApiError, api } from '../lib/api'
+import { useEscape } from '../lib/useEscape'
 
 const inputClass =
   'h-10 w-full rounded-[10px] border border-line bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none'
@@ -15,6 +16,7 @@ export default function ChangePasswordDialog({ onClose }: { onClose: () => void 
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  useEscape(onClose)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
