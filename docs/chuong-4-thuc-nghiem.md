@@ -46,7 +46,7 @@ Mỗi lượt chạy lưu cấu hình, kết quả chi tiết (`chi_tiet.csv`) v
 
 ## 4.2. TN1 — Chất lượng truy xuất
 
-> **[Chờ dữ liệu]** Khung thực nghiệm đã chạy được với 6 cấu hình R1–R6 (xem bảng 9 trong `docs/09-danh-gia.md`). Bộ thử hiện chỉ có 11 câu trên văn bản giả lập nên chưa đủ để kết luận. Khi có PDF quy chế thật và bộ 100–150 câu, chạy `python evaluation\run_rag_retrieval.py` rồi điền bảng Hit@1/3/5, MRR và độ trễ theo cấu hình.
+> **[Chờ dữ liệu]** Khung thực nghiệm đã chạy được với 6 cấu hình R1–R6 (xem bảng 9.1 trong `docs/09-danh-gia.md`). Bộ thử hiện chỉ có 11 câu trên văn bản giả lập nên chưa đủ để kết luận. Khi có PDF quy chế thật và bộ 100–150 câu, chạy `python evaluation\run_rag_retrieval.py` rồi điền bảng Hit@1/3/5, MRR và độ trễ theo cấu hình.
 >
 > Nhận xét có thể giữ lại từ lượt thử: reranker (R5, R6) nâng Hit@1 nhưng mỗi truy vấn chậm thêm khoảng 2,5–3,5 giây trên CPU. Đây là lý do hệ thống mặc định **tắt** rerank để đạt yêu cầu NF-01 (chữ đầu tiên trong vòng 5 giây).
 
