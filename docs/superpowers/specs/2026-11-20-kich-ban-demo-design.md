@@ -31,6 +31,8 @@ Sản phẩm là tệp `docs/kich-ban-demo.md`.
 
 ## Các phương án đã cân nhắc
 
+**Bảng 1.** Các phương án đã cân nhắc
+
 | Phương án | Đánh đổi | Kết quả |
 |---|---|---|
 | A. Nhiều tầng: 4G → video từng bước → ảnh | Demo vẫn chạy thật; mỗi sự cố có lối thoát dưới 30 giây | **Chọn** |

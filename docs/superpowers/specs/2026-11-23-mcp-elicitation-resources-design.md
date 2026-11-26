@@ -16,6 +16,9 @@ người dùng). Thêm hai cái này, mỗi cái vào đúng chỗ nó có ích 
   (không có giao diện để trả lời).
 
 ## Phương án đã xét
+
+**Bảng 1.** Các phương án đã xét
+
 | Phương án | Đánh đổi | Chọn? |
 |---|---|---|
 | Elicitation kiểu cũ (≤ 2025-11-25): server gửi `elicitation/create` giữa lúc gọi, giữ kết nối chờ | Cần phiên + SSE; transport đang `stateless_http` + `json_response`; giữ request HTTP mở hàng phút chờ sinh viên gõ | Không |

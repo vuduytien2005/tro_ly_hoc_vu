@@ -24,6 +24,9 @@ Hiện thực nghiệm chỉ đo tổng thời gian trả lời. Cấu hình `ag
   - Làm thay đổi kết quả các chỉ số hiện có.
 
 ## Các cách đã cân nhắc
+
+**Bảng 1.** Các cách đã cân nhắc
+
 | Cách | Mô tả | Đánh đổi |
 |---|---|---|
 | **A. Đo trong harness (ĐÃ CHỌN)** | `MeteredLLM` ghi mốc thời gian khi LLM sinh chữ đầu tiên / chọn xong công cụ | Không tốn thêm lượt Gemini, có sẵn cho mọi lượt TN2/TN3. Không tính mạng localhost → trình duyệt (không đáng kể; ghi rõ trong khóa luận) |

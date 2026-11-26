@@ -22,6 +22,8 @@ Kèm theo là một điểm an toàn cho khóa luận. Mô tả công cụ của
 
 ## Các phương án đã cân nhắc (vị trí dữ liệu)
 
+**Bảng 1.** Các phương án đã cân nhắc (vị trí dữ liệu)
+
 | Phương án | Đánh đổi | Kết quả |
 |---|---|---|
 | A. Bảng trong `tlhv_qlsv` + endpoint `qlsv_api` | Dùng lại reset, test rollback, harness; câu chuyện "bên thứ ba" kém tự nhiên hơn chút | **Chọn** |

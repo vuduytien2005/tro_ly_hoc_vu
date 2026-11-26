@@ -13,6 +13,9 @@ TN1/TN2 **hoãn** đến khi có PDF quy chế thật trong `data/van_ban/` (hi�
 4. Cách làm: **viết tay từng dòng jsonl, kiểm bằng máy**.
 
 ## Phương án đã cân nhắc
+
+**Bảng 1.** Các phương án đã cân nhắc
+
 | Phương án | Đánh đổi | Kết quả |
 |---|---|---|
 | 1. Viết tay + kiểm bằng máy | Mỗi câu có chủ đích; đáp án được đối chiếu dữ liệu thật; tốn công viết | **Chọn** |

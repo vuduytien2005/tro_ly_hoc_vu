@@ -16,6 +16,8 @@
 
 ## Các phương án đã cân nhắc
 
+**Bảng 1.** Các phương án đã cân nhắc
+
 | Phương án | Đánh đổi | Kết quả |
 |---|---|---|
 | TN3: bộ riêng + cấu hình `agent_gemini_thu_vien` | Giữ nguyên số liệu cũ, chạy ít; nhưng bộ chính không phản ánh hệ thống đầy đủ | Loại (người dùng chọn gộp) |
@@ -41,6 +43,8 @@ Dữ liệu mẫu (`03_qlsv_seed.sql`, ngày demo 20/11/2026):
 - SV22001 mượn TV001 (gia hạn được, `muon_id` 1) và TV002 (có người đặt trước, `muon_id` 2);
 - SV22002 có TV003 quá hạn (`muon_id` 3);
 - SV21001 có TV004 đã gia hạn 2 lần (`muon_id` 4).
+
+**Bảng 2.** Kịch bản TN3 mới cho Thư viện
 
 | id | loai | dang_nhap | Yêu cầu (gợi ý) | Công cụ mong đợi | Kết quả |
 |---|---|---|---|---|---|
@@ -75,6 +79,8 @@ Lý do: mỗi ca cần một trạng thái khác nhau, và ca TN4 cũ không đ�
 **Đo prompt:** `MeteredLLM` ghi lại `messages` và `tools` của mọi lần gọi trong lượt. Từ đó có `TurnResult.prompt_text`, là toàn bộ chữ LLM nhận được.
 
 **5 ca (trường mới `server_doc_hai: "<tình huống>"` trong `security_cases.jsonl`):**
+
+**Bảng 3.** Ca TN4 nhóm `server_doc_hai`
 
 | id | Tình huống | Sinh viên hỏi | Đạt khi |
 |---|---|---|---|

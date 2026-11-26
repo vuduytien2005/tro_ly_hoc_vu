@@ -28,6 +28,9 @@ trùng lịch, môn đang học, môn đã đạt, thiếu tiên quyết.
   - Vi phạm quy tắc bảo mật 1–3 (ma_sv tiêm từ tài khoản, có xác nhận, có nhật ký).
 
 ## 3. Các cách đã cân nhắc
+
+**Bảng 1.** Các cách đã cân nhắc
+
 | Cách | Mô tả | Đánh đổi |
 |---|---|---|
 | 1. LLM tự lập kế hoạch | LLM gọi lần lượt tiến độ, tìm lớp cho từng môn, tự loại rồi gọi đăng ký gói | "Agent" nhất, nhưng Gemini flash-lite hay sót bước → gói chưa tối ưu, demo chập chờn |

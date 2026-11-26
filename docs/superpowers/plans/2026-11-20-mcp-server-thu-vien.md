@@ -69,6 +69,8 @@ Bảng:
 
 Seed: khoảng 10 đầu sách, mã `TV001`–`TV010`. Các lượt mượn sau đây giữ **đúng id** (dùng `SET IDENTITY_INSERT`):
 
+**Bảng 1.** Các lượt mượn trong dữ liệu mẫu
+
 | id | SV | sách | ngày mượn | hạn trả | gia hạn | ý nghĩa |
 |---|---|---|---|---|---|---|
 | 1 | SV22001 | TV001 | 2026-11-06 | 2026-11-27 | 0 | gia hạn được |

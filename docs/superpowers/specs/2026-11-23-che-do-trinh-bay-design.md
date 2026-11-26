@@ -22,6 +22,8 @@ Mục tiêu: ngay trong lúc Agent chạy, hội đồng **nhìn thấy** các v
 
 ## Các phương án đã cân nhắc
 
+**Bảng 1.** Các phương án đã cân nhắc
+
 | Phương án | Đánh đổi | Kết quả |
 |---|---|---|
 | A. Bảng "Bên trong Agent" cạnh chat | An toàn hiện ngay ở bước 2 và bước 4; cần một API mới và một panel | **Chọn** |
