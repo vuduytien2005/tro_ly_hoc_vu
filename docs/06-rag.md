@@ -27,6 +27,9 @@ retriever.py → hybrid search + lọc phiên bản + (tuỳ chọn) rerank
 ```
 
 ### Chiến lược chia đoạn
+
+**Bảng 6.1.** Các chiến lược chia đoạn
+
 | Chiến lược | Cách làm | Ghi chú |
 |---|---|---|
 | `theo_dieu` (mặc định) | Nhận diện `Chương [IVXLC]+`, `Điều \d+\.`, khoản `^\d+\.`; mỗi Điều là 1 đoạn; Điều dài > `CHUNK_MAX_TOKENS` (512) thì tách theo Khoản | Đầu mỗi đoạn thêm tiền tố ngữ cảnh: `"{ten_van_ban} ({phien_ban}) – {chuong} – {dieu}\n"` |
