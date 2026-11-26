@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query, status
 
 from src.qlsv_api.routers.deps import DbSession, InternalAuth, Now, run_in_transaction
 from src.qlsv_api.schemas import (
+    AttentionListOut,
     ExamScheduleOut,
     GraduationProgressOut,
     ScheduleOut,
@@ -15,7 +16,12 @@ from src.qlsv_api.schemas import (
     TranscriptOut,
     TuitionOut,
 )
-from src.qlsv_api.services import academic_service, schedule_service, student_admin_service
+from src.qlsv_api.services import (
+    academic_service,
+    attention_service,
+    schedule_service,
+    student_admin_service,
+)
 
 router = APIRouter(prefix="/internal/students", tags=["Sinh viên"], dependencies=[InternalAuth])
 
@@ -32,6 +38,15 @@ def list_students(
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> StudentListOut:
     return student_admin_service.list_students(db, q, trang_thai, page, page_size)
+
+
+@router.get(
+    "/attention",
+    response_model=AttentionListOut,
+    summary="(Phòng đào tạo) Sinh viên cần chú ý: cảnh báo học vụ, nợ học phí, chưa đủ ĐKTN",
+)
+def list_attention(db: DbSession, now: Now) -> AttentionListOut:
+    return attention_service.list_attention(db, now)
 
 
 @router.post(

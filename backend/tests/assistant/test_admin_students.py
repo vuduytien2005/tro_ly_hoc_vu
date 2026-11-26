@@ -209,3 +209,15 @@ def test_update_rejects_email_of_other_account(
     assert r.status_code == 422
     r = app_client.patch("/api/admin/students/SV99999", json={"lop": "X"}, headers=headers)
     assert r.status_code == 404
+
+
+def test_attention_list_for_admin_only(
+    app_client: TestClient, admin: NguoiDung, student: NguoiDung
+) -> None:
+    r = app_client.get("/api/admin/students/attention", headers=login(app_client, student.email))
+    assert r.status_code == 403
+    r = app_client.get("/api/admin/students/attention", headers=login(app_client, admin.email))
+    assert r.status_code == 200, r.text
+    rows = {s["ma_sv"]: s for s in r.json()["sinh_vien"]}
+    # 03_qlsv_seed.sql: SV22002 nợ học phí HK1 2026-2027, hạn 15/10/2026
+    assert any(x["loai"] == "no_hoc_phi" for x in rows["SV22002"]["ly_do"])

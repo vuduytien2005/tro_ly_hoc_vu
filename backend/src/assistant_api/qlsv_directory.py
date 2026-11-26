@@ -108,6 +108,10 @@ class QlsvDirectory:
         result: dict[str, Any] = await self._request("GET", "/internal/students", params=params)
         return result
 
+    async def list_attention(self) -> dict[str, Any]:
+        result: dict[str, Any] = await self._request("GET", "/internal/students/attention")
+        return result
+
     async def list_programs(self) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = await self._request("GET", "/internal/programs")
         return result

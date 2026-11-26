@@ -104,6 +104,27 @@ class StudentListOut(Schema):
     sinh_vien: list[StudentProfileOut]
 
 
+class AttentionReason(Schema):
+    loai: Literal["canh_bao_hoc_vu", "no_hoc_phi", "chua_du_dk_tot_nghiep"]
+    muc_do: Literal["khan", "chu_y"]
+    chi_tiet: str
+
+
+class AttentionStudentOut(Schema):
+    ma_sv: str
+    ho_ten: str
+    lop: str
+    khoa: str
+    ly_do: list[AttentionReason]
+
+
+class AttentionListOut(Schema):
+    """Sinh viên đang học cần chú ý, nhiều lý do khẩn trước (bổ sung 26/11/2026)."""
+
+    tong: int
+    sinh_vien: list[AttentionStudentOut]
+
+
 class ProgramOut(Schema):
     """Một cặp ngành – khóa có chương trình đào tạo (chỉ những cặp này mới gán được cho SV)."""
 

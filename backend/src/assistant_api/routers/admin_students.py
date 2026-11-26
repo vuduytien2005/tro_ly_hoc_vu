@@ -84,6 +84,15 @@ async def list_students(
     )
 
 
+@router.get(
+    "/attention",
+    summary="Sinh viên cần chú ý (từ QLSV): cảnh báo học vụ, nợ học phí, chưa đủ ĐK tốt nghiệp",
+)
+async def list_attention(directory: Directory) -> dict[str, Any]:
+    """Chỉ đọc, chỉ quản trị viên (router có require_admin). Không qua LLM / MCP."""
+    return await directory.list_attention()
+
+
 @router.get("/programs", response_model=list[ProgramOut], summary="Các cặp ngành – khóa")
 async def list_programs(directory: Directory) -> list[dict[str, Any]]:
     return await directory.list_programs()

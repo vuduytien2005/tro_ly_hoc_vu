@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Info, KeyRound, LoaderCircle, Pencil, UserPlus } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
+import AttentionPanel from '../../components/admin/AttentionPanel'
 import {
   Badge,
   Card,
@@ -68,6 +69,8 @@ export default function StudentsPage() {
         Trang này mô phỏng phần mềm của phòng đào tạo: dữ liệu ghi vào hệ thống QLSV (nguồn dữ
         liệu gốc), không phải vào trợ lý. Sinh viên mới chưa có điểm và lịch học.
       </p>
+
+      <AttentionPanel onPick={(maSv) => set('q')(maSv)} />
 
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
         <Field label="Tìm kiếm">
