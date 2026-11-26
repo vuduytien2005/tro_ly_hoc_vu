@@ -19,6 +19,8 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'reac
 import { api } from '../lib/api'
 import { conversationText, exportFileName, groupConversations } from '../lib/conversations'
 import { useAuth } from '../lib/auth'
+import { countBadge } from '../lib/admin'
+import { useRequestUpdates } from '../lib/requestUpdates'
 import ChangePasswordDialog from './ChangePasswordDialog'
 import ErrorBoundary from './ErrorBoundary'
 import { RemindersBell } from './RemindersBell'
@@ -71,6 +73,7 @@ export default function StudentLayout() {
 
 function Sidebar({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuth()
+  const requestBadge = countBadge(useRequestUpdates(user?.ma_sv).updated.size)
   const [changingPassword, setChangingPassword] = useState(false)
   const conversations = useQuery({
     queryKey: ['conversations'],
@@ -159,7 +162,16 @@ function Sidebar({ onClose }: { onClose: () => void }) {
             }`
           }
         >
-          <ClipboardList size={18} /> Thủ tục của em
+          <ClipboardList size={18} /> <span className="flex-1">Thủ tục của em</span>
+          {requestBadge && (
+            <span
+              className="min-w-6 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs font-semibold text-white"
+              aria-label={`${requestBadge} đơn vừa được xử lý`}
+              title="Đơn vừa được cán bộ xử lý"
+            >
+              {requestBadge}
+            </span>
+          )}
         </NavLink>
         <div className="flex items-center gap-3 rounded-[10px] px-3 py-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">

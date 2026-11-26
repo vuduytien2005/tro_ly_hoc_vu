@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { ApiError, api } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
 import { useEscape } from '../lib/useEscape'
+import { useAuth } from '../lib/auth'
+import { useRequestUpdates } from '../lib/requestUpdates'
 import { DEPARTMENTS } from '../lib/adminTypes'
 import type { RequestDetail, RequestListResponse } from '../lib/types'
 
@@ -51,6 +53,12 @@ function errorText(err: unknown): string {
 export default function ProceduresPage() {
   const [filter, setFilter] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
+  const { user } = useAuth()
+  const { updated, markRead } = useRequestUpdates(user?.ma_sv)
+  const open = (maDon: string) => {
+    setSelected(maDon)
+    markRead(maDon)
+  }
 
   const list = useQuery({
     queryKey: ['my-requests', filter],
@@ -68,6 +76,20 @@ export default function ProceduresPage() {
           <h1 className="text-xl font-semibold text-navy">Thủ tục của em</h1>
         </div>
 
+        {updated.size > 0 && (
+          <p className="mb-4 flex flex-wrap items-center gap-2 rounded-[10px] bg-primary/5 px-3 py-2 text-sm text-slate-700">
+            <span className="flex-1">
+              Có {updated.size} đơn vừa được cán bộ xử lý kể từ lần em xem trước.
+            </span>
+            <button
+              type="button"
+              onClick={() => markRead()}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Đánh dấu đã xem hết
+            </button>
+          </p>
+        )}
         <div className="mb-4 flex flex-wrap gap-2">
           {FILTERS.map((f) => (
             <button
@@ -93,8 +115,8 @@ export default function ProceduresPage() {
           {list.isError && <p className="p-6 text-sm text-err">{errorText(list.error)}</p>}
           {list.data && list.data.don.length === 0 && (
             <p className="p-6 text-sm text-slate-500">
-              Em chưa có yêu cầu nào{filter ? ' ở trạng thái này' : ''}. Có thể nhờ trợ lý tạo
-              giấy xác nhận, đơn bảo lưu hoặc đơn phúc khảo ngay trong khung chat.
+              Em chưa có yêu cầu nào{filter ? ' ở trạng thái này' : ''}. Có thể nhờ trợ lý tạo giấy
+              xác nhận, đơn bảo lưu hoặc đơn phúc khảo ngay trong khung chat.
             </p>
           )}
           {list.data && list.data.don.length > 0 && (
@@ -102,11 +124,18 @@ export default function ProceduresPage() {
               {list.data.don.map((d) => (
                 <li key={d.ma_don}>
                   <button
-                    onClick={() => setSelected(d.ma_don)}
+                    onClick={() => open(d.ma_don)}
                     className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-page"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-navy">{d.loai_don}</p>
+                      <p className="flex items-center gap-2 font-medium text-navy">
+                        {d.loai_don}
+                        {updated.has(d.ma_don) && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            Mới cập nhật
+                          </span>
+                        )}
+                      </p>
                       <p className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
                         <span>{d.ma_don}</span>
                         <span>{formatDate(d.ngay_tao)}</span>
