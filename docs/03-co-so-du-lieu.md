@@ -237,7 +237,7 @@ tiết học (đánh số 1–10, giờ từng tiết trường không công b�
 cho K24 (nằm trong khoảng 435.600–548.100 đ/tín chỉ mà báo chí đưa tin, chưa đối chiếu văn bản gốc).
 Thang điểm chữ vẫn dùng thang của hệ thống giả lập (A ≥ 8,5 … F < 4,0).
 
-Ngoài CSDL (hướng dẫn trợ lý có thể trả lời nếu thêm vào văn bản quy chế): khi nhập học, ngoài học phí
+Ngoài CSDL — văn bản cho RAG `data/van_ban_mau/huong_dan_hoc_phi_dang_ky_hunre.txt` (4 chương, 13 Điều; mục giả định ghi "mô phỏng"). Tải lên ở trang **Tài liệu**: tên "Hướng dẫn nộp học phí, đăng ký học phần và thi (mô phỏng theo HUNRE)", loại `huong_dan`, phiên bản `2026`, áp dụng từ khóa `24`. Điều 1 nói rõ văn bản thay Điều 1–2 (mức, hạn nộp học phí) của "Quy định học phí, bảo lưu và phúc khảo" cho ngành 7850101; khóa K21–K23 không thấy văn bản này (lọc theo khóa) nên TN1–TN4 không đổi (thực nghiệm dùng kho văn bản riêng `evaluation/corpus_demo`). Lưu ý: SV26001 (CNPM K26) cũng thấy văn bản — Điều 1 giới hạn theo ngành. Nội dung chính: khi nhập học, ngoài học phí
 còn thu hộ khám sức khỏe 120.000 đ, BHYT 854.000 đ, bảo hiểm thân thể 400.000 đ (tổng 10.400.000 đ);
 nộp trực tuyến bằng **mã QR** trên trang tra cứu & thanh toán phí nhập học (tra theo số CCCD), sau đó kiểm
 tra mục "khoản đã nộp". Đăng ký học trên cổng đăng ký: xem chương trình học → chọn lớp học phần (có nút
